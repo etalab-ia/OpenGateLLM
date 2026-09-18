@@ -86,7 +86,8 @@ class TestCreateChatCompletions:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["object"] == "chat.completion"
-        assert data["id"].startswith("request-")
+        assert len(data["id"]) == 32
+        assert data["id"] != "chatcmpl-1"
         assert data["model"] == DEFAULT_MODEL_NAME
         assert data["choices"][0]["message"]["role"] == "assistant"
         assert data["usage"]["total_tokens"] == data["usage"]["prompt_tokens"] + data["usage"]["completion_tokens"]
@@ -114,7 +115,7 @@ class TestCreateChatCompletions:
         request_ids = {event["id"] for event in data_events}
         assert len(request_ids) == 1
         request_id = request_ids.pop()
-        assert request_id.startswith("request-")
+        assert len(request_id) == 32
         assert request_id != "chatcmpl-1"
 
         usage_chunk = data_events[-1]

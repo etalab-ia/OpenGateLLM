@@ -6,10 +6,15 @@ class EnvironmentalImpacts(BaseModel):
     kgCO2eq: float = 0.0
 
 
+class PromptTokensDetails(BaseModel):
+    cached_tokens: int = 0
+
+
 class Usage(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    prompt_tokens_details: PromptTokensDetails = PromptTokensDetails()
     cost: float = 0.0
     impacts: EnvironmentalImpacts = EnvironmentalImpacts()
 

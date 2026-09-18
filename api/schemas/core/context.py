@@ -8,6 +8,7 @@ from api.schemas.me.info import UserInfo
 from api.schemas.usage import Usage
 
 if TYPE_CHECKING:
+    from langfuse import Langfuse
     from redis.asyncio import ConnectionPool
     from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -29,6 +30,7 @@ class GlobalContext(BaseModel):
     postgres_session_factory: async_sessionmaker | None = None
     autocommit_postgres_session_factory: async_sessionmaker | None = None
     postgres_engine: AsyncEngine | None = None
+    langfuse: Langfuse | None = None
     langfuse_client: LangfuseManager | None = None
 
 

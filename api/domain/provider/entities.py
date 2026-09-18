@@ -124,7 +124,7 @@ class ProviderCapabilities(BaseModel):
 
 
 class ProviderRequest(BaseModel):
-    id: Annotated[str, Field(default_factory=lambda: f"request-{uuid4().hex}")]
+    id: Annotated[str, Field(default_factory=lambda: uuid4().hex, description="The request identifier.")]
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 

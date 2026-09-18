@@ -29,6 +29,7 @@ def _original_request(**overrides) -> ProviderRequest:
         temperature=0.0,
     )
     payload = {
+        "id": "req-1",
         "endpoint": EndpointRoute.AUDIO_TRANSCRIPTIONS,
         "payload": form,
     }
