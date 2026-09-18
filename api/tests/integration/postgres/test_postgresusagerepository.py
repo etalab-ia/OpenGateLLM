@@ -1,10 +1,12 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from api.domain import EntitiesPage
-from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket
+from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket, UsageRecord
 from api.infrastructure.postgres import PostgresUsageRepository
+from api.sql.models import Usage as UsageTable
 from api.tests.integration.factories.sql import KeySQLFactory, UsageSQLFactory, UserSQLFactory
 
 CHAT_COMPLETIONS = "/v1/chat/completions"
@@ -217,3 +219,68 @@ class TestGetUsageBucketsPage:
         assert [bucket.start_time for bucket in first_page.data] == [THIRD_DAY, NEXT_DAY]
         assert second_page.total == 3
         assert [bucket.start_time for bucket in second_page.data] == [DAY]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestCreateUsageRecord:
+    async def test_creates_usage_record(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        key = KeySQLFactory(user=user)
+        await db_session.flush()
+        usage_record = UsageRecord(
+            created=DAY.replace(hour=10),
+            endpoint=EMBEDDINGS,
+            method="POST",
+            user_id=user.id,
+            user_email=user.email,
+            key_id=key.id,
+            key_name=key.name,
+            router_name="my-router",
+            provider_model_name="my-provider-model",
+            status=200,
+            prompt_tokens=10,
+            completion_tokens=20,
+            cost=0.3,
+            kwh=0.01,
+            kgco2eq=0.02,
+            latency=100,
+            ttft=50,
+        )
+
+        # Act
+        result = await repository.create_usage_record(usage_record=usage_record)
+
+        # Assert
+        assert result.id is not None
+        row = (await db_session.execute(select(UsageTable).where(UsageTable.id == result.id))).scalar_one()
+        assert row.created == DAY.replace(hour=10)
+        assert row.endpoint == EMBEDDINGS
+        assert row.user_id == user.id
+        assert row.user_email == user.email
+        assert row.token_id == key.id
+        assert row.token_name == key.name
+        assert row.status == 200
+        assert row.prompt_tokens == 10
+        assert row.completion_tokens == 20
+        assert row.total_tokens == 30
+        assert row.cost == 0.3
+        assert row.kwh == 0.01
+        assert row.kgco2eq == 0.02
+        assert row.latency == 100
+        assert row.ttft == 50
+
+    async def test_creates_usage_record_without_tokens(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        await db_session.flush()
+        usage_record = UsageRecord(created=DAY.replace(hour=10), endpoint=EMBEDDINGS, user_id=user.id, status=429)
+
+        # Act
+        result = await repository.create_usage_record(usage_record=usage_record)
+
+        # Assert
+        row = (await db_session.execute(select(UsageTable).where(UsageTable.id == result.id))).scalar_one()
+        assert row.total_tokens is None
+        assert row.prompt_tokens is None
+        assert row.status == 429

@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.usage import UsageRepository
-from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket, UsageBucketPage
+from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket, UsageBucketPage, UsageRecord
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.sql.models import Usage as UsageTable
 
@@ -65,6 +65,36 @@ class PostgresUsageRepository(UsageRepository):
         rows, total = await fetch_page_with_total(self.postgres_session, buckets_query, count_query)
 
         return UsageBucketPage(total=total, data=[self._row_to_usage_bucket(row) for row in rows])
+
+    async def create_usage_record(self, usage_record: UsageRecord) -> UsageRecord:
+        result = await self.postgres_session.execute(
+            insert(UsageTable)
+            .values(
+                created=usage_record.created,
+                endpoint=usage_record.endpoint,
+                method=usage_record.method,
+                user_id=usage_record.user_id,
+                user_email=usage_record.user_email,
+                token_id=usage_record.key_id,
+                token_name=usage_record.key_name,
+                router_id=usage_record.router_id,
+                router_name=usage_record.router_name,
+                provider_id=usage_record.provider_id,
+                provider_model_name=usage_record.provider_model_name,
+                status=usage_record.status,
+                prompt_tokens=usage_record.prompt_tokens,
+                completion_tokens=usage_record.completion_tokens,
+                total_tokens=usage_record.total_tokens,
+                cost=usage_record.cost,
+                kwh=usage_record.kwh,
+                kgco2eq=usage_record.kgco2eq,
+                latency=usage_record.latency,
+                ttft=usage_record.ttft,
+            )
+            .returning(UsageTable.id)
+        )
+
+        return usage_record.model_copy(update={"id": result.scalar_one()})
 
     @staticmethod
     def _row_to_usage_bucket(row) -> UsageBucket:
