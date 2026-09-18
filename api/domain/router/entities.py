@@ -18,7 +18,6 @@ RouterPage = EntitiesPage["Router"]
 
 class RouterType(StrEnum):
     AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
-    IMAGE_TEXT_TO_TEXT = "image-text-to-text"
     IMAGE_TO_TEXT = "image-to-text"
     TEXT_CLASSIFICATION = "text-classification"
     TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"

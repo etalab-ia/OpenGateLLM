@@ -42,12 +42,6 @@ COMPATIBLE_PROVIDER_TYPES: dict[RouterType, list[str]] = {
         ProviderType.OPENAI.value,
         ProviderType.VLLM.value,
     ],
-    RouterType.IMAGE_TEXT_TO_TEXT: [  # chat completions
-        ProviderType.ALBERT.value,
-        ProviderType.MISTRAL.value,
-        ProviderType.OPENAI.value,
-        ProviderType.VLLM.value,
-    ],
     RouterType.TEXT_EMBEDDINGS_INFERENCE: [  # embeddings
         ProviderType.ALBERT.value,
         ProviderType.OPENAI.value,

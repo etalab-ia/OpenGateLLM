@@ -12,6 +12,9 @@ This file was introduced during the `0.7.0` cycle and only covers releases from 
 
 ### Removed
 
+- **Breaking — the `image-text-to-text` router type is removed.** Multimodal chat routers now use `text-generation` (same
+  `/v1/chat/completions` surface). Existing `image-text-to-text` rows are rewritten to `text-generation` by the Alembic
+  revision. Integrators creating routers or reading `type` from `/v1/models` must send and expect `text-generation`.
 - **Breaking — the search tool is gone from `POST /v1/chat/completions`.** The OpenGateLLM `search` tool extension
   (`tools: [{"type": "search", ...}]`) and the `search_results` field it added to responses and to the final streamed
   chunk are removed. Integrators now compose OpenGateRAG (search) then OpenGateLLM (chat), or put a reverse proxy in

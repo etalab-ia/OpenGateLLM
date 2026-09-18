@@ -66,7 +66,7 @@ class ChatState(AuthState):
                 response.raise_for_status()
                 data = response.json()
                 models = data.get("data", [])
-                models = sorted([model.get("id") for model in models if model.get("type") in ["text-generation", "image-text-to-text"]])
+                models = sorted([model.get("id") for model in models if model.get("type") == "text-generation"])
 
                 if configuration.settings.playground_default_model in models:
                     models.remove(configuration.settings.playground_default_model)

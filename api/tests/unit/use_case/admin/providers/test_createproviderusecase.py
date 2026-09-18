@@ -116,10 +116,6 @@ COMPATIBLE_PROVIDER_ROUTER_PAIRS: list[tuple[RouterType, ProviderType]] = [
     (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.MISTRAL),
     (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.OPENAI),
     (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.VLLM),
-    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.ALBERT),
-    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.MISTRAL),
-    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.OPENAI),
-    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.VLLM),
     (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.ALBERT),
     (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.OPENAI),
     (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.MISTRAL),
@@ -137,7 +133,6 @@ COMPATIBLE_PROVIDER_ROUTER_PAIRS: list[tuple[RouterType, ProviderType]] = [
 
 INCOMPATIBLE_PROVIDER_ROUTER_PAIRS: list[tuple[RouterType, ProviderType]] = [
     (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.TEI),
-    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.TEI),
     (RouterType.TEXT_GENERATION, ProviderType.TEI),
     (RouterType.TEXT_CLASSIFICATION, ProviderType.OPENAI),
     (RouterType.TEXT_CLASSIFICATION, ProviderType.MISTRAL),
