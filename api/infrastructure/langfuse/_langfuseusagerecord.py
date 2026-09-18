@@ -6,19 +6,23 @@ from langfuse import Langfuse, propagate_attributes
 
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
+from api.infrastructure.fastapi.dependencies import request_context
 
 logger = logging.getLogger(__name__)
 
 
 class LangfuseUsageRecorder(UsageRecorder):
-    def __init__(self, client: Langfuse):
+    def __init__(self, client: Langfuse) -> None:
         self.client = client
         self._observation = None
 
     def start_record(self, name: str, model: str, user_id: int) -> str:
         try:
+            kwargs = {"as_type": "generation", "name": name, "model": model}
+            if metadata := self._identity_metadata():
+                kwargs["metadata"] = metadata
             with propagate_attributes(user_id=str(user_id)):
-                self._observation = self.client.start_observation(as_type="generation", name=name, model=model)
+                self._observation = self.client.start_observation(**kwargs)
             return self._observation.trace_id
         except Exception:
             logger.error("Failed to start Langfuse observation", exc_info=True)
@@ -37,7 +41,7 @@ class LangfuseUsageRecorder(UsageRecorder):
                     "input_cached_tokens": usage.prompt_tokens_details.cached_tokens,
                 },
                 "cost_details": {"total": usage.cost},
-                "metadata": {"provider_id": provider_id},
+                "metadata": {**self._identity_metadata(), "provider_id": provider_id},
             }
             if first_token_at is not None:
                 update["completion_start_time"] = first_token_at
@@ -66,3 +70,16 @@ class LangfuseUsageRecorder(UsageRecorder):
             logger.debug("Failed to end Langfuse observation", exc_info=True)
         finally:
             self._observation = None
+
+    @staticmethod
+    def _identity_metadata() -> dict:
+        context = request_context.get()
+        metadata = {
+            "router_id": context.router_id,
+            "router_name": context.router_name,
+            "provider_model_name": context.provider_model_name,
+            "user_email": context.user.email if context.user else None,
+            "key_id": context.key.id if context.key else None,
+            "key_name": context.key.name if context.key else None,
+        }
+        return {key: value for key, value in metadata.items() if value is not None}

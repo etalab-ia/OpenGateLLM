@@ -4,8 +4,19 @@ from unittest.mock import MagicMock, call, create_autospec, patch
 from langfuse import Langfuse
 import pytest
 
+from api.domain.key.entities import Key
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
+from api.domain.user.views import AuthenticatedUserView
+from api.infrastructure.fastapi import RequestContext
+from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.langfuse import LangfuseUsageRecorder
+
+
+@pytest.fixture(autouse=True)
+def reset_request_context():
+    token = request_context.set(RequestContext())
+    yield
+    request_context.reset(token)
 
 
 @pytest.fixture
@@ -24,6 +35,31 @@ def mock_observation():
 def recorder(mock_client, mock_observation):
     mock_client.start_observation.return_value = mock_observation
     return LangfuseUsageRecorder(client=mock_client)
+
+
+def _set_request_context() -> None:
+    now = datetime.now(tz=UTC)
+    request_context.set(
+        RequestContext(
+            key=Key(id=7, name="my-key", user_id=42, value="sk-x", expires=None, created=now),
+            user=AuthenticatedUserView(
+                id=42, email="alice@example.com", name="Alice", organization_id=1, budget=1.0, permissions=[], limits=[], expires=None
+            ),
+            router_id=3,
+            router_name="chat-router",
+            provider_model_name="vllm-model",
+        )
+    )
+
+
+IDENTITY_METADATA = {
+    "router_id": 3,
+    "router_name": "chat-router",
+    "provider_model_name": "vllm-model",
+    "user_email": "alice@example.com",
+    "key_id": 7,
+    "key_name": "my-key",
+}
 
 
 class TestLangfuseUsageRecorder:
@@ -147,3 +183,33 @@ class TestLangfuseUsageRecorder:
 
         # Assert
         mock_propagate.assert_called_once_with(user_id="42")
+
+    def test_should_attach_identity_metadata_when_starting(self, recorder, mock_client):
+        # Arrange
+        _set_request_context()
+
+        # Act
+        recorder.start_record(name="chat-completions", model="chat-router", user_id=42)
+
+        # Assert
+        mock_client.start_observation.assert_called_once_with(
+            as_type="generation",
+            name="chat-completions",
+            model="chat-router",
+            metadata=IDENTITY_METADATA,
+        )
+
+    def test_should_keep_identity_metadata_when_updating_usage(self, recorder, mock_observation):
+        # Arrange
+        _set_request_context()
+        recorder.start_record(name="chat-completions", model="chat-router", user_id=42)
+
+        # Act
+        recorder.update_record(usage=Usage(), provider_id=7)
+
+        # Assert
+        mock_observation.update.assert_called_once_with(
+            usage_details={"input": 0, "output": 0, "input_cached_tokens": 0},
+            cost_details={"total": 0.0},
+            metadata={**IDENTITY_METADATA, "provider_id": 7},
+        )
