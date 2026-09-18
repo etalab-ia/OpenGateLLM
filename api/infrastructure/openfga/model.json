@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "user"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "can_create_organization": {},
+          "superadmin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "admin": {
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "computedUserset": {
+                  "relation": "superadmin"
+                }
+              }
+            ]
+          }
+        },
+        "can_create_organization": {
+          "computedUserset": {
+            "relation": "admin"
+          }
+        },
+        "superadmin": {
+          "this": {}
+        }
+      },
+      "type": "platform"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "can_add_member": {},
+          "can_delete": {},
+          "can_read": {},
+          "can_remove_member": {},
+          "can_update": {},
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "platform": {
+            "directly_related_user_types": [
+              {
+                "type": "platform"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "can_add_member": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "admin"
+            },
+            "tupleset": {
+              "relation": "platform"
+            }
+          }
+        },
+        "can_delete": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "admin"
+            },
+            "tupleset": {
+              "relation": "platform"
+            }
+          }
+        },
+        "can_read": {
+          "union": {
+            "child": [
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              },
+              {
+                "tupleToUserset": {
+                  "computedUserset": {
+                    "relation": "admin"
+                  },
+                  "tupleset": {
+                    "relation": "platform"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "can_remove_member": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "admin"
+            },
+            "tupleset": {
+              "relation": "platform"
+            }
+          }
+        },
+        "can_update": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "admin"
+            },
+            "tupleset": {
+              "relation": "platform"
+            }
+          }
+        },
+        "member": {
+          "this": {}
+        },
+        "platform": {
+          "this": {}
+        }
+      },
+      "type": "organization"
+    }
+  ]
+}
