@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import MagicMock, call, create_autospec, patch
 
 from langfuse import Langfuse
 import pytest
@@ -54,7 +54,7 @@ class TestLangfuseUsageRecorder:
             total_tokens=8,
             prompt_tokens_details=PromptTokensDetails(cached_tokens=2),
             cost=0.01,
-            impacts=EnvironmentalImpacts(kWh=1.2, kgCO2eq=0.4),
+            impacts=EnvironmentalImpacts(kWh=1.23456789, kgCO2eq=0.123456789),
         )
 
         # Act
@@ -64,7 +64,13 @@ class TestLangfuseUsageRecorder:
         mock_observation.update.assert_called_once_with(
             usage_details={"input": 3, "output": 5, "input_cached_tokens": 2},
             cost_details={"total": 0.01},
-            metadata={"kWh": 1.2, "kgCO2eq": 0.4, "provider_id": 7},
+            metadata={"provider_id": 7},
+        )
+        mock_observation.score.assert_has_calls(
+            [
+                call(name="kWh", value=1.234568, data_type="NUMERIC"),
+                call(name="kgCO2eq", value=0.123457, data_type="NUMERIC"),
+            ]
         )
 
     def test_should_set_completion_start_time_when_first_token_at_is_given(self, recorder, mock_observation):
@@ -79,7 +85,7 @@ class TestLangfuseUsageRecorder:
         mock_observation.update.assert_called_once_with(
             usage_details={"input": 0, "output": 0, "input_cached_tokens": 0},
             cost_details={"total": 0.0},
-            metadata={"kWh": 0.0, "kgCO2eq": 0.0, "provider_id": 7},
+            metadata={"provider_id": 7},
             completion_start_time=first_token_at,
         )
 

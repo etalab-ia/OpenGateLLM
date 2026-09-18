@@ -1,9 +1,16 @@
+from pydantic import field_validator
+
 from api.domain import BaseModel, EntitiesPage, UtcDatetime
 
 
 class EnvironmentalImpacts(BaseModel):
     kWh: float = 0.0
     kgCO2eq: float = 0.0
+
+    @field_validator("kWh", "kgCO2eq")
+    @classmethod
+    def round_to_six_decimals(cls, value: float) -> float:
+        return round(value, ndigits=6)
 
 
 class PromptTokensDetails(BaseModel):

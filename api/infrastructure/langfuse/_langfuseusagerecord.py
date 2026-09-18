@@ -37,11 +37,13 @@ class LangfuseUsageRecorder(UsageRecorder):
                     "input_cached_tokens": usage.prompt_tokens_details.cached_tokens,
                 },
                 "cost_details": {"total": usage.cost},
-                "metadata": {"kWh": usage.impacts.kWh, "kgCO2eq": usage.impacts.kgCO2eq, "provider_id": provider_id},
+                "metadata": {"provider_id": provider_id},
             }
             if first_token_at is not None:
                 update["completion_start_time"] = first_token_at
             self._observation.update(**update)
+            self._observation.score(name="kWh", value=usage.impacts.kWh, data_type="NUMERIC")
+            self._observation.score(name="kgCO2eq", value=usage.impacts.kgCO2eq, data_type="NUMERIC")
         except Exception:
             logger.debug("Failed to update Langfuse observation", exc_info=True)
 
