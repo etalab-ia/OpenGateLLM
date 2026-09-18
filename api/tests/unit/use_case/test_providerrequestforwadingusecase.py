@@ -634,6 +634,7 @@ class TestExecute:
             model=router.name,
             user_id=command.authenticated_user.id,
         )
+        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError")
         use_case.usage_recorder.end_record.assert_called_once()
 
     @pytest.mark.asyncio
@@ -650,4 +651,5 @@ class TestExecute:
         assert result.data is sample_data
         assert result.headers == rate_limit_state.build_limit_headers
         use_case.usage_recorder.start_record.assert_called_once()
+        use_case.usage_recorder.fail_record.assert_not_called()
         use_case.usage_recorder.end_record.assert_called_once()

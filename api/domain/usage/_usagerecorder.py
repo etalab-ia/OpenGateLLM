@@ -16,6 +16,10 @@ class UsageRecorder(ABC):
         pass
 
     @abstractmethod
+    def fail_record(self, message: str) -> None:
+        pass
+
+    @abstractmethod
     def end_record(self) -> None:
         pass
 
@@ -25,6 +29,9 @@ class DummyUsageRecorder(UsageRecorder):
         return uuid4().hex
 
     def update_record(self, usage: Usage, provider_id: int, first_token_at: datetime | None = None) -> None:
+        return
+
+    def fail_record(self, message: str) -> None:
         return
 
     def end_record(self) -> None:

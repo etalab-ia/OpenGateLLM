@@ -5,6 +5,7 @@ from json import dumps
 import time
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
+from api.domain.model.errors import StatusCodeModelError
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
@@ -67,6 +68,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case AsyncGenerator() as chunks:
                     pass
                 case error:
+                    self.usage_recorder.fail_record(message=type(error).__name__)
                     self.usage_recorder.end_record()
                     return error
 
@@ -87,6 +89,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case ProviderResponse() as provider_response:
                     pass
                 case error:
+                    self.usage_recorder.fail_record(message=type(error).__name__)
                     return error
 
             return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
@@ -109,6 +112,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             async with self._inflight(provider=provider):
                 async for chunk in chunks:
                     if chunk.status_code // 100 != 2:
+                        self.usage_recorder.fail_record(message=StatusCodeModelError.__name__)
                         yield chunk
                         return
 

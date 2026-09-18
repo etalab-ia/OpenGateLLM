@@ -100,6 +100,24 @@ class TestLangfuseUsageRecorder:
         # Assert
         # no observation to update — the call must not raise
 
+    def test_should_mark_observation_as_error_with_status_message(self, recorder, mock_observation):
+        # Arrange
+        recorder.start_record(name="chat-completions", model="chat-router", user_id=42)
+
+        # Act
+        recorder.fail_record(message="TooBusyModelError")
+
+        # Assert
+        mock_observation.update.assert_called_once_with(level="ERROR", status_message="TooBusyModelError")
+
+    def test_should_not_fail_when_start_failed(self, recorder, mock_client):
+        # Arrange
+        mock_client.start_observation.side_effect = RuntimeError("langfuse down")
+        recorder.start_record(name="chat-completions", model="chat-router", user_id=42)
+
+        # Act / Assert
+        recorder.fail_record(message="TooBusyModelError")
+
     def test_should_end_observation(self, recorder, mock_observation):
         # Arrange
         recorder.start_record(name="chat-completions", model="chat-router", user_id=42)

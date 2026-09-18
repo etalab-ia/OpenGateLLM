@@ -47,6 +47,15 @@ class LangfuseUsageRecorder(UsageRecorder):
         except Exception:
             logger.debug("Failed to update Langfuse observation", exc_info=True)
 
+    def fail_record(self, message: str) -> None:
+        if self._observation is None:
+            return
+
+        try:
+            self._observation.update(level="ERROR", status_message=message)
+        except Exception:
+            logger.debug("Failed to mark Langfuse observation as error", exc_info=True)
+
     def end_record(self) -> None:
         if self._observation is None:
             return

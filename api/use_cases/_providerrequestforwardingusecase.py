@@ -122,6 +122,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 case ProviderResponse() as provider_response:
                     pass
                 case error:
+                    self.usage_recorder.fail_record(message=type(error).__name__)
                     return error
 
             return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
