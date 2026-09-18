@@ -1,5 +1,4 @@
 from http import HTTPMethod
-from unittest.mock import Mock
 
 import pytest
 
@@ -297,11 +296,10 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_to_provider_response_extracts_request_id(self, adapter, response_data):
+    def test_to_provider_response_uses_request_id(self, adapter, response_data):
         # Arrange
-        adapter._extract_request_id = Mock(return_value="req-123")
         original_response = HttpProviderResponse(text=response_data["text"])
-        original_request = ProviderRequestFactory(metrics=True)
+        original_request = ProviderRequestFactory(metrics=True, id="req-123")
 
         # Act
         result = adapter.to_provider_response(http_response=original_response, request=original_request)
@@ -311,7 +309,6 @@ class TestMetricsAdapter:
         assert isinstance(result.data, ProviderMetrics)
         assert result.id == "req-123"
         assert getattr(result.data, "id", "not found") == "not found"
-        adapter._extract_request_id.assert_called_once_with(http_response=original_response)
 
     @pytest.mark.parametrize(
         argnames=("adapter"),

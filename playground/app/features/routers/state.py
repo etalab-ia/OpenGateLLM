@@ -18,7 +18,6 @@ class RoutersState(EntityState):
         return sorted(
             [
                 "image-to-text",
-                "image-text-to-text",
                 "automatic-speech-recognition",
                 "text-embeddings-inference",
                 "text-generation",

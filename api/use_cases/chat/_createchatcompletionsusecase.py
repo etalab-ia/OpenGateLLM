@@ -2,10 +2,9 @@ from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from json import dumps
 import time
-from uuid import uuid4
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
-from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse, ProviderStreamChunk
+from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 from api.utils.variables import EndpointRoute
@@ -25,7 +24,7 @@ class CreateChatCompletionsUseCaseSuccess:
 
 @dataclass
 class CreateChatCompletionsStreamUseCaseSuccess:
-    chunks: AsyncGenerator[ProviderStreamChunk]
+    chunks: AsyncGenerator[ProviderChunkResponse]
     headers: dict[str, str]
 
 
@@ -68,11 +67,12 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     return error
 
             return CreateChatCompletionsStreamUseCaseSuccess(
-                chunks=self._forward_stream(
+                chunks=self._format_stream(
                     router=router,
                     provider=provider,
                     chunks=chunks,
                     prompt_tokens=prompt_tokens,
+                    request_id=request.id,
                 ),
                 headers=rate_limit_state.build_limit_headers,
             )
@@ -86,17 +86,16 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
 
         return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
 
-    async def _forward_stream(
+    async def _format_stream(
         self,
         router: Router,
         provider: Provider,
-        chunks: AsyncGenerator[ProviderStreamChunk],
+        chunks: AsyncGenerator[ProviderChunkResponse],
         prompt_tokens: int,
-    ) -> AsyncGenerator[ProviderStreamChunk]:
+        request_id: str,
+    ) -> AsyncGenerator[ProviderChunkResponse]:
         start_time = time.perf_counter()
         buffer: list[dict] = []
-        latency: int | None = None
-        usage_is_sent = False
 
         async with self._inflight(provider=provider):
             async for chunk in chunks:
@@ -107,42 +106,30 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 parsed_chunk = ChatCompletionChunk.parse_chunk(chunk=chunk.content)
 
                 if parsed_chunk == "[DONE]":
-                    latency = self._elapsed_ms(start_time=start_time)
-                    yield ProviderStreamChunk(
-                        content=self._build_usage_event(
-                            router=router,
-                            provider=provider,
-                            buffer=buffer,
-                            prompt_tokens=prompt_tokens,
-                            latency=latency,
-                        ),
-                        status_code=chunk.status_code,
-                    )
-                    usage_is_sent = True
-                    yield ProviderStreamChunk(content=f"{chunk.content}\n\n", status_code=chunk.status_code)
                     break
 
                 if parsed_chunk is None:
-                    yield ProviderStreamChunk(content=f"{chunk.content}\n\n", status_code=chunk.status_code)
+                    yield ProviderChunkResponse(content=f"{chunk.content}\n\n", status_code=chunk.status_code)
                     continue
 
                 buffer.append(parsed_chunk)
 
-                relayed = {**parsed_chunk, "model": router.name}
-                yield ProviderStreamChunk(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
+                relayed = {**parsed_chunk, "model": router.name, "id": request_id}
+                yield ProviderChunkResponse(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
 
-            if not usage_is_sent:
-                latency = self._elapsed_ms(start_time=start_time)
-                yield ProviderStreamChunk(
-                    content=self._build_usage_event(
-                        router=router,
-                        provider=provider,
-                        buffer=buffer,
-                        prompt_tokens=prompt_tokens,
-                        latency=latency,
-                    ),
-                    status_code=200,
-                )
+            latency = self._elapsed(start_time=start_time)
+            yield ProviderChunkResponse(
+                content=self._build_usage_event(
+                    router=router,
+                    provider=provider,
+                    buffer=buffer,
+                    prompt_tokens=prompt_tokens,
+                    latency=latency,
+                    request_id=request_id,
+                ),
+                status_code=200,
+            )
+            yield ProviderChunkResponse(content="data: [DONE]\n\n", status_code=200)
 
     def _build_usage_event(
         self,
@@ -150,7 +137,8 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         buffer: list[dict],
         prompt_tokens: int,
-        latency: int,
+        latency: float,
+        request_id: str,
     ) -> str:
         completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
         completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
@@ -161,9 +149,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             completion_tokens=completion_tokens,
             latency=latency,
         )
-        request_id = buffer[0].get("id") if buffer else None
-        request_id = request_id or f"request-{uuid4().hex}"
-
         self.usage_recorder.record_usage(request_id=request_id, usage=usage)
 
         usage_chunk = ChatCompletionChunk.build_usage_chunk(

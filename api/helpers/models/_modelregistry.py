@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class ModelRegistry:
     ENDPOINT_MODEL_TYPE_TABLE = {
         EndpointRoute.AUDIO_TRANSCRIPTIONS: [ModelType.AUTOMATIC_SPEECH_RECOGNITION],
-        EndpointRoute.CHAT_COMPLETIONS: [ModelType.TEXT_GENERATION, ModelType.IMAGE_TEXT_TO_TEXT],
+        EndpointRoute.CHAT_COMPLETIONS: [ModelType.TEXT_GENERATION],
         EndpointRoute.EMBEDDINGS: [ModelType.TEXT_EMBEDDINGS_INFERENCE],
         EndpointRoute.OCR: [ModelType.IMAGE_TO_TEXT],
         EndpointRoute.RERANK: [ModelType.TEXT_CLASSIFICATION],

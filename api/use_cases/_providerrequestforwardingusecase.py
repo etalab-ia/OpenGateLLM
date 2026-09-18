@@ -201,7 +201,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         async with self._inflight(provider=provider):
             start_time = time.perf_counter()
             result = await self.provider_client.forward(provider=provider, request=request)
-            latency = self._elapsed_ms(start_time=start_time)
+            latency = self._elapsed(start_time=start_time)
 
         match result:
             case ProviderResponse() as provider_response:
@@ -241,10 +241,10 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
 
     @staticmethod
-    def _elapsed_ms(start_time: float) -> int:
-        return int((time.perf_counter() - start_time) * 1000)
+    def _elapsed(start_time: float) -> float:
+        return time.perf_counter() - start_time
 
-    def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: int) -> Usage:
+    def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: float) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(
             model_active_params=provider.model_active_params,
             model_total_params=provider.model_total_params,

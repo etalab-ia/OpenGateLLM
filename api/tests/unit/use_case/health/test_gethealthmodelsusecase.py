@@ -20,11 +20,6 @@ def provider_client():
 
 
 @pytest.fixture
-def provider_metrics_logger():
-    return AsyncMock()
-
-
-@pytest.fixture
 def router_repository():
     return AsyncMock()
 
@@ -54,13 +49,8 @@ def user_without_access():
 
 
 @pytest.fixture
-def use_case(provider_client, provider_metrics_logger, router_repository, provider_repository):
-    return GetHealthModelsUseCase(
-        provider_client=provider_client,
-        provider_metrics_logger=provider_metrics_logger,
-        router_repository=router_repository,
-        provider_repository=provider_repository,
-    )
+def use_case(provider_client, router_repository, provider_repository):
+    return GetHealthModelsUseCase(provider_client=provider_client, router_repository=router_repository, provider_repository=provider_repository)
 
 
 @pytest.fixture

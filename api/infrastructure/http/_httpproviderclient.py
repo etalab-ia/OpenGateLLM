@@ -8,7 +8,7 @@ from httpx import BasicAuth
 
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderClientResponse, ProviderClientStream
-from api.domain.provider.entities import Provider, ProviderRequest, ProviderStreamChunk
+from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderRequest
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, UnsupportedProviderEndpointError
 from api.infrastructure.http.adapters import HttpProviderAdapter
 
@@ -112,7 +112,7 @@ class HttpProviderClient(ProviderClient):
 
         return self._stream(provider=provider, http_request=http_request)
 
-    async def _stream(self, provider: Provider, http_request: HttpProviderRequest) -> AsyncGenerator[ProviderStreamChunk]:
+    async def _stream(self, provider: Provider, http_request: HttpProviderRequest) -> AsyncGenerator[ProviderChunkResponse]:
         auth = BasicAuth(username=http_request.auth.username, password=http_request.auth.password) if http_request.auth else None
 
         async with httpx.AsyncClient(timeout=provider.timeout) as async_client:
@@ -126,12 +126,12 @@ class HttpProviderClient(ProviderClient):
                 ) as response:
                     if response.status_code // 100 != 2:
                         await response.aread()
-                        yield ProviderStreamChunk(content=response.text, status_code=response.status_code)
+                        yield ProviderChunkResponse(content=response.text, status_code=response.status_code)
                         return
 
                     async for line in response.aiter_lines():
                         if line.strip():
-                            yield ProviderStreamChunk(content=line, status_code=response.status_code)
+                            yield ProviderChunkResponse(content=line, status_code=response.status_code)
             except (
                 httpx.TimeoutException,
                 httpx.ReadTimeout,
@@ -140,11 +140,11 @@ class HttpProviderClient(ProviderClient):
                 httpx.PoolTimeout,
                 httpx.RemoteProtocolError,
             ) as e:
-                yield ProviderStreamChunk(
+                yield ProviderChunkResponse(
                     content=dumps({"detail": f"Model is too busy ({type(e).__name__}), please try again later."}), status_code=503
                 )
             except httpx.ConnectError:
-                yield ProviderStreamChunk(content=dumps({"detail": "Model is temporarily unavailable, please try again later."}), status_code=503)
+                yield ProviderChunkResponse(content=dumps({"detail": "Model is temporarily unavailable, please try again later."}), status_code=503)
             except Exception as e:
                 logger.exception(msg=f"Failed to forward stream request to {provider.model_name}.")
-                yield ProviderStreamChunk(content=dumps({"detail": type(e).__name__}), status_code=500)
+                yield ProviderChunkResponse(content=dumps({"detail": type(e).__name__}), status_code=500)

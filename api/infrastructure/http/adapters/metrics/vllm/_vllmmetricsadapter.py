@@ -25,6 +25,4 @@ class VllmMetricsAdapter(MetricsAdapter):
                 elif sample.name == "vllm:num_requests_waiting" and sample.labels.get("model_name") == self.provider.model_name:
                     waiting_requests += sample.value
 
-        request_id = self._extract_request_id(http_response=http_response)
-
-        return ProviderResponse(id=request_id, data=ProviderMetrics(waiting_requests=waiting_requests, running_requests=running_requests))
+        return ProviderResponse(id=request.id, data=ProviderMetrics(waiting_requests=waiting_requests, running_requests=running_requests))

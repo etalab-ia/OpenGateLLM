@@ -9,7 +9,7 @@ import pytest
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderStreamChunk
+from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.usage import UsageRecorder
@@ -71,10 +71,10 @@ def _request_context() -> RequestContext:
     )
 
 
-def _provider_stream() -> AsyncGenerator[ProviderStreamChunk]:
-    async def stream() -> AsyncGenerator[ProviderStreamChunk]:
+def _provider_stream() -> AsyncGenerator[ProviderChunkResponse]:
+    async def stream() -> AsyncGenerator[ProviderChunkResponse]:
         while True:  # the provider keeps talking as long as someone reads
-            yield ProviderStreamChunk(content=DATA_LINE, status_code=200)
+            yield ProviderChunkResponse(content=DATA_LINE, status_code=200)
 
     return stream()
 
@@ -82,7 +82,15 @@ def _provider_stream() -> AsyncGenerator[ProviderStreamChunk]:
 def _assemble(use_case, router, provider, outcome: list[str]) -> StreamingResponseWithStatusCode:
     """Stack the layers exactly as `@hooks` and the chat endpoint do — `_as_stream_chunks` is the endpoint's own adapter."""
     inner = StreamingResponseWithStatusCode(
-        content=_as_stream_chunks(use_case._forward_stream(router=router, provider=provider, chunks=_provider_stream(), prompt_tokens=1)),
+        content=_as_stream_chunks(
+            use_case._format_stream(
+                router=router,
+                provider=provider,
+                chunks=_provider_stream(),
+                prompt_tokens=1,
+                request_id="req-123",
+            )
+        ),
         media_type="text/event-stream",
     )
 

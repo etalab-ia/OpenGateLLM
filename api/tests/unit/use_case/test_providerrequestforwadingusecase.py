@@ -457,7 +457,7 @@ class TestSendRequest:
         self, use_case, router, provider, sample_data, payload, model_tokenizer, model_environmental_impacts_computer
     ):
         # Arrange
-        with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 0.12]):
+        with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
             with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
                 # Act
                 result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
@@ -480,6 +480,7 @@ class TestSendRequest:
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
+        assert forwarded_request.id.startswith("request-")
 
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         model_tokenizer.compute_tokens.assert_called_once_with(texts=["world"])
@@ -488,7 +489,7 @@ class TestSendRequest:
             model_total_params=provider.model_total_params,
             model_zone=provider.model_hosting_zone,
             completion_tokens=1,
-            request_latency=120,
+            request_latency=12,
         )
         compute_request_cost.assert_called_once_with(
             prompt_tokens=1,
@@ -513,7 +514,7 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = ProviderResponse(id="req-1", text="hello world")
 
         # Act
-        with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 0.12]):
+        with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
             with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
                 result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
 

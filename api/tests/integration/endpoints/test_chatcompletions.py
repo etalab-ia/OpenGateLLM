@@ -86,6 +86,7 @@ class TestCreateChatCompletions:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["object"] == "chat.completion"
+        assert data["id"].startswith("request-")
         assert data["model"] == DEFAULT_MODEL_NAME
         assert data["choices"][0]["message"]["role"] == "assistant"
         assert data["usage"]["total_tokens"] == data["usage"]["prompt_tokens"] + data["usage"]["completion_tokens"]
@@ -109,7 +110,14 @@ class TestCreateChatCompletions:
         events = [line for line in response.text.split("\n\n") if line.strip()]
         assert events[-1] == "data: [DONE]"
 
-        usage_chunk = json.loads(events[-2].removeprefix("data: "))
+        data_events = [json.loads(event.removeprefix("data: ")) for event in events[:-1]]
+        request_ids = {event["id"] for event in data_events}
+        assert len(request_ids) == 1
+        request_id = request_ids.pop()
+        assert request_id.startswith("request-")
+        assert request_id != "chatcmpl-1"
+
+        usage_chunk = data_events[-1]
         assert usage_chunk["choices"] == []
         assert usage_chunk["model"] == DEFAULT_MODEL_NAME
         assert usage_chunk["usage"]["completion_tokens"] > 0

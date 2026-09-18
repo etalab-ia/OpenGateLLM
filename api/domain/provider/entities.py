@@ -1,5 +1,6 @@
 from enum import StrEnum
 from typing import Annotated, Literal
+from uuid import uuid4
 
 import pycountry
 from pydantic import Field, model_validator
@@ -36,12 +37,6 @@ class ProviderType(StrEnum):
 
 COMPATIBLE_PROVIDER_TYPES: dict[RouterType, list[str]] = {
     RouterType.AUTOMATIC_SPEECH_RECOGNITION: [  # audio transcriptions
-        ProviderType.ALBERT.value,
-        ProviderType.MISTRAL.value,
-        ProviderType.OPENAI.value,
-        ProviderType.VLLM.value,
-    ],
-    RouterType.IMAGE_TEXT_TO_TEXT: [  # chat completions
         ProviderType.ALBERT.value,
         ProviderType.MISTRAL.value,
         ProviderType.OPENAI.value,
@@ -129,16 +124,12 @@ class ProviderCapabilities(BaseModel):
 
 
 class ProviderRequest(BaseModel):
+    id: Annotated[str, Field(default_factory=lambda: f"request-{uuid4().hex}")]
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
 
-class ResponseMetrics(BaseModel):
-    latency: Annotated[int, Field(default=0, description="The latency of the response.")]
-    ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
-
-
-class ProviderStreamChunk(BaseModel):
+class ProviderChunkResponse(BaseModel):
     content: Annotated[str, Field(description="One raw server-sent-event line as emitted by the provider.")]
     status_code: Annotated[int, Field(description="The HTTP status code of the streamed response.")]
 

@@ -4,7 +4,9 @@ Coding conventions for this repository. New and changed code follows clean archi
 
 **Git history is linear.** Never create merge commits (`git merge`, `git pull` without `--rebase`). Update a branch with `git pull --rebase origin main`. After rewriting already-pushed commits, update the remote with `git push --force-with-lease`. Full workflow: [`docs/src/content/docs/contributing/development_environment.mdx`](docs/src/content/docs/contributing/development_environment.mdx).
 
-**User-visible changes go in `CHANGELOG.md`.** Add the entry under `## [Unreleased]` in the same change, in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections (`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`). Prefix a breaking change with **Breaking —** and say what integrators must do instead. Describe the change against the **last released version**, never against an intermediate state of your own branch: a 500 you introduced and fixed within the branch is not a `Fixed` entry, and behaviour the previous stack already had is not an `Added` one.
+**Do not edit auto generated documentation files.**:
+- `docs/redoc-static.html`
+- `docs/src/content/docs/configuration/configuration_file.mdx`
 
 ---
 
@@ -432,14 +434,14 @@ Only chat completions streams today (`api/use_cases/chat/_createchatcompletionsu
 | Success | Carries | Endpoint returns |
 |---------|---------|------------------|
 | `Create<Noun>UseCaseSuccess` | `data`, `headers` | `JSONResponse` |
-| `Create<Noun>StreamUseCaseSuccess` | `chunks: AsyncGenerator[ProviderStreamChunk]`, `headers` | `StreamingResponseWithStatusCode` |
+| `Create<Noun>StreamUseCaseSuccess` | `chunks: AsyncGenerator[ProviderChunkResponse]`, `headers` | `StreamingResponseWithStatusCode` |
 
 Rules:
 
 - **Everything that can still become an HTTP status runs before the generator is returned** — router resolution, rate limits, provider selection, adapter build and request formatting. Once the first byte is sent the status is fixed, so an error found mid-stream can only be *yielded*, never raised.
-- The split is **before the first byte vs. after**, not streamed vs. not. `forward_stream` is a coroutine returning `AsyncGenerator[ProviderStreamChunk] | ProviderClientStreamError`: failures found while preparing the call come back **typed**, exactly like `forward`, and `execute()` returns them so the endpoint's existing `match` maps them. Never re-decide an HTTP status inside the client — that duplicates the endpoint.
+- The split is **before the first byte vs. after**, not streamed vs. not. `forward_stream` is a coroutine returning `AsyncGenerator[ProviderChunkResponse] | ProviderClientStreamError`: failures found while preparing the call come back **typed**, exactly like `forward`, and `execute()` returns them so the endpoint's existing `match` maps them. Never re-decide an HTTP status inside the client — that duplicates the endpoint.
 - The generator is **lazy**: returning the success runs no provider call, which is what lets `execute()` stay awaitable and testable.
-- The generator yields `ProviderStreamChunk(content, status_code)` — raw provider lines plus the status. Transport concerns (SSE framing, network errors → a 503 chunk) stay in `api/infrastructure/http/_httpproviderclient.py`; parsing, token counting and usage stay in the use case. `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, which is what lets a transport failure on the very first read still surface as a real status.
+- The generator yields `ProviderChunkResponse(content, status_code)` — raw provider lines plus the status. Transport concerns (SSE framing, network errors → a 503 chunk) stay in `api/infrastructure/http/_httpproviderclient.py`; parsing, token counting and usage stay in the use case. `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, which is what lets a transport failure on the very first read still surface as a real status.
 - A non-2xx chunk ends the stream immediately and is forwarded as-is.
 - The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_recorder.record_usage` there — that is the only point where a stream's usage is known.
 - `@hooks` detects a `StreamingResponse` and defers the usage row until the iterator is exhausted (`_wrap_streaming_response` in `api/infrastructure/fastapi/decorators.py`). Without it a stream would log a row with zero tokens.

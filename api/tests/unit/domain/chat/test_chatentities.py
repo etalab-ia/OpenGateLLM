@@ -1,3 +1,5 @@
+import pytest
+
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
 from api.domain.usage.entities import Usage
 
@@ -24,6 +26,17 @@ class TestCreateChatCompletionsBody:
 
         assert body.get_prompts() == ["hello"]
 
+    @pytest.mark.parametrize("field", ["reasoning_content", "reasoning"])
+    def test_should_include_reasoning_in_prompts(self, field):
+        body = _body(messages=[{"role": "assistant", "content": "answer", field: "because"}])
+
+        assert body.get_prompts() == ["answer\nbecause"]
+
+    def test_should_extract_a_reasoning_only_prompt(self):
+        body = _body(messages=[{"role": "assistant", "content": None, "reasoning": "because"}])
+
+        assert body.get_prompts() == ["because"]
+
 
 class TestChatCompletion:
     def test_should_return_content_and_reasoning_as_completions(self):
@@ -47,6 +60,28 @@ class TestChatCompletion:
 
         assert ChatCompletion.extract_response_content(response) == "answer"
 
+    def test_should_return_reasoning_field_as_completions(self):
+        completion = ChatCompletion(
+            id="chat-1",
+            model="chat-router",
+            object="chat.completion",
+            created=0,
+            choices=[{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": "answer", "reasoning": "because"}}],
+        )
+
+        assert completion.get_completions() == ["answer\nbecause"]
+
+    def test_should_return_reasoning_only_as_completions(self):
+        completion = ChatCompletion(
+            id="chat-1",
+            model="chat-router",
+            object="chat.completion",
+            created=0,
+            choices=[{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": None, "reasoning": "because"}}],
+        )
+
+        assert completion.get_completions() == ["because"]
+
 
 class TestChatCompletionChunk:
     def test_should_parse_a_data_chunk(self):
@@ -65,6 +100,16 @@ class TestChatCompletionChunk:
         chunk = {"choices": [{"delta": {"content": "answer", "reasoning_content": "because"}}]}
 
         assert ChatCompletionChunk.extract_chunk_content(chunk) == "answer\nbecause"
+
+    def test_should_extract_delta_reasoning_field(self):
+        chunk = {"choices": [{"delta": {"content": "answer", "reasoning": "because"}}]}
+
+        assert ChatCompletionChunk.extract_chunk_content(chunk) == "answer\nbecause"
+
+    def test_should_extract_reasoning_only_from_a_delta(self):
+        chunk = {"choices": [{"delta": {"reasoning": "because"}}]}
+
+        assert ChatCompletionChunk.extract_chunk_content(chunk) == "because"
 
     def test_should_extract_nothing_from_a_chunk_without_choices(self):
         assert ChatCompletionChunk.extract_chunk_content({"choices": []}) == ""
