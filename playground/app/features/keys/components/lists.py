@@ -14,7 +14,7 @@ def key_row_content(key: Key) -> rx.Component:
                 key.name,
                 size=TEXT_SIZE_LARGE,
                 weight="bold",
-                color=rx.color("mauve", 12),
+                color=rx.cond(key.is_expired, rx.color("mauve", 9), rx.color("mauve", 12)),
             ),
             rx.tooltip(
                 rx.badge(
@@ -23,6 +23,17 @@ def key_row_content(key: Key) -> rx.Component:
                     color_scheme="blue",
                 ),
                 content="ID",
+            ),
+            rx.cond(
+                key.is_expired,
+                rx.tooltip(
+                    rx.badge(
+                        "Expired",
+                        variant="soft",
+                        color_scheme="red",
+                    ),
+                    content="This key has expired and can no longer be used.",
+                ),
             ),
             spacing=SPACING_SMALL,
         ),
@@ -51,10 +62,20 @@ def key_row_content(key: Key) -> rx.Component:
 
 def key_row_description(key: Key) -> rx.Component:
     return rx.vstack(
-        rx.text(
-            f"Created: {key.created} • Expires: {key.expires}",
-            size=TEXT_SIZE_LABEL,
-            color=rx.color("mauve", 9),
+        rx.hstack(
+            rx.text(
+                f"Created: {key.created} • Expires: ",
+                size=TEXT_SIZE_LABEL,
+                color=rx.color("mauve", 9),
+            ),
+            rx.text(
+                key.expires,
+                size=TEXT_SIZE_LABEL,
+                weight=rx.cond(key.is_expired, "bold", "regular"),
+                color=rx.cond(key.is_expired, rx.color("red", 10), rx.color("mauve", 9)),
+            ),
+            spacing="1",
+            align="center",
         ),
         spacing=SPACING_SMALL,
         align_items="start",
@@ -73,6 +94,19 @@ def key_renderer_row(key: Key, with_settings: bool = False) -> rx.Component:
     )
 
 
+def key_filters() -> rx.Component:
+    """Filters for keys list."""
+    return rx.hstack(
+        rx.text("Show expired", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.checkbox(
+            checked=KeysState.show_expired,
+            on_change=KeysState.set_show_expired,
+        ),
+        spacing=SPACING_SMALL,
+        align="center",
+    )
+
+
 def keys_list() -> rx.Component:
     """Keys list."""
     return entity_list(
@@ -83,6 +117,7 @@ def keys_list() -> rx.Component:
         no_entities_message="No keys yet",
         no_entities_description="Create your first key to get started",
         delete_dialog=keys_delete_dialog(),
+        filters=key_filters(),
         pagination=True,
         sorting=True,
     )
