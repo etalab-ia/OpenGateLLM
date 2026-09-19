@@ -7,6 +7,7 @@ from typing import ClassVar
 from pydantic import BaseModel
 
 from api.domain import ForwardablePayload
+from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
@@ -30,6 +31,7 @@ from api.utils.variables import EndpointRoute
 class ForwardingCommand[TPayload: ForwardablePayload](BaseModel):
     payload: TPayload
     authenticated_user: AuthenticatedUserView
+    authenticated_key: Key
 
     @property
     def model(self) -> str | None:
@@ -115,7 +117,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        request_id = self._start_record_usage(router=router, authenticated_user=authenticated_user)
+        request_id = self._start_record_usage(command=command, router=router)
         try:
             result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload, request_id=request_id)
             match result:
@@ -188,11 +190,16 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return rate_limit_state
 
-    def _start_record_usage(self, router: Router, authenticated_user: AuthenticatedUserView) -> str:
+    def _start_record_usage(self, command: TCommand, router: Router) -> str:
         return self.usage_recorder.start_record(
             name=self.ENDPOINT.strip("/").replace("/", "-"),
             model=router.name,
-            user_id=authenticated_user.id,
+            user_id=command.authenticated_user.id,
+            router_id=router.id,
+            router_name=router.name,
+            user_email=command.authenticated_user.email,
+            key_id=command.authenticated_key.id,
+            key_name=command.authenticated_key.name,
         )
 
     async def _send_request(
@@ -236,7 +243,11 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 return error
 
         self.usage_context.record_usage(request_id=request_id, usage=usage)
-        self.usage_recorder.update_record(usage=usage, provider_id=provider.id)
+        self.usage_recorder.update_record(
+            usage=usage,
+            provider_id=provider.id,
+            provider_model_name=provider.model_name,
+        )
 
         return provider_response
 

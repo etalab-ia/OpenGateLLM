@@ -1,5 +1,6 @@
 from contextvars import ContextVar
 
+from api.domain.key.entities import Key
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi._requestcontext import RequestContext
 
@@ -12,3 +13,7 @@ def get_request_context() -> ContextVar[RequestContext]:
 
 def get_authenticated_user() -> AuthenticatedUserView:
     return request_context.get().user
+
+
+def get_authenticated_key() -> Key:
+    return request_context.get().key

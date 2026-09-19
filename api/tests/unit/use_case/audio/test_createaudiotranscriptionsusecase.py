@@ -12,7 +12,7 @@ from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.provider.entities import ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.usage import UsageContext, UsageRecorder
-from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, RouterFactory
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
     CreateAudioTranscriptionsJsonUseCaseSuccess,
@@ -86,6 +86,7 @@ def make_command():
                 temperature=0.0,
             ),
             authenticated_user=user,
+            authenticated_key=KeyFactory(),
         )
 
     return _make

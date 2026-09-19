@@ -17,7 +17,7 @@ from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts
-from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases.chat import (
     CreateChatCompletionsCommand,
     CreateChatCompletionsStreamUseCaseSuccess,
@@ -76,6 +76,7 @@ def make_command(admin_user):
                 tools=tools,
             ),
             authenticated_user=admin_user,
+            authenticated_key=KeyFactory(),
         )
 
     return _make

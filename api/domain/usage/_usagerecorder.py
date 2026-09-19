@@ -7,12 +7,28 @@ from api.domain.usage.entities import Usage
 
 class UsageRecorder(ABC):
     @abstractmethod
-    def start_record(self, name: str, model: str, user_id: int) -> str:
+    def start_record(
+        self,
+        name: str,
+        model: str,
+        user_id: int,
+        router_id: int,
+        router_name: str,
+        user_email: str,
+        key_id: int,
+        key_name: str,
+    ) -> str:
         """Start a record and return the request id."""
         pass
 
     @abstractmethod
-    def update_record(self, usage: Usage, provider_id: int, first_token_at: datetime | None = None) -> None:
+    def update_record(
+        self,
+        usage: Usage,
+        provider_id: int,
+        provider_model_name: str,
+        first_token_at: datetime | None = None,
+    ) -> None:
         pass
 
     @abstractmethod
@@ -25,10 +41,26 @@ class UsageRecorder(ABC):
 
 
 class DummyUsageRecorder(UsageRecorder):
-    def start_record(self, name: str, model: str, user_id: int) -> str:
+    def start_record(
+        self,
+        name: str,
+        model: str,
+        user_id: int,
+        router_id: int,
+        router_name: str,
+        user_email: str,
+        key_id: int,
+        key_name: str,
+    ) -> str:
         return uuid4().hex
 
-    def update_record(self, usage: Usage, provider_id: int, first_token_at: datetime | None = None) -> None:
+    def update_record(
+        self,
+        usage: Usage,
+        provider_id: int,
+        provider_model_name: str,
+        first_token_at: datetime | None = None,
+    ) -> None:
         return
 
     def fail_record(self, message: str) -> None:

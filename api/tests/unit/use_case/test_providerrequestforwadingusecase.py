@@ -17,7 +17,7 @@ from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTy
 from api.domain.usage import UsageContext, UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases._providerrequestforwardingusecase import (
     ForwardingCommand,
     ProviderRequestForwardingUseCase,
@@ -528,6 +528,7 @@ class TestSendRequest:
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
             provider_id=provider.id,
+            provider_model_name=provider.model_name,
         )
 
     @pytest.mark.asyncio
@@ -565,7 +566,7 @@ class TestExecute:
 
     @pytest.fixture
     def command(self, admin_user):
-        return ForwardingTestCommand(payload=ForwardingTestPayload(), authenticated_user=admin_user)
+        return ForwardingTestCommand(payload=ForwardingTestPayload(), authenticated_user=admin_user, authenticated_key=KeyFactory())
 
     @pytest.mark.asyncio
     async def test_should_return_check_command_error_without_resolving_the_router(self, use_case, command):
@@ -633,6 +634,11 @@ class TestExecute:
             name="chat-completions",
             model=router.name,
             user_id=command.authenticated_user.id,
+            router_id=router.id,
+            router_name=router.name,
+            user_email=command.authenticated_user.email,
+            key_id=command.authenticated_key.id,
+            key_name=command.authenticated_key.name,
         )
         use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError")
         use_case.usage_recorder.end_record.assert_called_once()

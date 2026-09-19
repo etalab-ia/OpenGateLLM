@@ -58,7 +58,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             case error:
                 return error
 
-        request_id = self._start_record_usage(router=router, authenticated_user=authenticated_user)
+        request_id = self._start_record_usage(command=command, router=router)
 
         if command.stream:
             provider = await self._select_provider(router=router)
@@ -169,7 +169,12 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             latency=latency,
         )
         self.usage_context.record_usage(request_id=request_id, usage=usage)
-        self.usage_recorder.update_record(usage=usage, provider_id=provider.id, first_token_at=first_token_at)
+        self.usage_recorder.update_record(
+            usage=usage,
+            provider_id=provider.id,
+            provider_model_name=provider.model_name,
+            first_token_at=first_token_at,
+        )
 
         usage_chunk = ChatCompletionChunk.build_usage_chunk(
             last_chunk=buffer[-1] if buffer else {},
