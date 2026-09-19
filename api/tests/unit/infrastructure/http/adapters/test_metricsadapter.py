@@ -307,7 +307,6 @@ class TestMetricsAdapter:
         # Assert
         assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, ProviderMetrics)
-        assert result.id == "req-123"
         assert getattr(result.data, "id", "not found") == "not found"
 
     @pytest.mark.parametrize(

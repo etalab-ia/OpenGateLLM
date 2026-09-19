@@ -344,7 +344,6 @@ class TestModelsAdapter:
         # Assert
         assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
-        assert result.id == "req-123"
         assert getattr(result.data, "id", "not found") == "not found"
 
     @pytest.mark.parametrize(

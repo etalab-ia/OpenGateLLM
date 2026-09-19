@@ -12,7 +12,6 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._identityaccessmanager import IdentityAccessManager
-from api.helpers._langfusemanager import LangfuseManager
 from api.helpers._limiter import Limiter
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
@@ -60,7 +59,8 @@ async def lifespan(_: FastAPI):
 
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
 
-    global_context.langfuse_client = create_langfuse_client(configuration=configuration)
+    global_context.langfuse = create_langfuse(configuration=configuration)
+    # global_context.langfuse_client = LangfuseManager(client=global_context.langfuse) if global_context.langfuse is not None else None
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
@@ -207,13 +207,13 @@ def initialize_tokenizer(configuration: Configuration) -> Encoding:
             return tiktoken.get_encoding("gpt2")
 
 
-def create_langfuse_client(configuration: Configuration) -> LangfuseManager | None:
+def create_langfuse(configuration: Configuration) -> Langfuse | None:
     if configuration.dependencies.langfuse is None:
         return None
 
-    langfuse_client = Langfuse(**configuration.dependencies.langfuse.model_dump())
-    if not langfuse_client.auth_check():
+    langfuse = Langfuse(**configuration.dependencies.langfuse.model_dump())
+    if not langfuse.auth_check():
         logger.warning("Cannot connect to Langfuse. Check your langfuse dependency configuration (public_key, secret_key, url).")
         return None
 
-    return LangfuseManager(client=langfuse_client)
+    return langfuse

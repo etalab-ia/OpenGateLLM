@@ -4,6 +4,7 @@ import random
 import factory
 from factory import fuzzy
 
+from api.domain.key.entities import Key
 from api.domain.model.entities import ModelCosts
 from api.domain.model.views import ModelView
 from api.domain.organization.entities import Organization
@@ -156,6 +157,18 @@ class AuthenticatedUserFactory(factory.Factory):
         no_expiration = factory.Trait(expires=None)
         admin = factory.Trait(permissions=[PermissionType.ADMIN])
         without_permission = factory.Trait(permissions=[])
+
+
+class KeyFactory(factory.Factory):
+    class Meta:
+        model = Key
+
+    id = factory.Sequence(lambda n: n + 1)
+    name = factory.Faker("bothify", text="key_????")
+    user_id = factory.Faker("random_int", min=1, max=1000)
+    value = "sk-x"
+    expires = None
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
 
 # Configuration factories

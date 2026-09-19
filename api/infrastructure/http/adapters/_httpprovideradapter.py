@@ -43,7 +43,7 @@ class HttpProviderAdapter:
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        return ProviderResponse(id=request.id, data=data)
+        return ProviderResponse(data=data)
 
     @staticmethod
     def _build_target_url(base_url: str, target_endpoint_route: str | None) -> str:

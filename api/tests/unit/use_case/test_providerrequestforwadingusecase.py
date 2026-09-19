@@ -14,10 +14,10 @@ from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContext, UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases._providerrequestforwardingusecase import (
     ForwardingCommand,
     ProviderRequestForwardingUseCase,
@@ -25,6 +25,8 @@ from api.use_cases._providerrequestforwardingusecase import (
     ProviderRequestForwardingUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute
+
+TRACE_ID = "a" * 32
 
 
 class ForwardingTestPayload(ForwardablePayload):
@@ -101,7 +103,14 @@ def router_repository():
 
 @pytest.fixture
 def usage_recorder():
-    return create_autospec(UsageRecorder, instance=True, spec_set=True)
+    return create_autospec(UsageContext, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def trace_recorder():
+    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
+    recorder.start_record.return_value = TRACE_ID
+    return recorder
 
 
 @pytest.fixture
@@ -160,6 +169,7 @@ def use_case(
     router_rate_limiter,
     router_repository,
     usage_recorder,
+    trace_recorder,
 ) -> ForwardingTestUseCase:
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -170,7 +180,8 @@ def use_case(
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
-        usage_recorder=usage_recorder,
+        usage_context=usage_recorder,
+        usage_recorder=trace_recorder,
     )
 
 
@@ -186,7 +197,7 @@ class TestResolveRouter:
         # Assert
         assert isinstance(result, RouterNotFoundError)
         use_case.router_repository.get_router_by_name_or_alias.assert_awaited_once_with(name_or_alias="test-router")
-        use_case.usage_recorder.record_router.assert_not_called()
+        use_case.usage_context.record_router.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(self, use_case, admin_user):
@@ -200,7 +211,7 @@ class TestResolveRouter:
         # Assert
         assert isinstance(result, RouterHasNoProvidersError)
         assert result.id == 1
-        use_case.usage_recorder.record_router.assert_called_once_with(router_id=router.id, router_name=router.name)
+        use_case.usage_context.record_router.assert_called_once_with(router_id=router.id, router_name=router.name)
 
     @pytest.mark.asyncio
     async def test_should_return_router_has_wrong_type_error_when_router_type_does_not_match(self, use_case, admin_user):
@@ -309,7 +320,7 @@ class TestResolveRouter:
 
         # Assert
         assert result is router
-        use_case.usage_recorder.record_router.assert_called_once_with(router_id=router.id, router_name=router.name)
+        use_case.usage_context.record_router.assert_called_once_with(router_id=router.id, router_name=router.name)
 
 
 class TestCheckRateLimits:
@@ -390,7 +401,7 @@ class TestSendRequest:
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
         use_case.provider_load_balancer.find_best_provider.return_value = provider
         use_case.provider_metrics_logger.increment_inflight.return_value = True
-        use_case.provider_client.forward.return_value = ProviderResponse(id=sample_data.id, data=sample_data)
+        use_case.provider_client.forward.return_value = ProviderResponse(data=sample_data)
 
     @pytest.mark.asyncio
     async def test_should_return_request_validation_error_when_provider_call_rejects_request(self, use_case, router, provider, payload):
@@ -399,7 +410,7 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         assert result == validation_error
@@ -408,8 +419,9 @@ class TestSendRequest:
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
-        use_case.usage_recorder.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
-        use_case.usage_recorder.record_usage.assert_not_called()
+        use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
+        use_case.usage_context.record_usage.assert_not_called()
+        use_case.usage_recorder.update_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_forward_error_and_decrement_inflight_when_provider_call_fails(self, use_case, router, provider, payload):
@@ -418,12 +430,12 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = provider_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         assert result == provider_error
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
-        use_case.usage_recorder.record_usage.assert_not_called()
+        use_case.usage_context.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_decrement_inflight_when_the_provider_call_raises(self, use_case, router, provider, payload):
@@ -432,7 +444,7 @@ class TestSendRequest:
 
         # Act
         with pytest.raises(TypeError):
-            await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+            await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
@@ -445,12 +457,12 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         assert result == validation_error
         use_case.provider_metrics_logger.decrement_inflight.assert_not_called()
-        use_case.usage_recorder.record_usage.assert_not_called()
+        use_case.usage_context.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_enrich_usage_when_formatted_response_has_data(
@@ -460,7 +472,7 @@ class TestSendRequest:
         with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
             with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
                 # Act
-                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -480,7 +492,7 @@ class TestSendRequest:
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
-        assert forwarded_request.id.startswith("request-")
+        assert forwarded_request.id == TRACE_ID
 
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         model_tokenizer.compute_tokens.assert_called_once_with(texts=["world"])
@@ -497,8 +509,8 @@ class TestSendRequest:
             cost_prompt_tokens=router.cost_prompt_tokens,
             cost_completion_tokens=router.cost_completion_tokens,
         )
-        use_case.usage_recorder.record_usage.assert_called_once_with(
-            request_id=sample_data.id,
+        use_case.usage_context.record_usage.assert_called_once_with(
+            request_id=TRACE_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -507,22 +519,33 @@ class TestSendRequest:
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
         )
+        use_case.usage_recorder.update_record.assert_called_once_with(
+            usage=Usage(
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0.03,
+                impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+            ),
+            provider_id=provider.id,
+            provider_model_name=provider.model_name,
+        )
 
     @pytest.mark.asyncio
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(self, use_case, router, provider, payload):
         # Arrange
-        use_case.provider_client.forward.return_value = ProviderResponse(id="req-1", text="hello world")
+        use_case.provider_client.forward.return_value = ProviderResponse(text="hello world")
 
         # Act
         with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
             with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
-                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         assert isinstance(result, ProviderResponse)
         assert result.data is None
-        use_case.usage_recorder.record_usage.assert_called_once_with(
-            request_id="req-1",
+        use_case.usage_context.record_usage.assert_called_once_with(
+            request_id=TRACE_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -536,14 +559,14 @@ class TestSendRequest:
 class TestExecute:
     @pytest.fixture(autouse=True)
     def mock_collaborator_methods(self, use_case, router, sample_data):
-        formatted_response = ProviderResponse(id=sample_data.id, data=sample_data)
+        formatted_response = ProviderResponse(data=sample_data)
         use_case._resolve_router = AsyncMock(return_value=router)
         use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
         use_case._send_request = AsyncMock(return_value=formatted_response)
 
     @pytest.fixture
     def command(self, admin_user):
-        return ForwardingTestCommand(payload=ForwardingTestPayload(), authenticated_user=admin_user)
+        return ForwardingTestCommand(payload=ForwardingTestPayload(), authenticated_user=admin_user, authenticated_key=KeyFactory())
 
     @pytest.mark.asyncio
     async def test_should_return_check_command_error_without_resolving_the_router(self, use_case, command):
@@ -561,6 +584,8 @@ class TestExecute:
         use_case.model_tokenizer.compute_tokens.assert_not_called()
         use_case._check_rate_limits.assert_not_awaited()
         use_case._send_request.assert_not_awaited()
+        use_case.usage_recorder.start_record.assert_not_called()
+        use_case.usage_recorder.end_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_resolve_router_error_without_checking_rate_limits_or_sending(self, use_case, command, admin_user):
@@ -604,7 +629,19 @@ class TestExecute:
 
         # Assert
         assert result is error
-        use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload)
+        use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload, request_id=TRACE_ID)
+        use_case.usage_recorder.start_record.assert_called_once_with(
+            name="chat-completions",
+            model=router.name,
+            user_id=command.authenticated_user.id,
+            router_id=router.id,
+            router_name=router.name,
+            user_email=command.authenticated_user.email,
+            key_id=command.authenticated_key.id,
+            key_name=command.authenticated_key.name,
+        )
+        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError")
+        use_case.usage_recorder.end_record.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_success_with_formatted_data_and_rate_limit_headers(self, use_case, command, sample_data):
@@ -619,3 +656,6 @@ class TestExecute:
         assert isinstance(result, ProviderRequestForwardingUseCaseSuccess)
         assert result.data is sample_data
         assert result.headers == rate_limit_state.build_limit_headers
+        use_case.usage_recorder.start_record.assert_called_once()
+        use_case.usage_recorder.fail_record.assert_not_called()
+        use_case.usage_recorder.end_record.assert_called_once()

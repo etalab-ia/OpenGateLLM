@@ -27,7 +27,6 @@ class ModelsAdapter(HttpProviderAdapter):
         request: ProviderRequest,
     ) -> ProviderResponse:
         return ProviderResponse(
-            id=request.id,
             data=Models(
                 data=[
                     Model(

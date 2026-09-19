@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from api.dependencies import create_rerank_use_case_factory, get_router_rate_limiter
+from api.domain.key.entities import Key
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -18,7 +19,7 @@ from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAcce
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.decorators import hooks
-from api.infrastructure.fastapi.dependencies import get_authenticated_user
+from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientBudgetHTTPException,
@@ -58,9 +59,10 @@ async def create_rerank(
     body: CreateRerankBody = Body(description="The rerank creation request."),
     create_rerank_use_case: CreateRerankUseCase = Depends(create_rerank_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+    authenticated_key: Key = Depends(get_authenticated_key),
 ) -> JSONResponse:
     try:
-        command = CreateRerankCommand(payload=body.model_dump(), authenticated_user=authenticated_user)
+        command = CreateRerankCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=authenticated_key)
         result = await create_rerank_use_case.execute(command)
     except Exception as e:
         logger.exception(

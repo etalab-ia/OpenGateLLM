@@ -66,7 +66,7 @@ def configure_metrics(
     metrics_result: ProviderResponse | ProviderAdapterValidationResponseError | None = None,
 ):
     provider_client.forward.return_value = metrics_result or ProviderResponse(
-        id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running)
+        data=ProviderMetrics(waiting_requests=waiting, running_requests=running)
     )
 
 
@@ -349,7 +349,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_models_fallback(provider_client, models_response=ProviderResponse(id="req-123", data=Models(data=[])))
+        configure_models_fallback(provider_client, models_response=ProviderResponse(data=Models(data=[])))
 
         # Act
         result = await use_case.execute(command=default_command)

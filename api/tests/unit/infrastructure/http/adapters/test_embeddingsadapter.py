@@ -219,7 +219,6 @@ class TestEmbeddingsAdapter:
         assert isinstance(result.data, Embeddings)
         assert len(result.data.data) == 1
         assert result.data.data[0].embedding == response_data["data"][0]["embedding"]
-        assert result.id == "req-123"
         assert result.data.id == "req-123"
         assert result.data.model == "openweight-embeddings"
 

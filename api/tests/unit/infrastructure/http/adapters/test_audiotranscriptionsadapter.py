@@ -29,6 +29,7 @@ def _original_request(**overrides) -> ProviderRequest:
         temperature=0.0,
     )
     payload = {
+        "id": "req-1",
         "endpoint": EndpointRoute.AUDIO_TRANSCRIPTIONS,
         "payload": form,
     }
@@ -63,7 +64,6 @@ class TestAudioTranscriptionsAdapter:
         result = adapter.to_provider_response(request=original_request, http_response=original_response)
 
         # Assert
-        assert result.id == "req-123"
         assert result.data.id == "req-123"
         assert result.data.text == "hello world"
         assert result.data.model == "audio-router"
