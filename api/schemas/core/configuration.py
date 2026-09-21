@@ -206,7 +206,7 @@ class RedisDependency(ConfigBaseModel):
     Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.
     """
 
-    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
+    url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
 @custom_validation_error()
