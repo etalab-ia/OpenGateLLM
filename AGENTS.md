@@ -445,9 +445,20 @@ Rules:
 - The generator is **lazy**: returning the success runs no provider call, which is what lets `execute()` stay awaitable and testable.
 - The generator yields `ProviderChunkResponse(content, status_code)` — raw provider lines plus the status. Transport concerns (SSE framing, network errors → a 503 chunk) stay in `api/infrastructure/http/_httpproviderclient.py`; parsing, token counting and usage stay in the use case. `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, which is what lets a transport failure on the very first read still surface as a real status.
 - A non-2xx chunk ends the stream immediately and is forwarded as-is.
-- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_recorder.record_usage` there — that is the only point where a stream's usage is known.
-- `@hooks` detects a `StreamingResponse` and defers the usage row until the iterator is exhausted (`_wrap_streaming_response` in `api/infrastructure/fastapi/decorators.py`). Without it a stream would log a row with zero tokens.
+- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage` and `usage_recorder.update_record` there — that is the only point where a stream's usage is known.
+- `usage_recorder.end_record()` runs in the stream generator's `finally`, so a client disconnect still closes the record. `PostgresUsageRecorder` schedules the `usage` row on FastAPI `BackgroundTasks` from that call.
 - Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommit_releases_connection_during_model_forward.py`.
+
+### Usage recording
+
+Model-forward use cases call `UsageRecorder` (`start_record` / `update_record` / `fail_record` / `end_record`). `_usage_recorder` in `api/dependencies.py` picks the adapter:
+
+| When | Adapter |
+|------|---------|
+| `dependencies.langfuse` is configured | `LangfuseUsageRecorder` |
+| otherwise (default) | `PostgresUsageRecorder` — writes the `usage` table via FastAPI `BackgroundTasks` after `end_record` |
+
+Do not persist usage rows from `@hooks`. Hooks only charge router limits and update budget.
 
 ---
 
@@ -593,7 +604,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
 | Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
 | Model-forward pool | `api/tests/integration/postgres/test_autocommit_releases_connection_during_model_forward.py` | Connection released during provider call | Use-case branches |
-| Post-response hooks | `api/tests/integration/endpoints/test_post_response_hooks.py` | Router limits charged after a response | Usage logging and budget hooks (their session cannot be overridden) |
+| Post-response hooks | `api/tests/integration/endpoints/test_post_response_hooks.py` | Router limits charged after a response | Usage logging (`PostgresUsageRecorder`) and budget hooks (their session cannot be overridden) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).

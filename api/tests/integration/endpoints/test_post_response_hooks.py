@@ -35,7 +35,7 @@ LIMITS = ((LimitType.RPM, RPM_LIMIT), (LimitType.RPD, RPD_LIMIT), (LimitType.TPM
 class TestPostResponseHooks:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session, test_redis_pool, monkeypatch):
-        # disables the log_usage task
+        # disables PostgresUsageRecorder so this test only asserts router-limit charging
         monkeypatch.setattr(configuration.settings, "monitoring_postgres_enabled", False)
 
         self.user = UserSQLFactory(name="Alice", email="alice@example.com")  # a regular user: admins are exempt from the router limits
