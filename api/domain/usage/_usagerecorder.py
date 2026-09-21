@@ -23,13 +23,7 @@ class UsageRecorder(ABC):
         pass
 
     @abstractmethod
-    def update_record(
-        self,
-        usage: Usage,
-        provider_id: int,
-        provider_model_name: str,
-        first_token_at: datetime | None = None,
-    ) -> None:
+    def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
         pass
 
     @abstractmethod
@@ -55,13 +49,7 @@ class DummyUsageRecorder(UsageRecorder):
     ) -> str:
         return uuid4().hex
 
-    def update_record(
-        self,
-        usage: Usage,
-        provider_id: int,
-        provider_model_name: str,
-        first_token_at: datetime | None = None,
-    ) -> None:
+    def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
         return
 
     def fail_record(self, message: str) -> None:

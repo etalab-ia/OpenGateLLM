@@ -73,13 +73,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     return error
 
             return CreateChatCompletionsStreamUseCaseSuccess(
-                chunks=self._format_stream(
-                    router=router,
-                    provider=provider,
-                    chunks=chunks,
-                    prompt_tokens=prompt_tokens,
-                    request_id=request_id,
-                ),
+                chunks=self._format_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=prompt_tokens, request_id=request_id),
                 headers=rate_limit_state.build_limit_headers,
             )
 
@@ -161,13 +155,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
     ) -> str:
         completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
         completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
-        usage = self._build_usage(
-            provider=provider,
-            router=router,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            latency=latency,
-        )
+        usage = self._build_usage(provider=provider, router=router, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, latency=latency)
         self.usage_context.record_usage(request_id=request_id, usage=usage)
         self.usage_recorder.update_record(
             usage=usage,

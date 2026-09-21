@@ -243,11 +243,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 return error
 
         self.usage_context.record_usage(request_id=request_id, usage=usage)
-        self.usage_recorder.update_record(
-            usage=usage,
-            provider_id=provider.id,
-            provider_model_name=provider.model_name,
-        )
+        self.usage_recorder.update_record(usage=usage, provider_id=provider.id, provider_model_name=provider.model_name)
 
         return provider_response
 
