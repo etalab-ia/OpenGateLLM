@@ -19,6 +19,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      openfga:
+        condition: service_healthy
 
   playground:
     image: ghcr.io/etalab-ia/opengatellm/playground:latest
@@ -39,6 +41,24 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  openfga:
+    image: openfga/openfga:v1.20.0
+    restart: always
+    environment:
+      - "OPENFGA_DATASTORE_ENGINE=memory"
+      - "OPENFGA_AUTHN_METHOD=preshared"
+      - "OPENFGA_AUTHN_PRESHARED_KEYS=${OPENFGA_API_TOKEN:-changeme}"
+      - "OPENFGA_LOG_FORMAT=json"
+    command: run
+    ports:
+      - "${OPENFGA_PORT:-8080}:8080"
+    healthcheck:
+      test: [ "CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   postgres:
     image: postgres:16.5
