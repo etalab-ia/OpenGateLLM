@@ -444,10 +444,19 @@ Rules:
 - **Everything that can still become an HTTP status runs before the generator is returned** — router resolution, rate limits, provider selection, adapter build and request formatting. Once the first byte is sent the status is fixed, so an error found mid-stream can only be *yielded*, never raised.
 - The split is **before the first byte vs. after**, not streamed vs. not. `forward_stream` is a coroutine returning `AsyncGenerator[ProviderChunkResponse] | ProviderClientStreamError`: failures found while preparing the call come back **typed**, exactly like `forward`, and `execute()` returns them so the endpoint's existing `match` maps them. Never re-decide an HTTP status inside the client — that duplicates the endpoint.
 - The generator is **lazy**: returning the success runs no provider call, which is what lets `execute()` stay awaitable and testable.
-- The generator yields `ProviderChunkResponse(content, status_code)` — raw provider lines plus the status. Transport concerns (SSE framing, network errors → a 503 chunk) stay in `api/infrastructure/http/_httpproviderclient.py`; parsing, token counting and usage stay in the use case. `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, which is what lets a transport failure on the very first read still surface as a real status.
-- A non-2xx chunk ends the stream immediately and is forwarded as-is.
+- The generator yields `ProviderChunkResponse(content, status_code)` — **one SSE line without its event separator**, plus the status. That is the unit in both directions: `_httpproviderclient.py` yields the provider's lines as it reads them, and the use case yields the lines it relays, rewrites or synthesizes. Parsing, token counting and usage stay in the use case, and it never writes `\n\n`.
+- **The endpoint frames the events.** `_as_stream_chunks` (`endpoints/chat.py`) turns each line into `line + "\n\n"`. Network errors → a 503 chunk stay in `_httpproviderclient.py`. A non-2xx chunk is framed by **where it lands**, and the adapter tracks that itself:
+
+| Non-2xx chunk | Sent as | Why |
+|---|---|---|
+| first — nothing written yet | the raw content, unframed | `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, so this one becomes the body the client parses; framing it would corrupt it |
+| after the first byte | `event: error\ndata: <content>\n\n` | the status is already fixed and the client is reading an event stream, so the failure can only reach it as an event — same shape the class emits when it catches an exception mid-stream |
+- A non-2xx chunk ends the stream immediately and is forwarded as-is. Record the usage first when chunks were already delivered: the client received those tokens, and nothing downstream will bill them. A stream that fails before delivering anything records none, like a failed non-streamed forward.
 - The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage`, `usage_repository.update_record` and `_charge_rate_limits` there — that is the only point where a stream's usage is known.
 - `usage_repository.end_record()` runs in the stream generator's `finally`, so a client disconnect still closes the record. `PostgresUsageRecorder` schedules the `usage` row on FastAPI `BackgroundTasks` from that call.
+- **The chain closes top-down, and the order is load-bearing.** A client that disconnects leaves every generator parked on its `yield`; `async for` does not close the iterator it consumes, so each level closes the next explicitly: `stream_response`'s `finally` closes `stream_then_record`, whose `finally` closes its `original_stream` **before** building the row, and `_as_stream_chunks` holds its own stream in `aclosing`. Only then does the use case's `finally` run — inside the request task, where the `ContextVar` is still the request's — and record the tokens already delivered, which the row then reads. Never let a finalizer do this work: the GC schedules it as a task, and a task copies whatever context is current at creation.
+- **A `CancelledError` escaping the cleanup is expected, not a bug.** Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises as soon as it suspends — measured: the `DECR` still reaches Redis (the command is written before the cancellation lands on the reply), the usage row is still written, and the provider connection is still closed. Do not "fix" it by detaching that call: it would touch all five forwarding use cases to chase a leak that does not exist.
+- **The usage row is written whatever the cleanup does.** Draining the chain happens under a cancelled scope, so the first `await` that suspends raises: `_wrap_streaming_response` closes inside a `try` whose `finally` calls `record`. Verified in production — without that guard a disconnect writes no row at all, which is worse than the missing tokens it was meant to fix.
 - Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommitsession.py`.
 
 ### Usage recording
@@ -463,7 +472,7 @@ Do not persist usage rows or charge router limits from `@hooks`. Hooks only upda
 
 ### Rate-limit charging
 
-Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `usage_recorder.update_record`: in `_send_request`, and in chat's `_build_usage_event` for streams. Only successful requests are charged (never a 429); admins are skipped.
+Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `usage_recorder.update_record`: in `_send_request`, and in chat's `_record_stream_usage` for streams. Only successful requests are charged (never a 429); admins are skipped.
 
 `RedisRouterRateLimiter.update_rate_limit_state` queues the Redis write on FastAPI `BackgroundTasks`, like `PostgresUsageRecorder`. FastAPI drops those tasks when the endpoint raises an `HTTPException`: anything queued on a failed request never runs.
 

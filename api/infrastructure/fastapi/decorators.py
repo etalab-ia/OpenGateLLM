@@ -10,7 +10,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
-from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
+from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode, aclose_stream
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.postgres.models import Usage, User
 
@@ -96,8 +96,11 @@ def _wrap_streaming_response(
                     status = chunk[1]
                 yield chunk
         finally:
-            usage.status = status
-            record(usage=usage)
+            try:
+                await aclose_stream(original_stream)
+            finally:
+                usage.status = status
+                record(usage=usage)
 
     return StreamingResponseWithStatusCode(
         content=stream_then_record(),
