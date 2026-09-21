@@ -192,7 +192,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
     def _start_record_usage(self, command: TCommand, router: Router) -> str:
         return self.usage_recorder.start_record(
-            name=self.ENDPOINT.strip("/").replace("/", "-"),
+            endpoint=self.ENDPOINT,
             model=router.name,
             user_id=command.authenticated_user.id,
             router_id=router.id,

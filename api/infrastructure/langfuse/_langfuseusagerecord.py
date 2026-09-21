@@ -6,6 +6,7 @@ from langfuse import Langfuse, propagate_attributes
 
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
+from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +17,23 @@ class LangfuseUsageRecorder(UsageRecorder):
         self._observation = None
         self._metadata: dict = {}
 
-    def start_record(self, name: str, model: str, user_id: int, router_id: int, router_name: str, user_email: str, key_id: int, key_name: str) -> str:
+    def start_record(
+        self,
+        endpoint: EndpointRoute,
+        model: str,
+        user_id: int,
+        router_id: int,
+        router_name: str,
+        user_email: str,
+        key_id: int,
+        key_name: str,
+    ) -> str:
         self._metadata = {"router_id": router_id, "router_name": router_name, "user_email": user_email, "key_id": key_id, "key_name": key_name}
         try:
             with propagate_attributes(user_id=str(user_id)):
                 self._observation = self.client.start_observation(
                     as_type="generation",
-                    name=name,
+                    name=endpoint.strip("/").replace("/", "-"),
                     model=model,
                     metadata=self._metadata,
                 )

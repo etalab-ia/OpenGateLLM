@@ -3,13 +3,14 @@ from datetime import datetime
 from uuid import uuid4
 
 from api.domain.usage.entities import Usage
+from api.utils.variables import EndpointRoute
 
 
 class UsageRecorder(ABC):
     @abstractmethod
     def start_record(
         self,
-        name: str,
+        endpoint: EndpointRoute,
         model: str,
         user_id: int,
         router_id: int,
@@ -43,7 +44,7 @@ class UsageRecorder(ABC):
 class DummyUsageRecorder(UsageRecorder):
     def start_record(
         self,
-        name: str,
+        endpoint: EndpointRoute,
         model: str,
         user_id: int,
         router_id: int,

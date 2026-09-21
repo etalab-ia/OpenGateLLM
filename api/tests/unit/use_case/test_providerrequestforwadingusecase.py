@@ -631,7 +631,7 @@ class TestExecute:
         assert result is error
         use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload, request_id=TRACE_ID)
         use_case.usage_recorder.start_record.assert_called_once_with(
-            name="chat-completions",
+            endpoint=EndpointRoute.CHAT_COMPLETIONS,
             model=router.name,
             user_id=command.authenticated_user.id,
             router_id=router.id,
