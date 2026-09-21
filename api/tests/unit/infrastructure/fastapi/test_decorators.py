@@ -1,3 +1,4 @@
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
@@ -9,7 +10,7 @@ from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.usage.entities import Usage as RecordedUsage
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext
-from api.infrastructure.fastapi.decorators import charge_router_limits, set_usage_from_context
+from api.infrastructure.fastapi.decorators import _wrap_streaming_response, charge_router_limits, set_usage_from_context
 from api.infrastructure.fastapi.dependencies import request_context
 from api.sql.models import Usage
 
@@ -56,6 +57,34 @@ def reset_request_context():
 @pytest.fixture
 def mock_router_rate_limiter():
     return AsyncMock()
+
+
+class TestWrapStreamingResponse:
+    @pytest.mark.asyncio
+    async def test_should_record_the_usage_row_even_when_closing_the_stream_fails(self):
+        """The row is the billing record: whatever goes wrong while draining the chain, it has to be written."""
+        # Arrange
+        recorded: list[Usage] = []
+
+        async def failing_stream() -> AsyncGenerator:
+            try:
+                yield ("data: hello\n\n", 200)
+            finally:
+                raise RuntimeError("cleanup blew up")
+
+        response = _wrap_streaming_response(
+            response=AsyncMock(body_iterator=failing_stream(), media_type="text/event-stream", headers={}),
+            usage=Usage(endpoint="/v1/chat/completions"),
+            record=lambda usage: recorded.append(usage),
+        )
+
+        # Act: read one chunk, then abandon the stream as a disconnecting client does
+        await response.body_iterator.__anext__()
+        with pytest.raises(RuntimeError):
+            await response.body_iterator.aclose()
+
+        # Assert
+        assert len(recorded) == 1, "a failure while closing the chain must not swallow the usage row"
 
 
 class TestSetUsageFromContext:

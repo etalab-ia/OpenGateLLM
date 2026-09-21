@@ -12,9 +12,10 @@ from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMe
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
-from api.domain.usage import UsageContext, UsageRecorder
+from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.user.views import AuthenticatedUserView
+from api.infrastructure.contextvars import ContextVarsUsageContext
 from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.decorators import _wrap_streaming_response, set_usage_from_context
@@ -54,7 +55,7 @@ def use_case() -> CreateChatCompletionsUseCase:
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
-        usage_context=create_autospec(UsageContext, instance=True, spec_set=True),
+        usage_context=ContextVarsUsageContext(request_context=request_context),
         usage_recorder=create_autospec(UsageRecorder, instance=True, spec_set=True),
     )
 
@@ -98,7 +99,8 @@ def _assemble(use_case, router, provider, outcome: list[str]) -> StreamingRespon
     def record(usage: UsageRow) -> None:
         # the real mapper, so the test sees what production sees: it reads `request_context` and raises without it
         try:
-            outcome.append(f"user_id={set_usage_from_context(usage=usage).user_id}")
+            row = set_usage_from_context(usage=usage)
+            outcome.append(f"user_id={row.user_id} completion_tokens={row.completion_tokens}")
         except Exception as error:
             outcome.append(type(error).__name__)
 
@@ -107,6 +109,35 @@ def _assemble(use_case, router, provider, outcome: list[str]) -> StreamingRespon
 
 @pytest.mark.asyncio
 class TestUsageRecordedOnClientDisconnect:
+    async def test_should_record_the_usage_row_when_closing_the_chain_is_cancelled(self, use_case, router, provider):
+        """Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises
+        as soon as it suspends. Observed in production: without a guard, no usage row is written at all."""
+        # Arrange
+        outcome: list[str] = []
+        use_case.provider_metrics_logger.increment_inflight.return_value = True
+        use_case.provider_metrics_logger.decrement_inflight.side_effect = asyncio.CancelledError()
+        response = _assemble(use_case, router, provider, outcome)
+
+        async def slow_client(message: dict) -> None:
+            await asyncio.sleep(1)
+
+        async def request_task(streamed: StreamingResponseWithStatusCode) -> None:
+            request_context.set(_request_context())
+            await streamed.stream_response(slow_client)
+
+        task = asyncio.create_task(request_task(response))
+        await asyncio.sleep(0.05)
+
+        # Act
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        # Assert
+        assert outcome == [f"user_id={USER_ID} completion_tokens=1"], (
+            "a failure while closing the chain must not swallow the usage row: the tokens were already delivered"
+        )
+
     async def test_should_record_the_usage_row_when_the_client_disconnects(self, use_case, router, provider):
         # Arrange: a slow client, so the chain sits parked on its yields when the disconnect lands
         outcome: list[str] = []
@@ -135,6 +166,7 @@ class TestUsageRecordedOnClientDisconnect:
             await asyncio.sleep(0.01)
 
         # Assert
-        assert outcome == [f"user_id={USER_ID}"], (
-            "the usage row was not built inside the request context: a client disconnecting mid-stream is never billed"
+        assert outcome == [f"user_id={USER_ID} completion_tokens=1"], (
+            "a client disconnecting mid-stream must still be billed: the row has to be built inside the request context, "
+            "and the use case has to have recorded the tokens it already delivered before the row is built"
         )

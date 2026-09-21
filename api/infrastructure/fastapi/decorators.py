@@ -12,7 +12,7 @@ from starlette.responses import StreamingResponse
 
 from api.domain.router import RouterRateLimiter
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
+from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode, aclose_stream
 from api.infrastructure.fastapi.dependencies import request_context
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
@@ -112,8 +112,11 @@ def _wrap_streaming_response(
                     status = chunk[1]
                 yield chunk
         finally:
-            usage.status = status
-            record(usage=usage)
+            try:
+                await aclose_stream(original_stream)
+            finally:
+                usage.status = status
+                record(usage=usage)
 
     return StreamingResponseWithStatusCode(
         content=stream_then_record(),
