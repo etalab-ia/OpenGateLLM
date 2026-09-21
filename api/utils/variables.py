@@ -24,6 +24,7 @@ class RouterName(StrEnum):
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
     MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
     OCR = ("ocr", "api.infrastructure.fastapi.endpoints.ocr")
+    ORGANIZATIONS = ("organizations", "api.infrastructure.fastapi.endpoints.organizations")
     RERANK = ("rerank", "api.infrastructure.fastapi.endpoints.rerank")
     USAGE = ("usage", "api.infrastructure.fastapi.endpoints.usage")
 
@@ -62,6 +63,7 @@ class EndpointRoute(StrEnum):
     ME_USAGE = f"/{RouterName.ME}/usage"
     MODELS = f"/{RouterName.MODELS}"
     OCR = f"/{RouterName.OCR}"
+    ORGANIZATIONS_ME = f"/{RouterName.ORGANIZATIONS}/me"
     RERANK = f"/{RouterName.RERANK}"
     USAGE = f"/{RouterName.USAGE}"
 

@@ -21,6 +21,12 @@ OpenGateLLM always provides an organization named `default`, so an installation 
 
 The `default` organization is a regular organization: you can rename it, and you can move its users to another one.
 
+## See your organization
+
+Any authenticated user can retrieve **their** organization with `GET /v1/organizations/me`. The response is the same shape as the admin get-one endpoint: `id`, `name`, number of `users`, and timestamps.
+
+<LinkButton href="/reference/" icon="external">API Reference</LinkButton>
+
 ## Manage organizations
 
 <Tabs>

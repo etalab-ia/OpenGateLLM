@@ -44,6 +44,8 @@ Reference implementations of these patterns:
 
 Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key.
 
+Self-service `/v1/organizations/me` reuses `GetOneOrganizationUseCase` with `organization_id=authenticated_user.organization_id`. Later org routes land in the same module (`api/infrastructure/fastapi/endpoints/organizations.py`).
+
 ### `api/endpoints/` — legacy, scheduled for removal
 
 Do not confuse `api/endpoints/` (pre-clean-architecture) with `api/infrastructure/fastapi/endpoints/` (current). **Never add a route or a module to `api/endpoints/`.** Three items remain:
