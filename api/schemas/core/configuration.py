@@ -206,12 +206,26 @@ class RedisDependency(ConfigBaseModel):
     Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.
     """
 
-    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
+    url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
+
+
+@custom_validation_error()
+class OpenFgaDependency(ConfigBaseModel):
+    """
+    OpenFGA is a required dependency of OpenGateLLM. OpenFGA stores the authorization relationships that decide who can act on an OpenGateLLM resource.
+    The authorization model is published by `scripts/provision_openfga.py` at deploy time, which also creates the store if it does not exist.
+    """
+
+    url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., pattern=r"^https?://", description="OpenFGA API url.", examples=["http://localhost:8080"])  # fmt: off
+    store_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="opengatellm", description="Name of the OpenFGA store. Resolved to its ID at startup, and created if missing.", examples=["opengatellm"])  # fmt: off
+    api_token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Pre-shared key sent as a Bearer token.", examples=["${OPENFGA_API_TOKEN}"])  # fmt: off
+    timeout_millisec: int = Field(default=5000, ge=1, description="Timeout of a single OpenFGA call.")  # fmt: off
 
 
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
     langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
+    openfga: OpenFgaDependency = Field(..., description="OpenFGA is a required dependency of OpenGateLLM to authorize actions on organizations.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="Postgres is a required dependency of OpenGateLLM to store API data.")  # fmt: off
     redis: RedisDependency  = Field(..., description="Redis is a required dependency for the API to store rate limiting counters and inflight gauges. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")  # fmt: off
