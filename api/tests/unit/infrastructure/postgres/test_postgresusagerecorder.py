@@ -1,6 +1,6 @@
-from datetime import UTC
+from datetime import UTC, datetime
 from http import HTTPMethod
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import BackgroundTasks
 import pytest
@@ -8,7 +8,6 @@ import pytest
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 from api.infrastructure.postgres import PostgresUsageRecorder
 from api.sql.models import Usage as UsageTable
-from api.utils.configuration import configuration
 from api.utils.variables import EndpointRoute
 
 IDENTITY = {
@@ -112,6 +111,37 @@ class TestPostgresUsageRecorder:
         assert row.kgco2eq == 2.5
         assert row.status == 200
 
+    def test_should_set_latency_from_start_time(self, recorder):
+        # Arrange
+        start = datetime(2026, 9, 21, 10, 0, 0, tzinfo=UTC)
+        end = datetime(2026, 9, 21, 10, 0, 0, 250000, tzinfo=UTC)
+
+        # Act
+        with patch("api.infrastructure.postgres._postgresusagerecorder.datetime") as mock_datetime:
+            mock_datetime.now.side_effect = [start, end]
+            _start_record(recorder)
+            recorder.update_record(usage=_usage(), provider_id=9, provider_model_name="vllm-model")
+
+        # Assert
+        assert recorder._row.latency == 250
+        assert recorder._row.ttft is None
+
+    def test_should_set_ttft_from_first_token_at(self, recorder):
+        # Arrange
+        start = datetime(2026, 9, 21, 10, 0, 0, tzinfo=UTC)
+        first_token_at = datetime(2026, 9, 21, 10, 0, 0, 50000, tzinfo=UTC)
+        end = datetime(2026, 9, 21, 10, 0, 0, 250000, tzinfo=UTC)
+
+        # Act
+        with patch("api.infrastructure.postgres._postgresusagerecorder.datetime") as mock_datetime:
+            mock_datetime.now.side_effect = [start, end]
+            _start_record(recorder)
+            recorder.update_record(usage=_usage(), provider_id=9, provider_model_name="vllm-model", first_token_at=first_token_at)
+
+        # Assert
+        assert recorder._row.ttft == 50
+        assert recorder._row.latency == 250
+
     def test_should_not_update_when_start_was_not_called(self, recorder):
         # Act / Assert
         recorder.update_record(usage=_usage(), provider_id=9, provider_model_name="vllm-model")
@@ -157,19 +187,6 @@ class TestPostgresUsageRecorder:
         assert row.prompt_tokens == 3
         assert row.status == 200
         mock_postgres_session.commit.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_should_skip_persist_when_monitoring_is_disabled(self, recorder, background_tasks, mock_postgres_session, monkeypatch):
-        # Arrange
-        monkeypatch.setattr(configuration.settings, "monitoring_postgres_enabled", False)
-        _start_record(recorder)
-        recorder.end_record()
-
-        # Act
-        await background_tasks()
-
-        # Assert
-        mock_postgres_session.add.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_swallow_persist_errors(self, recorder, background_tasks, mock_postgres_session):

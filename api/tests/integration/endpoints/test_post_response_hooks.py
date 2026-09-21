@@ -16,7 +16,6 @@ from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.configuration import configuration
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.OCR}"
@@ -34,10 +33,7 @@ LIMITS = ((LimitType.RPM, RPM_LIMIT), (LimitType.RPD, RPD_LIMIT), (LimitType.TPM
 @pytest.mark.asyncio(loop_scope="session")
 class TestPostResponseHooks:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session, test_redis_pool, monkeypatch):
-        # disables PostgresUsageRecorder so this test only asserts router-limit charging
-        monkeypatch.setattr(configuration.settings, "monitoring_postgres_enabled", False)
-
+    async def setup(self, db_session, test_redis_pool):
         self.user = UserSQLFactory(name="Alice", email="alice@example.com")  # a regular user: admins are exempt from the router limits
         self.key = await create_key(db_session, name="user_key", user=self.user)
         self.router = RouterSQLFactory(

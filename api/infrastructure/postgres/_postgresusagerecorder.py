@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
 from api.sql.models import Usage as UsageTable
-from api.utils.configuration import configuration
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -23,6 +22,7 @@ class PostgresUsageRecorder(UsageRecorder):
         self.background_tasks = background_tasks
         self.postgres_session_provider = postgres_session_provider
         self._row: UsageTable | None = None
+        self._start_time: datetime | None = None
 
     def start_record(
         self,
@@ -35,8 +35,9 @@ class PostgresUsageRecorder(UsageRecorder):
         key_id: int,
         key_name: str,
     ) -> str:
+        self._start_time = datetime.now(tz=UTC)
         self._row = UsageTable(
-            created=datetime.now(tz=UTC),
+            created=self._start_time,
             endpoint=f"/v1{endpoint}",
             method=HTTPMethod.POST,
             user_id=user_id,
@@ -49,9 +50,10 @@ class PostgresUsageRecorder(UsageRecorder):
         return uuid4().hex
 
     def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
-        if self._row is None:
+        if self._row is None or self._start_time is None:
             return
 
+        now = datetime.now(tz=UTC)
         self._row.provider_id = provider_id
         self._row.provider_model_name = provider_model_name
         self._row.prompt_tokens = usage.prompt_tokens
@@ -61,6 +63,13 @@ class PostgresUsageRecorder(UsageRecorder):
         self._row.kwh = usage.impacts.kWh
         self._row.kgco2eq = usage.impacts.kgCO2eq
         self._row.status = 200
+        self._row.latency = self._elapsed_ms(start_time=self._start_time, end_time=now)
+        if first_token_at is not None:
+            self._row.ttft = self._elapsed_ms(start_time=self._start_time, end_time=first_token_at)
+
+    @staticmethod
+    def _elapsed_ms(start_time: datetime, end_time: datetime) -> int:
+        return round((end_time - start_time).total_seconds() * 1000)
 
     def fail_record(self, message: str) -> None:
         return
@@ -68,13 +77,12 @@ class PostgresUsageRecorder(UsageRecorder):
     def end_record(self) -> None:
         row = self._row
         self._row = None
+        self._start_time = None
         if row is None:
             return
         self.background_tasks.add_task(self._persist, row)
 
     async def _persist(self, row: UsageTable) -> None:
-        if configuration.settings.monitoring_postgres_enabled is False:
-            return
         try:
             async for postgres_session in self.postgres_session_provider():
                 postgres_session.add(row)

@@ -92,7 +92,7 @@ def usage_summary() -> rx.Component:
 
 def usage_max_line(y: rx.Var, label: rx.Var) -> rx.Component:
     return rx.recharts.reference_line(
-        rx.recharts.label(value=label, position="insideTopRight"),
+        rx.recharts.label(value=label, position="insideBottomRight"),
         stroke=rx.color("mauve", 9),
         stroke_width=1,
         if_overflow="visible",

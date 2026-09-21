@@ -3,14 +3,17 @@ title: Inference monitoring
 sidebar:
   label: "[lucide:chart-spline] Inference monitoring"
 ---
-import { LinkButton, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Aside, LinkButton, TabItem, Tabs } from '@astrojs/starlight/components';
 
 ## Request usage logging
 
-OpenGateLLM tracks inference activity by storing usage data for each API request. This monitoring helps you analyze model usage over time, identify consumption patterns, and support reporting needs. 
-Usage monitoring is backed by PostgreSQL and can be enabled through the configuration file. Once activated, requests are recorded in the `usage` table and can be explored from the Playground *Usage* page or queried directly from the database.
+OpenGateLLM records usage for each model-forward API request (chat completions, embeddings, OCR, rerank, audio transcriptions). This helps you analyze consumption over time, identify patterns, and support reporting.
 
-The logs contain the following information:
+By default, usage is stored in **PostgreSQL**. You can replace that store with **Langfuse** by configuring the optional Langfuse dependency. Only one backend is used at a time: when Langfuse is connected, new requests are not written to the `usage` table.
+
+Sensitive information such as the prompt or response content is not included in the logs.
+
+In both cases, the logs contain the following information:
 - user ID
 - router ID
 - provider ID
@@ -18,22 +21,10 @@ The logs contain the following information:
 - number of output tokens
 - environmental footprint (see the dedicated documentation [here](/features/usage/environmental_footprint/))
 - cost (see the dedicated documentation [here](/features/usage/budget/))
-- duration
-- timestamp
 
-Sensitive information such as the prompt or response content is not included in the logs.
+User can see their usage in the *Usage* page of the Playground.
 
-### Configuration
-
-To logs requests for usage monitoring, set `monitoring_postgres_enabled` to `true` in settings (enabled by default).
-
-```yaml
-settings:
-    [...]
-    monitoring_postgres_enabled: true
-```
-
-<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
+![Usage playground page](../../../../assets/img/playground_usage_page.png)
 
 ## Real-time metrics
 

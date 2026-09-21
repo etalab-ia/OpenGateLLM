@@ -9,9 +9,55 @@ import { Aside, LinkButton } from '@astrojs/starlight/components';
 Langfuse is an **optional dependency** for OpenGateLLM. The application works without it.
 </Aside>
 
-OpenGateLLM supports [Langfuse](https://langfuse.com/) for tracing and logging. It helps you trace and log your application's operations.
+OpenGateLLM supports [Langfuse](https://langfuse.com/) for LLM observability. When it is configured, inference usage is sent to Langfuse as generation traces **instead of** being written to the PostgreSQL `usage` table.
+
+PostgreSQL remains required for application data (users, keys, routers, providers). Only the usage log backend changes.
+
+## What is recorded
+
+Each model-forward request (chat completions, embeddings, OCR, rerank, audio transcriptions) becomes a Langfuse **generation** observation:
+
+| Field | Content |
+| --- | --- |
+| Name | Endpoint path, for example `chat-completions` or `embeddings` |
+| Model | Router name |
+| User | Authenticated user ID |
+| Metadata | Router ID and name, user email, key ID and name, provider ID and model name |
+| Usage | Prompt tokens, completion tokens, cached prompt tokens |
+| Cost | Request cost |
+| Scores | `kWh` and `kgCO2eq` environmental impacts |
+| Time to first token | Set on streaming chat as `completion_start_time` |
+| Errors | Failed inferences are marked `ERROR` with the domain error name |
+
+Prompts and completions are not sent to Langfuse.
+
+## Alternative to PostgreSQL usage logging
+
+If `dependencies.langfuse` is omitted, usage is stored in PostgreSQL (see [inference monitoring](/features/usage/inference_monitoring/)).
+
+When Langfuse is connected, new requests are **not** inserted into the `usage` table. The Playground *Usage* page and `GET /v1/usage` therefore stay empty for those requests; inspect them in the Langfuse UI.
+
+At startup, OpenGateLLM authenticates against the Langfuse server. If authentication fails, a warning is logged and usage logging falls back to PostgreSQL for that process.
 
 ## Configuration
 
-To configure Langfuse, add it to the `dependencies` section of your `config.yml` file.  
+Add Langfuse to the `dependencies` section of your `config.yml` file.
 Check the [Langfuse section](/configuration/configuration_file/#langfusedependency) in the configuration file documentation for more details.
+
+Example:
+
+```yaml
+dependencies:
+    [...]
+    langfuse:
+        public_key: ${LANGFUSE_PUBLIC_KEY}
+        secret_key: ${LANGFUSE_SECRET_KEY}
+        base_url: http://localhost:3000
+```
+
+Create the API keys in your Langfuse project settings. `base_url` should point at your self-hosted Langfuse instance or at [Langfuse Cloud](https://cloud.langfuse.com).
+
+Extra attributes are forwarded to the [Langfuse Python SDK](https://python.reference.langfuse.com/langfuse).
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
+<LinkButton href="/features/usage/inference_monitoring/" icon="external">Inference monitoring</LinkButton>
