@@ -8,6 +8,7 @@ from api.schemas.me.info import UserInfo
 from api.schemas.usage import Usage
 
 if TYPE_CHECKING:
+    from openfga_sdk.client import OpenFgaClient
     from redis.asyncio import ConnectionPool
     from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -30,6 +31,7 @@ class GlobalContext(BaseModel):
     autocommit_postgres_session_factory: async_sessionmaker | None = None
     postgres_engine: AsyncEngine | None = None
     langfuse_client: LangfuseManager | None = None
+    openfga_client: OpenFgaClient | None = None
 
 
 class RequestContext(BaseModel):
