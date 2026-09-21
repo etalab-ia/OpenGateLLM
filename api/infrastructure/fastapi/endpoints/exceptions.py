@@ -112,6 +112,14 @@ class NotAdminUserHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class UnauthorizedActionHTTPException(HTTPException):
+    status_code = 403
+    detail = "User is not allowed to perform this action."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 class SSOAccessDeniedHTTPException(HTTPException):
     status_code = 403
     detail = "Access denied, please contact your administrator."
@@ -378,6 +386,14 @@ class ModelIsTooBusyExceptionHTTPException(HTTPException):
 class SsoProviderNotAvailableHTTPException(HTTPException):
     status_code = 503
     detail = "SSO provider is not available."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
+class AuthorizationNotAvailableHTTPException(HTTPException):
+    status_code = 503
+    detail = "Authorization service is not available."
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)
