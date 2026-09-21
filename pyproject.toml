@@ -32,6 +32,7 @@ api = [
     "limits==5.8.0",
     "mistralai==2.0.0",
     "openai==2.15.0",
+    "openfga-sdk==0.10.4",
     "prometheus-fastapi-instrumentator==8.1.0",
     "psycopg2-binary==2.9.11",
     "python-jose==3.5.0",
@@ -41,7 +42,7 @@ api = [
     "sqlalchemy-utils==0.42.1",
     "sqlalchemy[asyncio]==2.0.47",
     "tiktoken==0.12.0",
-    "uvicorn==0.41.0"
+    "uvicorn==0.41.0",
 ]
 dev = [
     "pre-commit>=4.5.1",
