@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import AsyncGenerator, Callable, Coroutine
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine
 from datetime import UTC, datetime
 import functools
 import logging
@@ -8,9 +8,11 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import StreamingResponse
 
 from api.domain.router import RouterRateLimiter
 from api.domain.user.views import AuthenticatedUserView
+from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.dependencies import request_context
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
@@ -34,12 +36,6 @@ def _schedule_background_task(coroutine: Coroutine, task_name: str) -> None:
     task.add_done_callback(_log_background_task_failure)
 
 
-def _total_tokens(prompt_tokens: int | None, completion_tokens: int | None) -> int | None:
-    if prompt_tokens is None and completion_tokens is None:
-        return None
-    return (prompt_tokens or 0) + (completion_tokens or 0)
-
-
 def hooks(*, postgres_session_provider: PostgresSessionProvider, router_rate_limiter_provider: RouterRateLimiterProvider):
     def decorator(endpoint_func):
         @functools.wraps(endpoint_func)
@@ -50,33 +46,80 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider, router_rate_lim
                 logger.info(f"No key found in request context, skipping usage logging ({context.endpoint}).")
                 return await endpoint_func(*args, **kwargs)
 
+            record = functools.partial(
+                _record_usage,
+                user=context.user,
+                postgres_session_provider=postgres_session_provider,
+                router_rate_limiter_provider=router_rate_limiter_provider,
+            )
+
             try:
                 response = await endpoint_func(*args, **kwargs)
-                usage.status = response.status_code
-                return response
-
             except HTTPException as e:
                 usage.status = e.status_code
+                record(usage=usage)
                 raise e
+            except Exception:
+                record(usage=usage)
+                raise
 
-            finally:
-                usage = set_usage_from_context(usage=usage)
-                _schedule_background_task(
-                    coroutine=charge_router_limits(user=context.user, usage=usage, router_rate_limiter_provider=router_rate_limiter_provider),
-                    task_name="hooks-charge-router-limits",
-                )
-                _schedule_background_task(
-                    coroutine=log_usage(usage=usage, postgres_session_provider=postgres_session_provider),
-                    task_name="hooks-log-usage",
-                )
-                _schedule_background_task(
-                    coroutine=update_budget(usage=usage, postgres_session_provider=postgres_session_provider),
-                    task_name="hooks-update-budget",
-                )
+            if isinstance(response, StreamingResponse):
+                return _wrap_streaming_response(response=response, usage=usage, record=record)
+
+            usage.status = response.status_code
+            record(usage=usage)
+
+            return response
 
         return wrapper
 
     return decorator
+
+
+def _record_usage(
+    usage: Usage,
+    user: AuthenticatedUserView | None,
+    postgres_session_provider: PostgresSessionProvider,
+    router_rate_limiter_provider: RouterRateLimiterProvider,
+) -> None:
+    usage = set_usage_from_context(usage=usage)
+    _schedule_background_task(
+        coroutine=charge_router_limits(user=user, usage=usage, router_rate_limiter_provider=router_rate_limiter_provider),
+        task_name="hooks-charge-router-limits",
+    )
+    _schedule_background_task(
+        coroutine=log_usage(usage=usage, postgres_session_provider=postgres_session_provider),
+        task_name="hooks-log-usage",
+    )
+    _schedule_background_task(
+        coroutine=update_budget(usage=usage, postgres_session_provider=postgres_session_provider),
+        task_name="hooks-update-budget",
+    )
+
+
+def _wrap_streaming_response(
+    response: StreamingResponse,
+    usage: Usage,
+    record: Callable[..., None],
+) -> StreamingResponseWithStatusCode:
+    original_stream: AsyncIterator[StreamChunk] = response.body_iterator
+
+    async def stream_then_record():
+        status = None
+        try:
+            async for chunk in original_stream:
+                if isinstance(chunk, tuple):
+                    status = chunk[1]
+                yield chunk
+        finally:
+            usage.status = status
+            record(usage=usage)
+
+    return StreamingResponseWithStatusCode(
+        content=stream_then_record(),
+        media_type=response.media_type,
+        headers=dict(response.headers),
+    )
 
 
 def set_usage_from_context(usage: Usage):
@@ -91,12 +134,14 @@ def set_usage_from_context(usage: Usage):
     usage.provider_id = context.provider_id
     usage.router_name = context.router_name
     usage.provider_model_name = context.provider_model_name
-    usage.prompt_tokens = context.prompt_tokens
-    usage.completion_tokens = context.completion_tokens
-    usage.total_tokens = _total_tokens(context.prompt_tokens, context.completion_tokens)
-    usage.cost = context.cost
-    usage.kwh = context.kwh
-    usage.kgco2eq = context.kgco2eq
+    # left NULL when the request failed before the provider was called
+    if (recorded := context.usage) is not None:
+        usage.prompt_tokens = recorded.prompt_tokens
+        usage.completion_tokens = recorded.completion_tokens
+        usage.total_tokens = recorded.total_tokens
+        usage.cost = recorded.cost
+        usage.kwh = recorded.impacts.kWh
+        usage.kgco2eq = recorded.impacts.kgCO2eq
 
     return usage
 

@@ -18,14 +18,15 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
-from api.domain.usage import UsageRecorder, UsageRepository
+from api.domain.usage import DummyUsageRecorder, UsageContext, UsageRecorder, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.contextvars import ContextVarsUsageContext
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
-from api.infrastructure.fastapi import RequestContextUsageRecorder
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
+from api.infrastructure.langfuse import LangfuseUsageRecorder
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresAuthenticatedUserQuery,
@@ -62,6 +63,7 @@ from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase, UpdateUserUseCase
 from api.use_cases.audio import CreateAudioTranscriptionsUseCase
 from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
+from api.use_cases.chat import CreateChatCompletionsUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.me import GetMeUseCase, UpdateMeUseCase
@@ -74,7 +76,7 @@ from api.utils.configuration import configuration
 from api.utils.context import global_context
 
 
-# databases
+# infrastructure
 async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
     session_factory = global_context.postgres_session_factory
     async with session_factory() as postgres_session:
@@ -156,8 +158,14 @@ def get_router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
+def _usage_context() -> UsageContext:
+    return ContextVarsUsageContext(request_context=request_context)
+
+
 def _usage_recorder() -> UsageRecorder:
-    return RequestContextUsageRecorder(request_context=request_context)
+    if global_context.langfuse is None:
+        return DummyUsageRecorder()
+    return LangfuseUsageRecorder(client=global_context.langfuse)
 
 
 # repositories
@@ -221,8 +229,31 @@ def create_audio_transcriptions_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
+    )
+
+
+# chat use cases
+def create_chat_completions_use_case_factory(
+    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
+    redis_client: Redis = Depends(get_redis_client),
+    model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
+    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    provider_client: ProviderClient = Depends(_provider_client),
+) -> CreateChatCompletionsUseCase:
+    return CreateChatCompletionsUseCase(
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+        model_tokenizer=model_tokenizer,
+        provider_client=provider_client,
+        provider_load_balancer=_provider_load_balancer(redis_client),
+        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_repository=_provider_repository(postgres_session),
+        router_rate_limiter=get_router_rate_limiter(),
+        router_repository=_router_repository(postgres_session),
+        usage_context=_usage_context(),
+        usage_recorder=_usage_recorder(),
     )
 
 
@@ -265,7 +296,6 @@ def get_health_models_use_case_factory(
 ) -> GetHealthModelsUseCase:
     return GetHealthModelsUseCase(
         provider_client=provider_client,
-        provider_metrics_logger=_provider_metrics_logger(redis_client),
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
     )
@@ -288,6 +318,7 @@ def create_embeddings_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
     )
 
@@ -359,6 +390,7 @@ def create_ocr_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
     )
 
@@ -422,6 +454,7 @@ def create_rerank_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
     )
 

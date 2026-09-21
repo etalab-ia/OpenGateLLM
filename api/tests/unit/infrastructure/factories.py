@@ -29,6 +29,7 @@ class ProviderRequestFactory(factory.Factory):
     class Meta:
         model = ProviderRequest
 
+    id = factory.Faker("md5")
     endpoint = factory.Faker("random_element", elements=list(EndpointRoute))
     payload = None
 

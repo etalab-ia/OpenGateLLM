@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import Field
@@ -11,9 +11,8 @@ class ModelCosts(BaseModel):
     completion_tokens: float = Field(default=0.0, ge=0.0, description="Cost of a million completion tokens (decrease user budget)")
 
 
-class ModelType(str, Enum):
+class ModelType(StrEnum):
     AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
-    IMAGE_TEXT_TO_TEXT = "image-text-to-text"
     IMAGE_TO_TEXT = "image-to-text"
     TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"
     TEXT_GENERATION = "text-generation"

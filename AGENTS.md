@@ -4,6 +4,10 @@ Coding conventions for this repository. New and changed code follows clean archi
 
 **Git history is linear.** Never create merge commits (`git merge`, `git pull` without `--rebase`). Update a branch with `git pull --rebase origin main`. After rewriting already-pushed commits, update the remote with `git push --force-with-lease`. Full workflow: [`docs/src/content/docs/contributing/development_environment.mdx`](docs/src/content/docs/contributing/development_environment.mdx).
 
+**Do not edit auto generated documentation files.**:
+- `docs/redoc-static.html`
+- `docs/src/content/docs/configuration/configuration_file.mdx`
+
 ---
 
 ## Architecture
@@ -41,6 +45,7 @@ Reference implementations of these patterns:
 | Full CRUD | `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/endpoints/admin/routers.py` |
 | Read-only projection | `api/infrastructure/fastapi/endpoints/models.py` (`ModelQuery` + `ModelView`) |
 | Model-forward (autocommit) | embeddings, OCR, rerank, audio transcriptions |
+| Model-forward with streaming | `api/infrastructure/fastapi/endpoints/chat.py` + `api/use_cases/chat/` (see [Streaming](#streaming)) |
 
 Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key.
 
@@ -48,19 +53,17 @@ Self-service `/v1/organizations/me` reuses `GetOneOrganizationUseCase` with `org
 
 ### `api/endpoints/` — legacy, scheduled for removal
 
-Do not confuse `api/endpoints/` (pre-clean-architecture) with `api/infrastructure/fastapi/endpoints/` (current). **Never add a route or a module to `api/endpoints/`.** Three items remain:
+Do not confuse `api/endpoints/` (pre-clean-architecture) with `api/infrastructure/fastapi/endpoints/` (current). **Never add a route or a module to `api/endpoints/`.** Two items remain:
 
 | Remaining | Exposes | Migrate to |
 |-----------|---------|------------|
 | `api/endpoints/admin/organizations.py` | `PATCH /v1/admin/organizations/{organization}` | `api/infrastructure/fastapi/endpoints/admin/organizations.py` — the other organization routes already live there |
-| `api/endpoints/chat.py` | `POST /v1/chat/completions` | `api/infrastructure/fastapi/endpoints/chat.py` + `api/use_cases/chat/` — model-forward, so `AutocommitSession` |
 | `api/endpoints/monitoring.py` | no route — `setup_prometheus`, called by `_setup_monitoring` | not a router; needs a home under `api/infrastructure/` |
 
 These files run on the legacy stack (`api/helpers/_accesscontroller.py`, `api/schemas/`, `api/utils/dependencies.py`, `global_context.identity_access_manager`). Migrating one means porting it to the patterns in this file — do not carry its imports over, and do not copy them into new code.
 
-The directory disappears once all three are moved and these go with them:
+The directory disappears once both are moved and these go with them:
 
-- `RouterName.CHAT` pointing at `api.endpoints.chat` (`api/utils/variables.py`)
 - the `@TODO: legacy import` block registering `api.endpoints.admin` (`api/app.py`)
 - `from api.endpoints.monitoring import setup_prometheus` (`api/app.py`)
 
@@ -339,14 +342,37 @@ Prefer `match`/`case` over `isinstance` when branching on a repository result or
 
 Export `Command`, `UseCase`, `UseCaseSuccess` from `__init__.py`.
 
+### Method order — step down
+
+A class reads top to bottom, one level of abstraction at a time: a method is declared **before** the methods it calls, and right after the one that calls it.
+
+```
+ROUTER_TYPE, ENDPOINT      class attributes
+__init__                   wiring — it sets the stage, it is not part of the narrative
+execute                    the flow
+  _check_command             …in the order execute calls them
+  _resolve_router
+  _check_rate_limits
+  _send_request
+    _select_provider           one level below _send_request, its caller
+    _build_usage
+  _build_success
+```
+
+Reference: `api/use_cases/_providerrequestforwardingusecase.py`. When a helper has several callers, place it under the first one in the flow.
+
 ### Keep business logic inline in `execute()`
 
-Put the full business flow in a single `execute()` method so it can be read top-to-bottom in one pass. Do **not** extract private orchestration methods that hide control flow (`_sync_user`, `_create_user`, `_resolve_*`, etc.).
+Put the full business flow in a single `execute()` so it can be read top-to-bottom in one pass. A step may live in its own method **as long as its branch stays visible at the call site**: it returns `Value | Error` and `execute()` does the `match`. `_resolve_router` in the forwarding template qualifies — reading `execute()` alone tells you that resolving a router can abort the request. The method extracts the *how*, never the *whether*.
 
-Allowed outside `execute()`:
+What is forbidden is a helper that takes the decision away from `execute()`: one that aborts on its own behalf, or that hides a branch behind a neutral name — `_sync_user` choosing between create and update, `_handle_x` swallowing an error. **If you cannot tell, from `execute()` alone, which paths the request can take, the extraction is wrong.**
+
+This matters more here than in a codebase built on exceptions. Errors are *returned*, not raised: a `raise` buried in a helper propagates by language contract, a `return error` only aborts the request if the caller remembers to match on it.
+
+Also allowed outside `execute()`:
 - `__init__` (dependencies + config)
 - **`@staticmethod`** helpers on the use case class when they are pure/unit operations reused several times — not business orchestration
-- **Documented override hooks** — see below
+- **Override points** — see below
 
 Do **not** put helpers at module level; keep them as static methods on the use case class.
 
@@ -360,7 +386,7 @@ class CreateExampleUseCase:
         return value.strip() or None
 
     async def execute(self, command: CreateExampleCommand) -> CreateExampleUseCaseResult:
-        # bad — business steps hidden behind private methods
+        # bad — the create-vs-update decision is invisible from here
         # user = await self._sync_user(user, command)
 
         # good — full flow visible in execute(); call static helpers for repeated unit work
@@ -374,11 +400,54 @@ class CreateExampleUseCase:
                 ...
 ```
 
-### Override hooks
+### Override points
 
-`AuthSsoLoginUseCase` (`api/use_cases/auth/_authssologinusecase.py`) is the one deliberate exception. It exposes four **public async** methods outside `execute()` — `has_access`, `get_user_name`, `get_role_id`, `get_organization_id` — with default implementations that operators replace to plug in their own SSO policy. They are a documented extension point (see `docs.opengatellm.org/features/users_management/sso`), not hidden orchestration.
+Two kinds, and neither is an exception to the rule above: both keep every branch visible in the `execute()` that runs.
+
+**Operator extension points.** `AuthSsoLoginUseCase` (`api/use_cases/auth/_authssologinusecase.py`) exposes four **public async** methods outside `execute()` — `has_access`, `get_user_name`, `get_role_id`, `get_organization_id` — with default implementations that operators replace to plug in their own SSO policy. They are a documented extension point (see `docs.opengatellm.org/features/users_management/sso`), not hidden orchestration.
 
 Do **not** inline them. Conversely, do not introduce new hooks of this kind unless the extension point is a published, documented contract.
+
+**Template steps.** `ProviderRequestForwardingUseCase` keeps one `execute()` for every model-forward use case and lets a subclass vary its two ends, so none of them copies the shared middle. The steps it calls — `_resolve_router`, `_check_rate_limits`, `_send_request` — are extractions of the *how*: `execute()` still shows every branch. The two hooks below are its variation points:
+
+| Hook | Default | Override when |
+|------|---------|---------------|
+| `_check_command(command)` | `None` | a precondition must reject the command before any provider work — `CreateAudioTranscriptionsUseCase` and its file size limit |
+| `_build_success(command, response, headers)` | `ProviderRequestForwardingUseCaseSuccess` | the endpoint answers with more than one success shape — `CreateAudioTranscriptionsUseCase` and its JSON-vs-text response |
+
+The second type parameter is the use case's whole result union — success shapes and errors — so `execute()` keeps an honest return type whatever the subclass adds:
+
+```python
+# simple forward: the generic result
+ProviderRequestForwardingUseCase[CreateEmbeddingsCommand, ProviderRequestForwardingUseCaseResult[Embeddings]]
+
+# own result union, declared next to the success dataclasses
+ProviderRequestForwardingUseCase[CreateAudioTranscriptionsCommand, CreateAudioTranscriptionsUseCaseResult]
+```
+
+Do not give it a PEP 695 default: `requires-python` is `>=3.12` and type-parameter defaults are 3.13 syntax, so ruff rejects them under `target-version = "py312"`.
+
+A subclass whose **flow shape** differs writes its own `execute()` instead — an extra step that can fail mid-way, or a second exit that skips `_send_request`. `CreateChatCompletionsUseCase` does, because streaming returns before the provider call and with another success type. Do not widen the hooks to absorb that case: a hook able to short-circuit the template stops being a template step, and `execute()` stops being readable top-to-bottom.
+
+### Streaming
+
+Only chat completions streams today (`api/use_cases/chat/_createchatcompletionsusecase.py`). A streaming use case returns **two** success types and the endpoint matches on both:
+
+| Success | Carries | Endpoint returns |
+|---------|---------|------------------|
+| `Create<Noun>UseCaseSuccess` | `data`, `headers` | `JSONResponse` |
+| `Create<Noun>StreamUseCaseSuccess` | `chunks: AsyncGenerator[ProviderChunkResponse]`, `headers` | `StreamingResponseWithStatusCode` |
+
+Rules:
+
+- **Everything that can still become an HTTP status runs before the generator is returned** — router resolution, rate limits, provider selection, adapter build and request formatting. Once the first byte is sent the status is fixed, so an error found mid-stream can only be *yielded*, never raised.
+- The split is **before the first byte vs. after**, not streamed vs. not. `forward_stream` is a coroutine returning `AsyncGenerator[ProviderChunkResponse] | ProviderClientStreamError`: failures found while preparing the call come back **typed**, exactly like `forward`, and `execute()` returns them so the endpoint's existing `match` maps them. Never re-decide an HTTP status inside the client — that duplicates the endpoint.
+- The generator is **lazy**: returning the success runs no provider call, which is what lets `execute()` stay awaitable and testable.
+- The generator yields `ProviderChunkResponse(content, status_code)` — raw provider lines plus the status. Transport concerns (SSE framing, network errors → a 503 chunk) stay in `api/infrastructure/http/_httpproviderclient.py`; parsing, token counting and usage stay in the use case. `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, which is what lets a transport failure on the very first read still surface as a real status.
+- A non-2xx chunk ends the stream immediately and is forwarded as-is.
+- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_recorder.record_usage` there — that is the only point where a stream's usage is known.
+- `@hooks` detects a `StreamingResponse` and defers the usage row until the iterator is exhausted (`_wrap_streaming_response` in `api/infrastructure/fastapi/decorators.py`). Without it a stream would log a row with zero tokens.
+- Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommit_releases_connection_during_model_forward.py`.
 
 ---
 
@@ -395,7 +464,7 @@ Two session factories. Choose **in the use-case factory** in `api/dependencies.p
 
 Autocommit wiring:
 
-- Model-forward use cases: `create_embeddings_use_case_factory`, `create_ocr_use_case_factory`, `create_rerank_use_case_factory`, `create_audio_transcriptions_use_case_factory`
+- Model-forward use cases: `create_embeddings_use_case_factory`, `create_ocr_use_case_factory`, `create_rerank_use_case_factory`, `create_audio_transcriptions_use_case_factory`, `create_chat_completions_use_case_factory`
 - `AccessController` lookups: `_authentication_key_repository`, `_authenticated_user_query` (they run on the same request as model-forward)
 
 ```python

@@ -20,11 +20,6 @@ def provider_client():
 
 
 @pytest.fixture
-def provider_metrics_logger():
-    return AsyncMock()
-
-
-@pytest.fixture
 def router_repository():
     return AsyncMock()
 
@@ -54,13 +49,8 @@ def user_without_access():
 
 
 @pytest.fixture
-def use_case(provider_client, provider_metrics_logger, router_repository, provider_repository):
-    return GetHealthModelsUseCase(
-        provider_client=provider_client,
-        provider_metrics_logger=provider_metrics_logger,
-        router_repository=router_repository,
-        provider_repository=provider_repository,
-    )
+def use_case(provider_client, router_repository, provider_repository):
+    return GetHealthModelsUseCase(provider_client=provider_client, router_repository=router_repository, provider_repository=provider_repository)
 
 
 @pytest.fixture
@@ -76,7 +66,7 @@ def configure_metrics(
     metrics_result: ProviderResponse | ProviderAdapterValidationResponseError | None = None,
 ):
     provider_client.forward.return_value = metrics_result or ProviderResponse(
-        id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running)
+        data=ProviderMetrics(waiting_requests=waiting, running_requests=running)
     )
 
 
@@ -359,7 +349,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_models_fallback(provider_client, models_response=ProviderResponse(id="req-123", data=Models(data=[])))
+        configure_models_fallback(provider_client, models_response=ProviderResponse(data=Models(data=[])))
 
         # Act
         result = await use_case.execute(command=default_command)

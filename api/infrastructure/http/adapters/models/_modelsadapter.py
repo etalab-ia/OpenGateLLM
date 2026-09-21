@@ -26,9 +26,7 @@ class ModelsAdapter(HttpProviderAdapter):
         http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse:
-        request_id = self._extract_request_id(http_response=http_response)
         return ProviderResponse(
-            id=request_id,
             data=Models(
                 data=[
                     Model(

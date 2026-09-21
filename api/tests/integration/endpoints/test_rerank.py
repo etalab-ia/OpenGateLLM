@@ -91,6 +91,7 @@ class TestCreateRerank:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["object"] == "list"
+        assert len(data["id"]) == 32
         assert data["model"] == DEFAULT_MODEL_NAME
         assert len(data["results"]) == len(DEFAULT_DOCUMENTS)
         assert all("relevance_score" in result and "index" in result for result in data["results"])

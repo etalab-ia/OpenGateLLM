@@ -55,8 +55,6 @@ class AccessController:
         except (JWTError, KeyError, ValidationError):
             raise InvalidAPIKeyHTTPException()
 
-        self._set_value_in_request_context(request_context=request_context, key="key", value=decoded_key)
-
         result = await key_repository.get_key_by_id(key_id=decoded_key.id)
         match result:
             case KeyNotFoundError():
@@ -64,6 +62,8 @@ class AccessController:
             case Key() as key:
                 if not decoded_key.is_valid(expected_key=key):
                     raise InvalidAPIKeyHTTPException()
+
+        self._set_value_in_request_context(request_context=request_context, key="key", value=key)
 
         user = await authenticated_user_query.get_user_by_id(user_id=key.user_id)
 

@@ -29,6 +29,7 @@ def _original_request(**overrides) -> ProviderRequest:
         temperature=0.0,
     )
     payload = {
+        "id": "req-1",
         "endpoint": EndpointRoute.AUDIO_TRANSCRIPTIONS,
         "payload": form,
     }
@@ -56,12 +57,14 @@ class TestAudioTranscriptionsAdapter:
         # Arrange
         provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test", model_name="whisper-1")
         adapter = AudioTranscriptionsAdapter(provider=provider)
-        original_response = HttpProviderResponse(data={"text": "hello world"})
+        original_request = _original_request(id="req-123")
+        original_response = HttpProviderResponse(data={"id": "provider-id", "text": "hello world"})
 
         # Act
-        result = adapter.to_provider_response(request=_original_request(), http_response=original_response)
+        result = adapter.to_provider_response(request=original_request, http_response=original_response)
 
         # Assert
+        assert result.data.id == "req-123"
         assert result.data.text == "hello world"
         assert result.data.model == "audio-router"
 
