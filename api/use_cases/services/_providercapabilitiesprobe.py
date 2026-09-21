@@ -88,10 +88,7 @@ class ProviderCapabilitiesProbe:
         return model.max_context_length
 
     async def _get_vector_size(self, provider: Provider) -> int | ProviderNotReachableError | ProviderInvalidResponseError:
-        request = ProviderRequest(
-            endpoint=EndpointRoute.EMBEDDINGS,
-            payload=CreateEmbeddingsBody(model=provider.model_name, input="hello world"),
-        )
+        request = ProviderRequest(endpoint=EndpointRoute.EMBEDDINGS, payload=CreateEmbeddingsBody(model=provider.model_name, input="hello world"))
         response = await self.provider_client.forward(provider=provider, request=request)
         match response:
             case ProviderResponse() as provider_response:

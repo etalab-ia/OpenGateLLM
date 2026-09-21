@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from api.dependencies import create_audio_transcriptions_use_case_factory, get_postgres_session, get_router_rate_limiter
 from api.domain.audio.entities import CreateAudioTranscriptionsFile
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
+from api.domain.key.entities import Key
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -20,7 +21,7 @@ from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAcce
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.decorators import hooks
-from api.infrastructure.fastapi.dependencies import get_authenticated_user
+from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     FileSizeLimitExceededHTTPException,
@@ -66,6 +67,7 @@ async def create_audio_transcription(
     data: Annotated[CreateAudioTranscriptionsForm, Depends(CreateAudioTranscriptionsForm.as_form)],
     create_audio_transcriptions_use_case: CreateAudioTranscriptionsUseCase = Depends(create_audio_transcriptions_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+    authenticated_key: Key = Depends(get_authenticated_key),
 ) -> JSONResponse:
     try:
         payload = data.model_dump(mode="json", exclude={"file"})
@@ -76,7 +78,7 @@ async def create_audio_transcription(
             size=data.file.size,
         )
 
-        command = CreateAudioTranscriptionsCommand(payload=payload, authenticated_user=authenticated_user)
+        command = CreateAudioTranscriptionsCommand(payload=payload, authenticated_user=authenticated_user, authenticated_key=authenticated_key)
         result = await create_audio_transcriptions_use_case.execute(command)
     except Exception as e:
         logger.exception(

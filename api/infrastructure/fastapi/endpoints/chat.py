@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from api.dependencies import create_chat_completions_use_case_factory, get_postgres_session, get_router_rate_limiter
+from api.domain.key.entities import Key
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.provider.errors import (
@@ -20,7 +21,7 @@ from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.decorators import hooks
-from api.infrastructure.fastapi.dependencies import get_authenticated_user
+from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientBudgetHTTPException,
@@ -69,10 +70,11 @@ async def create_chat_completions(
     body: CreateChatCompletionsBody = Body(description="The chat completion request."),
     create_chat_completions_use_case: CreateChatCompletionsUseCase = Depends(create_chat_completions_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+    authenticated_key: Key = Depends(get_authenticated_key),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation."""
     try:
-        command = CreateChatCompletionsCommand(payload=body.model_dump(), authenticated_user=authenticated_user)
+        command = CreateChatCompletionsCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=authenticated_key)
         result = await create_chat_completions_use_case.execute(command)
     except Exception as e:
         logger.exception(

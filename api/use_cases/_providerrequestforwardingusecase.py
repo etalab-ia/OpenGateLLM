@@ -7,6 +7,7 @@ from typing import ClassVar
 from pydantic import BaseModel
 
 from api.domain import ForwardablePayload
+from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
@@ -20,7 +21,7 @@ from api.domain.provider.errors import (
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContext, UsageRecorder
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
@@ -30,6 +31,7 @@ from api.utils.variables import EndpointRoute
 class ForwardingCommand[TPayload: ForwardablePayload](BaseModel):
     payload: TPayload
     authenticated_user: AuthenticatedUserView
+    authenticated_key: Key
 
     @property
     def model(self) -> str | None:
@@ -77,6 +79,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
+        usage_context: UsageContext,
         usage_recorder: UsageRecorder,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
@@ -89,6 +92,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
 
+        self.usage_context = usage_context
         self.usage_recorder = usage_recorder
 
     async def execute(self, command: TCommand) -> TResult:
@@ -113,14 +117,19 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload)
-        match result:
-            case ProviderResponse() as provider_response:
-                pass
-            case error:
-                return error
+        request_id = self._start_record_usage(command=command, router=router)
+        try:
+            result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload, request_id=request_id)
+            match result:
+                case ProviderResponse() as provider_response:
+                    pass
+                case error:
+                    self.usage_recorder.fail_record(message=type(error).__name__)
+                    return error
 
-        return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
+            return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
+        finally:
+            self.usage_recorder.end_record()
 
     def _check_command(self, command: TCommand) -> TResult | None:
         return None
@@ -144,7 +153,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        self.usage_recorder.record_router(router_id=router.id, router_name=router.name)
+        self.usage_context.record_router(router_id=router.id, router_name=router.name)
 
         if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
@@ -181,11 +190,24 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return rate_limit_state
 
+    def _start_record_usage(self, command: TCommand, router: Router) -> str:
+        return self.usage_recorder.start_record(
+            endpoint=self.ENDPOINT,
+            model=router.name,
+            user_id=command.authenticated_user.id,
+            router_id=router.id,
+            router_name=router.name,
+            user_email=command.authenticated_user.email,
+            key_id=command.authenticated_key.id,
+            key_name=command.authenticated_key.name,
+        )
+
     async def _send_request(
         self,
         router: Router,
         prompt_tokens: int,
         payload: ForwardablePayload,
+        request_id: str,
     ) -> (
         ProviderResponse
         | ProviderAdapterValidationRequestError
@@ -196,7 +218,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         | UnsupportedProviderEndpointError
     ):
         provider = await self._select_provider(router=router)
-        request = ProviderRequest(endpoint=self.ENDPOINT, payload=payload)
+        request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=payload)
 
         async with self._inflight(provider=provider):
             start_time = time.perf_counter()
@@ -220,14 +242,15 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        self.usage_recorder.record_usage(request_id=provider_response.id, usage=usage)
+        self.usage_context.record_usage(request_id=request_id, usage=usage)
+        self.usage_recorder.update_record(usage=usage, provider_id=provider.id, provider_model_name=provider.model_name)
 
         return provider_response
 
     async def _select_provider(self, router: Router) -> Provider:
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
-        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+        self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
 
         return provider
 

@@ -16,7 +16,6 @@ class RequestContext(BaseModel):
     # user identifiers
     key: Key | None = None
     user: AuthenticatedUserView | None = None
-    user_email: str | None = None
 
     # model identifiers
     router_id: int | None = None

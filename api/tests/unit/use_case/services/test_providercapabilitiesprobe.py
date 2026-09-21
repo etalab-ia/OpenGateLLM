@@ -46,12 +46,11 @@ def model_entity(model_id: str = DEFAULT_MODEL_ID, aliases: list[str] | None = N
 
 
 def models_formatted_response(*models: Model) -> ProviderResponse:
-    return ProviderResponse(id="req-123", data=Models(data=list(models)))
+    return ProviderResponse(data=Models(data=list(models)))
 
 
 def embeddings_formatted_response(dimensions: int = 3) -> ProviderResponse:
     return ProviderResponse(
-        id="req-123",
         data=Embeddings(
             id="embeddings-1",
             model=DEFAULT_MODEL_ID,
@@ -61,7 +60,7 @@ def embeddings_formatted_response(dimensions: int = 3) -> ProviderResponse:
 
 
 def empty_embeddings_formatted_response() -> ProviderResponse:
-    return ProviderResponse(id="req-123", data=Embeddings(id="embeddings-1", model=DEFAULT_MODEL_ID, data=[]))
+    return ProviderResponse(data=Embeddings(id="embeddings-1", model=DEFAULT_MODEL_ID, data=[]))
 
 
 class TestProviderCapabilitiesProbe:

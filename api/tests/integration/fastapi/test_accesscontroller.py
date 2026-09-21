@@ -481,6 +481,7 @@ class TestAccessController:
         context = reset_request_context.get()
         assert context.key is not None
         assert context.key.id == key.id
+        assert context.key.name == key.name
         assert context.key.user_id == user.id
         assert context.user is not None
         assert context.user.id == user.id

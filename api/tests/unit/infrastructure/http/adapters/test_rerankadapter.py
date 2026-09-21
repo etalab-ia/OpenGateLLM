@@ -219,7 +219,6 @@ class TestRerankAdapter:
         assert len(result.data.results) == 3
         assert result.data.results[0].relevance_score == 1
         assert result.data.results[0].index == 0
-        assert result.id == "req-123"
         assert result.data.id == "req-123"
         assert result.data.model == "openweight-rerank"
 
@@ -246,7 +245,6 @@ class TestRerankAdapter:
         assert len(result.data.results) == 2
         assert result.data.results[0].relevance_score == 1
         assert result.data.results[0].index == 0
-        assert result.id == "req-123"
         assert result.data.id == "req-123"
         assert result.data.model == "openweight-rerank"
 
