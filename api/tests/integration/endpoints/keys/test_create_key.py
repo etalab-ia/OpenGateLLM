@@ -7,9 +7,9 @@ import pytest_asyncio
 from api.dependencies import create_me_key_use_case_factory
 from api.domain.key.errors import KeyExpirationInvalidError
 from api.domain.user.errors import UserNotFoundError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.KEYS}"
 

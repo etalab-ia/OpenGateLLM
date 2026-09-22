@@ -2,11 +2,10 @@ from dataclasses import dataclass
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.provider import ProviderClient, ProviderRepository
-from api.domain.provider.entities import ProviderRequest, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
 from api.domain.user.views import AuthenticatedUserView
-from api.utils.variables import EndpointRoute
 
 
 @dataclass
@@ -52,14 +51,14 @@ class GetHealthModelsUseCase:
                 if provider.router_id != router.id:
                     continue
 
-                request = ProviderRequest(endpoint=EndpointRoute.METRICS)
+                request = ProviderRequest(endpoint=ProviderEndpoint.METRICS)
                 response = await self.provider_client.forward(provider=provider, request=request)
 
                 match response:
                     case ProviderResponse() as provider_response:
                         pass
                     case UnsupportedProviderEndpointError():
-                        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
+                        request = ProviderRequest(endpoint=ProviderEndpoint.MODELS)
                         response = await self.provider_client.forward(provider=provider, request=request)
                         match response:
                             # the fallback only probes liveness: an unparsable payload still proves the provider answered

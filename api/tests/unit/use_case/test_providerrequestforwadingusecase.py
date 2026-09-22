@@ -8,7 +8,7 @@ from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -24,7 +24,6 @@ from api.use_cases._providerrequestforwardingusecase import (
     ProviderRequestForwardingUseCaseResult,
     ProviderRequestForwardingUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
 
 TRACE_ID = "a" * 32
 
@@ -54,7 +53,7 @@ class ForwardingTestPreconditionError:
 
 class ForwardingTestUseCase(ProviderRequestForwardingUseCase[ForwardingTestCommand, ProviderRequestForwardingUseCaseResult[ForwardingTestData]]):
     ROUTER_TYPE = RouterType.TEXT_GENERATION
-    ENDPOINT = EndpointRoute.CHAT_COMPLETIONS
+    ENDPOINT = ProviderEndpoint.CHAT_COMPLETIONS
 
 
 @pytest.fixture
@@ -631,7 +630,7 @@ class TestExecute:
         assert result is error
         use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload, request_id=TRACE_ID)
         use_case.usage_recorder.start_record.assert_called_once_with(
-            endpoint=EndpointRoute.CHAT_COMPLETIONS,
+            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
             model=router.name,
             user_id=command.authenticated_user.id,
             router_id=router.id,

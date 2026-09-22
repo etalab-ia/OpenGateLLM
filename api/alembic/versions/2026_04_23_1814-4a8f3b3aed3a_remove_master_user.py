@@ -12,7 +12,7 @@ from alembic import op
 import bcrypt
 import sqlalchemy as sa
 
-from api.utils.configuration import configuration
+from api.infrastructure.configuration import configuration
 
 
 # revision identifiers, used by Alembic.

@@ -6,9 +6,9 @@ import pytest_asyncio
 
 from api.dependencies import create_organization_use_case_factory
 from api.domain.organization.errors import OrganizationAlreadyExistsError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_ORGANIZATIONS}"
 

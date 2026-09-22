@@ -5,12 +5,12 @@ from fastapi import FastAPI, Request
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
-from api.endpoints.monitoring import setup_prometheus
+from api.infrastructure.configuration import Configuration, get_configuration
 from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi.dependencies import request_context
-from api.utils.configuration import Configuration, get_configuration
-from api.utils.lifespan import lifespan
-from api.utils.variables import RouterName
+from api.infrastructure.fastapi.monitoring import setup_prometheus
+from api.infrastructure.fastapi.routes import RouterName
+from api.lifespan import lifespan
 
 logger = logging.getLogger(__name__)
 

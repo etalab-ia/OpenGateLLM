@@ -4,15 +4,14 @@ from urllib.parse import urljoin
 
 from pydantic import StringConstraints, ValidationError
 
-from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
-from api.utils.variables import EndpointRoute
 
 
 class HttpProviderAdapter:
-    SOURCE_ENDPOINT: EndpointRoute
+    SOURCE_ENDPOINT: ProviderEndpoint
     TARGET_ENDPOINT_ROUTE: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]
     TARGET_ENDPOINT_METHOD: HTTPMethod
     RESPONSE_TYPE: type | None

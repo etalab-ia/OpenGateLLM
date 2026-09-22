@@ -14,10 +14,10 @@ from sqlalchemy.pool import NullPool
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.configuration import configuration as global_configuration
+from api.infrastructure.context import GlobalContext, global_context
 from api.infrastructure.postgres.models import Base
 from api.tests.integration import factories
-from api.utils.configuration import configuration as global_configuration
-from api.utils.context import GlobalContext, global_context
 
 TEST_POSTGRES_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
 TEST_REDIS_URL = "redis://:changeme@localhost:6379/1"

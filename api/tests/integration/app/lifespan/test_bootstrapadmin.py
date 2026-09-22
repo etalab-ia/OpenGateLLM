@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
+from api.lifespan import bootstrap_admin_role_and_user
 from api.use_cases.admin import BootstrapAdminCommand, BootstrapAdminUseCaseSkipped, BootstrapAdminUseCaseSuccess
-from api.utils.lifespan import bootstrap_admin_role_and_user
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "s3cr3t"
@@ -39,7 +39,7 @@ class TestBootstrapAdmin:
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
 
-        with patch("api.utils.lifespan.BootstrapAdminUseCase", return_value=mock_use_case):
+        with patch("api.lifespan.BootstrapAdminUseCase", return_value=mock_use_case):
             result = await bootstrap_admin_role_and_user(
                 configuration=bootstrap_configuration,
                 postgres_session=postgres_session,

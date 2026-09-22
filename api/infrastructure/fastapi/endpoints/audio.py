@@ -33,6 +33,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.audio import AudioTranscriptionsResponse, CreateAudioTranscriptionsForm
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
@@ -40,7 +41,6 @@ from api.use_cases.audio import (
     CreateAudioTranscriptionsTextUseCaseSuccess,
     CreateAudioTranscriptionsUseCase,
 )
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])

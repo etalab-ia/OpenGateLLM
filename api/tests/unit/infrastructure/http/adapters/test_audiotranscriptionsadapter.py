@@ -2,12 +2,11 @@ import base64
 from tempfile import SpooledTemporaryFile
 
 from api.domain.audio.entities import AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsFile, CreateAudioTranscriptionsForm
-from api.domain.provider.entities import ProviderRequest, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderType
 from api.infrastructure.http import HttpProviderResponse
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
 from api.infrastructure.http.adapters.audio.mistral import MistralAudioTranscriptionsAdapter
 from api.tests.unit.use_case.factories import ProviderFactory
-from api.utils.variables import EndpointRoute
 
 AUDIO_BYTES = b"audio-bytes"
 
@@ -30,7 +29,7 @@ def _original_request(**overrides) -> ProviderRequest:
     )
     payload = {
         "id": "req-1",
-        "endpoint": EndpointRoute.AUDIO_TRANSCRIPTIONS,
+        "endpoint": ProviderEndpoint.AUDIO_TRANSCRIPTIONS,
         "payload": form,
     }
     payload.update(overrides)

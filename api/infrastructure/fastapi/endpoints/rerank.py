@@ -30,9 +30,9 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.rerank import CreateRerankBody, RerankResponse
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])

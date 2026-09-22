@@ -1,4 +1,4 @@
-from api.domain.provider.entities import Provider, ProviderType
+from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderType
 from api.domain.provider.errors import UnsupportedProviderEndpointError
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.infrastructure.http.adapters.audio.albert import AlbertAudioTranscriptionsAdapter
@@ -26,53 +26,52 @@ from api.infrastructure.http.adapters.ocr.mistral import MistralOcrAdapter
 from api.infrastructure.http.adapters.rerank.albert import AlbertRerankAdapter
 from api.infrastructure.http.adapters.rerank.tei import TeiRerankAdapter
 from api.infrastructure.http.adapters.rerank.vllm import VllmRerankAdapter
-from api.utils.variables import EndpointRoute
 
 
 class HttpProviderAdapterBuilder:
     ADAPTER_REGISTRY = {
-        EndpointRoute.AUDIO_TRANSCRIPTIONS: {
+        ProviderEndpoint.AUDIO_TRANSCRIPTIONS: {
             ProviderType.ALBERT: AlbertAudioTranscriptionsAdapter,
             ProviderType.MISTRAL: MistralAudioTranscriptionsAdapter,
             ProviderType.OPENAI: OpenaiAudioTranscriptionsAdapter,
             ProviderType.VLLM: VllmAudioTranscriptionsAdapter,
         },
-        EndpointRoute.CHAT_COMPLETIONS: {
+        ProviderEndpoint.CHAT_COMPLETIONS: {
             ProviderType.ALBERT: AlbertChatCompletionsAdapter,
             ProviderType.MISTRAL: MistralChatCompletionsAdapter,
             ProviderType.OPENAI: OpenaiChatCompletionsAdapter,
             ProviderType.VLLM: VllmChatCompletionsAdapter,
         },
-        EndpointRoute.EMBEDDINGS: {
+        ProviderEndpoint.EMBEDDINGS: {
             ProviderType.ALBERT: AlbertEmbeddingsAdapter,
             ProviderType.MISTRAL: MistralEmbeddingsAdapter,
             ProviderType.OPENAI: OpenaiEmbeddingsAdapter,
             ProviderType.TEI: TeiEmbeddingsAdapter,
             ProviderType.VLLM: VllmEmbeddingsAdapter,
         },
-        EndpointRoute.MODELS: {
+        ProviderEndpoint.MODELS: {
             ProviderType.ALBERT: AlbertModelsAdapter,
             ProviderType.MISTRAL: MistralModelsAdapter,
             ProviderType.OPENAI: OpenaiModelsAdapter,
             ProviderType.TEI: TeiModelsAdapter,
             ProviderType.VLLM: VllmModelsAdapter,
         },
-        EndpointRoute.METRICS: {
+        ProviderEndpoint.METRICS: {
             ProviderType.MISTRAL: MistralMetricsAdapter,
             ProviderType.VLLM: VllmMetricsAdapter,
         },
-        EndpointRoute.OCR: {
+        ProviderEndpoint.OCR: {
             ProviderType.ALBERT: AlbertOcrAdapter,
             ProviderType.MISTRAL: MistralOcrAdapter,
         },
-        EndpointRoute.RERANK: {
+        ProviderEndpoint.RERANK: {
             ProviderType.ALBERT: AlbertRerankAdapter,
             ProviderType.TEI: TeiRerankAdapter,
             ProviderType.VLLM: VllmRerankAdapter,
         },
     }
 
-    def build(self, endpoint: EndpointRoute, provider: Provider) -> HttpProviderAdapter | UnsupportedProviderEndpointError:
+    def build(self, endpoint: ProviderEndpoint, provider: Provider) -> HttpProviderAdapter | UnsupportedProviderEndpointError:
         adapter = self.ADAPTER_REGISTRY.get(endpoint, {}).get(provider.type)
         if adapter is None:
             return UnsupportedProviderEndpointError(endpoint=endpoint, provider_type=provider.type)

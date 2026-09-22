@@ -12,8 +12,10 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
-from api.infrastructure.configuration import Configuration, Tokenizer
+from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
+from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.logging import init_logger
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -32,9 +34,6 @@ from api.use_cases.admin import (
 )
 from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
 from api.use_cases.services import ProviderCapabilitiesProbe
-from api.utils.configuration import get_configuration
-from api.utils.context import global_context
-from api.utils.logging import init_logger
 
 logger = init_logger(name=__name__)
 

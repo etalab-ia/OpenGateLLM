@@ -9,9 +9,9 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.entities import HostingZone
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
 

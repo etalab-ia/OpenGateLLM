@@ -5,7 +5,8 @@ from redis.asyncio import Redis as AsyncRedis
 from api.domain.provider import ProviderLoadBalancer
 from api.domain.provider.entities import Provider
 from api.domain.router.entities import RouterLoadBalancingStrategy
-from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
+
+from ._keys import PREFIX__REDIS_METRIC_GAUGE
 
 
 class RedisProviderLoadBalancer(ProviderLoadBalancer):

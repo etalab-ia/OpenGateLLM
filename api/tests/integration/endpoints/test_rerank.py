@@ -8,7 +8,7 @@ import respx
 
 from api.dependencies import create_rerank_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider.entities import ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderType
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -19,12 +19,12 @@ from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_rerank_responses
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.tei import TeiRerankResponseFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.RERANK}"
 
@@ -180,7 +180,7 @@ class TestCreateRerank:
                 "upstream failure",
             ),
             (
-                UnsupportedProviderEndpointError(endpoint=EndpointRoute.RERANK, provider_type=ProviderType.TEI),
+                UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.RERANK, provider_type=ProviderType.TEI),
                 500,
                 "Model provider type tei does not support the /rerank endpoint.",
             ),

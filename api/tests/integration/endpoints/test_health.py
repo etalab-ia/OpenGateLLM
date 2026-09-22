@@ -5,10 +5,10 @@ import respx
 
 from api.domain.provider.entities import ProviderType
 from api.domain.router.entities import RouterType
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_metrics_responses
 from api.tests.integration.factories.sql import LimitSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 HEALTH_URL = EndpointRoute.HEALTH
 HEALTH_MODELS_URL = EndpointRoute.HEALTH_MODELS

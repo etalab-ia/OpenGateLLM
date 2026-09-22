@@ -1,7 +1,7 @@
 from prometheus_client import multiprocess
 from redis import Redis as SyncRedis
 
-from api.utils.configuration import get_configuration
+from api.infrastructure.configuration import get_configuration
 
 
 def on_starting(server):

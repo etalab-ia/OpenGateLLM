@@ -4,9 +4,9 @@ from uuid import uuid4
 
 from langfuse import Langfuse, propagate_attributes
 
+from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
-from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class LangfuseUsageRecorder(UsageRecorder):
 
     def start_record(
         self,
-        endpoint: EndpointRoute,
+        endpoint: ProviderEndpoint,
         model: str,
         user_id: int,
         router_id: int,

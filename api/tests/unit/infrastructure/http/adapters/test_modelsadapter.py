@@ -3,7 +3,7 @@ from http import HTTPMethod
 import pytest
 
 from api.domain.model.entities import Models
-from api.domain.provider.entities import ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.router.entities import RouterType
 from api.infrastructure.http import HttpProviderResponse
 from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
@@ -18,7 +18,6 @@ from api.tests.integration.factories.tei import TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
-from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
@@ -353,4 +352,4 @@ class TestModelsAdapter:
     )
     def test_source_endpoint_is_models(self, adapter):
         # Assert
-        assert adapter.SOURCE_ENDPOINT == EndpointRoute.MODELS
+        assert adapter.SOURCE_ENDPOINT == ProviderEndpoint.MODELS

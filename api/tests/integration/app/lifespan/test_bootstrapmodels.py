@@ -6,8 +6,8 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
+from api.lifespan import bootstrap_models
 from api.use_cases.models import BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
-from api.utils.lifespan import bootstrap_models
 
 BOOTSTRAP_ADMIN_USER_ID = 1
 
@@ -40,7 +40,7 @@ class TestBootstrapModels:
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
 
-        with patch("api.utils.lifespan.BootstrapModelsUseCase", return_value=mock_use_case):
+        with patch("api.lifespan.BootstrapModelsUseCase", return_value=mock_use_case):
             result = await bootstrap_models(
                 configuration=bootstrap_configuration,
                 postgres_session=postgres_session,
@@ -91,7 +91,7 @@ class TestBootstrapModels:
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
 
-        with patch("api.utils.lifespan.BootstrapModelsUseCase", return_value=mock_use_case):
+        with patch("api.lifespan.BootstrapModelsUseCase", return_value=mock_use_case):
             with pytest.raises(RuntimeError) as exc_info:
                 await bootstrap_models(
                     configuration=bootstrap_configuration,

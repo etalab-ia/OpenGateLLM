@@ -10,13 +10,13 @@ from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router.entities import RouterType
 from api.infrastructure.configuration import LimitingStrategy
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.OCR}"
 

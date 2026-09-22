@@ -1,5 +1,5 @@
 from enum import StrEnum
-from functools import wraps
+from functools import lru_cache, wraps
 import logging
 import os
 from pathlib import Path
@@ -13,7 +13,10 @@ import yaml
 
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
-from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
+from api.infrastructure.fastapi.routes import RouterName
+
+DEFAULT_APP_NAME: str = "OpenGateLLM"
+DEFAULT_TIMEOUT: int = 300
 
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -407,3 +410,11 @@ class Configuration(BaseSettings):
         file_content = env_variable_pattern.sub(replace_env_var, file_content)
 
         return file_content
+
+
+@lru_cache
+def get_configuration() -> Configuration:
+    return Configuration()
+
+
+configuration = get_configuration()

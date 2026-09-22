@@ -6,7 +6,7 @@ import pytest_asyncio
 
 from api.app import create_app
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
-from api.utils.variables import EndpointRoute, RouterName
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 
 
 @pytest.fixture(scope="session")

@@ -23,6 +23,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     KeyNotFoundHTTPException,
     UserNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.admin.keys import KeyResponse, KeysResponse
 from api.infrastructure.fastapi.schemas.keys import CreateKeyBody, UpdateKeyBody
 from api.use_cases.admin.keys import (
@@ -42,7 +43,6 @@ from api.use_cases.admin.keys import (
     UpdateKeyUseCase,
     UpdateKeyUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 

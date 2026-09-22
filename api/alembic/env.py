@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from api.infrastructure.postgres.models import Base
-from api.utils.configuration import configuration
+from api.infrastructure.configuration import configuration
 
 config = context.config
 config.set_main_option(name="sqlalchemy.url", value=configuration.dependencies.postgres.url.replace("+asyncpg", "").replace("+aiosqlite", ""))

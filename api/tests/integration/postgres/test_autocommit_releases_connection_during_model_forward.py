@@ -18,7 +18,9 @@ from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.router.entities import RouterType
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres.models import Base
+from api.lifespan import create_autocommit_postgres_session_factory
 from api.tests.helpers import create_key
 from api.tests.integration.conftest import TEST_POSTGRES_URL, bind_sql_factories, override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL
@@ -26,8 +28,6 @@ from api.tests.integration.factories import sql as sql_factories
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiRerankResponseFactory
 from api.tests.integration.factories.vllm import VllmChatCompletionsResponseFactory
-from api.utils.lifespan import create_autocommit_postgres_session_factory
-from api.utils.variables import EndpointRoute
 
 APP_NAME = "ogllm_idle_in_transaction_probe"
 PROBE_DSN = TEST_POSTGRES_URL.replace("+asyncpg", "")

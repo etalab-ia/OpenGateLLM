@@ -30,9 +30,9 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.ocr import CreateOCRBody, OCRResponse
 from api.use_cases.ocr import CreateOCRCommand, CreateOCRUseCase, CreateOCRUseCaseSuccess
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])

@@ -3,15 +3,14 @@ from http import HTTPMethod
 from pydantic import ValidationError
 
 from api.domain.embeddings.entities import Embeddings
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters import HttpProviderAdapter
-from api.utils.variables import EndpointRoute
 
 
 class EmbeddingsAdapter(HttpProviderAdapter):
-    SOURCE_ENDPOINT = EndpointRoute.EMBEDDINGS
+    SOURCE_ENDPOINT = ProviderEndpoint.EMBEDDINGS
     TARGET_ENDPOINT_ROUTE = "/v1/embeddings"
     TARGET_ENDPOINT_METHOD = HTTPMethod.POST
     RESPONSE_TYPE = Embeddings

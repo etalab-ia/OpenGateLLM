@@ -14,12 +14,12 @@ from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_chat_completions_responses, mock_chat_completions_stream
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.vllm import VllmChatCompletionsResponseFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
 

@@ -16,11 +16,11 @@ from api.domain.provider.errors import (
 )
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_models_responses
 from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
 

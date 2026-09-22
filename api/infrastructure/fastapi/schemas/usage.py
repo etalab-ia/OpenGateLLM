@@ -4,8 +4,8 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from api.domain import BaseModel
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas import UnixTimestamp
-from api.utils.variables import EndpointRoute
 
 
 class EndpointUsage(StrEnum):

@@ -9,9 +9,9 @@ from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException, OrganizationNotFoundHTTPException
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.admin.organizations import OrganizationResponse
 from api.use_cases.admin.organizations import GetOneOrganizationCommand, GetOneOrganizationUseCase, GetOneOrganizationUseCaseSuccess
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 

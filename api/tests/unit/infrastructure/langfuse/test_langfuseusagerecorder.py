@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, call, create_autospec, patch
 from langfuse import Langfuse
 import pytest
 
+from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 from api.infrastructure.langfuse import LangfuseUsageRecorder
-from api.utils.variables import EndpointRoute
 
 IDENTITY_METADATA = {
     "router_id": 3,
@@ -19,7 +19,7 @@ IDENTITY_METADATA = {
 
 def _start_record(recorder, **overrides):
     return recorder.start_record(
-        endpoint=EndpointRoute.CHAT_COMPLETIONS,
+        endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
         model="chat-router",
         user_id=42,
         **IDENTITY_METADATA,

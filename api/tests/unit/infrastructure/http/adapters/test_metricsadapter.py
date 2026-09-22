@@ -2,7 +2,7 @@ from http import HTTPMethod
 
 import pytest
 
-from api.domain.provider.entities import BasicAuth, ProviderMetrics, ProviderResponse, ProviderType
+from api.domain.provider.entities import BasicAuth, ProviderEndpoint, ProviderMetrics, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.infrastructure.http import HttpProviderResponse
 from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
@@ -11,7 +11,6 @@ from api.tests.integration.factories.mistral import MistralMetricsResponseFactor
 from api.tests.integration.factories.vllm import VllmMetricsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
-from api.utils.variables import EndpointRoute
 
 
 def build_metrics_text(model_name: str, running: float = 0.0, waiting: float = 0.0) -> str:
@@ -316,4 +315,4 @@ class TestMetricsAdapter:
     )
     def test_source_endpoint_is_metrics(self, adapter):
         # Assert
-        assert adapter.SOURCE_ENDPOINT == EndpointRoute.METRICS
+        assert adapter.SOURCE_ENDPOINT == ProviderEndpoint.METRICS

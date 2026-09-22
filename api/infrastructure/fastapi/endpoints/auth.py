@@ -19,6 +19,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UserAlreadyExistsHTTPException,
     UserNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.auth import AuthLoginBody, AuthLoginResponse, AuthSsoLoginBody
 from api.use_cases.auth import (
     AuthLoginCommand,
@@ -28,7 +29,6 @@ from api.use_cases.auth import (
     AuthSsoLoginUseCase,
     AuthSsoLoginUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 

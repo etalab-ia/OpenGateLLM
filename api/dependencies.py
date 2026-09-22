@@ -21,6 +21,8 @@ from api.domain.router import RouterRateLimiter
 from api.domain.usage import UsageContext, UsageRecorder, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.configuration import configuration
+from api.infrastructure.context import global_context
 from api.infrastructure.contextvars import ContextVarsUsageContext
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.dependencies import request_context
@@ -73,8 +75,6 @@ from api.use_cases.ocr import CreateOCRUseCase
 from api.use_cases.reranks import CreateRerankUseCase
 from api.use_cases.services import ProviderCapabilitiesProbe
 from api.use_cases.usage import GetUsagesUseCase
-from api.utils.configuration import configuration
-from api.utils.context import global_context
 
 
 # infrastructure

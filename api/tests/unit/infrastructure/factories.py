@@ -6,10 +6,9 @@ from openai.types import Embedding
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
 from api.domain.router.entities import RouterType
-from api.utils.variables import EndpointRoute
 
 fake = Faker()
 
@@ -30,12 +29,12 @@ class ProviderRequestFactory(factory.Factory):
         model = ProviderRequest
 
     id = factory.Faker("md5")
-    endpoint = factory.Faker("random_element", elements=list(EndpointRoute))
+    endpoint = factory.Faker("random_element", elements=list(ProviderEndpoint))
     payload = None
 
     class Params:
         embeddings = factory.Trait(
-            endpoint=EndpointRoute.EMBEDDINGS,
+            endpoint=ProviderEndpoint.EMBEDDINGS,
             payload=factory.LazyAttribute(
                 lambda self: CreateEmbeddingsBody(
                     model="openweight-embeddings",
@@ -45,10 +44,10 @@ class ProviderRequestFactory(factory.Factory):
                 )
             ),
         )
-        models = factory.Trait(endpoint=EndpointRoute.MODELS)
-        metrics = factory.Trait(endpoint=EndpointRoute.METRICS)
+        models = factory.Trait(endpoint=ProviderEndpoint.MODELS)
+        metrics = factory.Trait(endpoint=ProviderEndpoint.METRICS)
         rerank = factory.Trait(
-            endpoint=EndpointRoute.RERANK,
+            endpoint=ProviderEndpoint.RERANK,
             payload=factory.LazyAttribute(
                 lambda self: CreateRerankBody(
                     model="openweight-rerank",

@@ -7,9 +7,9 @@ import pytest_asyncio
 from api.dependencies import get_one_model_use_case_factory
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.router.entities import RouterType
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.MODELS}"
 

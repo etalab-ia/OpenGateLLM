@@ -10,7 +10,7 @@ from sqlalchemy.types import JSON
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
 from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
-from api.utils.variables import DEFAULT_TIMEOUT
+from api.infrastructure.configuration import DEFAULT_TIMEOUT
 
 Base = declarative_base()
 
