@@ -12,9 +12,8 @@ from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
-# Names of the numeric Langfuse scores carrying environmental impacts (see update_record).
-_KWH_SCORE = "kWh"
-_KGCO2EQ_SCORE = "kgCO2eq"
+_KWH_SCORE_COLUMN = "kWh"
+_KGCO2EQ_SCORE_COLUMN = "kgCO2eq"
 
 
 class LangfuseUsageRepository(UsageRepository):
@@ -118,7 +117,6 @@ class LangfuseUsageRepository(UsageRepository):
         usage_query = self._build_usage_query(context_filters, start_time=start_time, end_time=end_time)
         impacts_query = self._build_impacts_query(context_filters, start_time=start_time, end_time=end_time)
 
-        # tokens/cost live on the observations view; kWh/kgCO2eq are numeric scores on a separate view.
         usage_response, impacts_response = await asyncio.gather(
             asyncio.to_thread(self.client.api.metrics.metrics, query=json.dumps(usage_query)),
             asyncio.to_thread(self.client.api.metrics.metrics, query=json.dumps(impacts_query)),
@@ -175,7 +173,7 @@ class LangfuseUsageRepository(UsageRepository):
         # kWh/kgCO2eq are emitted as numeric scores in update_record (only on successful requests).
         filters = [
             *context_filters,
-            {"column": "name", "operator": "any of", "value": [_KWH_SCORE, _KGCO2EQ_SCORE], "type": "stringOptions"},
+            {"column": "name", "operator": "any of", "value": [_KWH_SCORE_COLUMN, _KGCO2EQ_SCORE_COLUMN], "type": "stringOptions"},
         ]
         return {
             "view": "scores-numeric",
@@ -194,10 +192,10 @@ class LangfuseUsageRepository(UsageRepository):
         impacts: dict[date, dict[str, float]] = {}
         for row in rows:
             name = row.get("name")
-            if name not in (_KWH_SCORE, _KGCO2EQ_SCORE):
+            if name not in (_KWH_SCORE_COLUMN, _KGCO2EQ_SCORE_COLUMN):
                 continue
             day = cls._parse_day(row["time_dimension"])
-            impacts.setdefault(day, {_KWH_SCORE: 0.0, _KGCO2EQ_SCORE: 0.0})[name] += float(row.get("sum_value") or 0.0)
+            impacts.setdefault(day, {_KWH_SCORE_COLUMN: 0.0, _KGCO2EQ_SCORE_COLUMN: 0.0})[name] += float(row.get("sum_value") or 0.0)
         return impacts
 
     @classmethod
@@ -213,7 +211,7 @@ class LangfuseUsageRepository(UsageRepository):
             total_tokens=int(row.get("sum_totalTokens") or 0),
             cost=float(row.get("sum_totalCost") or 0.0),
             requests=int(row.get("count_count") or 0),
-            impacts=EnvironmentalImpacts(kWh=impacts.get(_KWH_SCORE, 0.0), kgCO2eq=impacts.get(_KGCO2EQ_SCORE, 0.0)),
+            impacts=EnvironmentalImpacts(kWh=impacts.get(_KWH_SCORE_COLUMN, 0.0), kgCO2eq=impacts.get(_KGCO2EQ_SCORE_COLUMN, 0.0)),
         )
 
     @staticmethod
