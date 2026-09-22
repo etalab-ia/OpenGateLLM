@@ -30,6 +30,9 @@ class Key(BaseModel):
             created=0,
         )
 
+    def with_name(self, name: str) -> "Key":
+        return self.model_copy(update={"name": name})
+
     def with_revoked(self, revoked: bool) -> "Key":
         return self.model_copy(update={"revoked": revoked})
 

@@ -30,4 +30,4 @@ class CreateKeyBody(BaseModel):
 
 
 class UpdateKeyBody(BaseModel):
-    revoked: Annotated[bool, Field(description="Whether the key is revoked.")]
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Name of the key.", examples=["key-1"])]  # fmt: off

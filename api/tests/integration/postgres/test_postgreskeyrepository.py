@@ -299,20 +299,20 @@ class TestUpsertKey:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestUpdateKey:
-    async def test_update_key_should_set_revoked(self, repository, db_session):
+    async def test_update_key_should_set_name(self, repository, db_session):
         user = UserSQLFactory()
-        token = KeySQLFactory(user=user, name="to-revoke", never_expires=True)
+        token = KeySQLFactory(user=user, name="old-name", never_expires=True)
         await db_session.flush()
         key = await repository.get_key_by_id(token.id)
         assert isinstance(key, Key)
 
-        result = await repository.update_key(key.with_revoked(True))
+        result = await repository.update_key(key.with_name("new-name"))
 
         assert isinstance(result, Key)
         assert result.id == token.id
-        assert result.revoked is True
+        assert result.name == "new-name"
         stored = await db_session.scalar(select(KeyTable).where(KeyTable.id == token.id))
-        assert stored.revoked is True
+        assert stored.name == "new-name"
 
     async def test_update_key_should_return_key_not_found_when_key_does_not_exist(self, repository):
         key = Key(
@@ -333,7 +333,7 @@ class TestUpdateKey:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestDeleteKey:
-    async def test_delete_key_should_return_key_and_remove_it_when_key_exists(self, repository, db_session):
+    async def test_delete_key_should_return_key_and_revoke_it_when_key_exists(self, repository, db_session):
         # Arrange
         user = UserSQLFactory()
         token = KeySQLFactory(user=user, name="to-delete", never_expires=True)
@@ -348,8 +348,10 @@ class TestDeleteKey:
         assert result.id == key_id
         assert result.name == "to-delete"
         assert result.user_id == user.id
+        assert result.revoked is True
         remaining = await db_session.scalar(select(KeyTable).where(KeyTable.id == key_id))
-        assert remaining is None
+        assert remaining is not None
+        assert remaining.revoked is True
 
     async def test_delete_key_should_return_key_not_found_when_key_does_not_exist(self, repository, db_session):
         # Act
@@ -359,7 +361,7 @@ class TestDeleteKey:
         assert isinstance(result, KeyNotFoundError)
         assert result.id == 999999
 
-    async def test_delete_key_should_return_key_and_remove_it_when_user_id_matches(self, repository, db_session):
+    async def test_delete_key_should_return_key_and_revoke_it_when_user_id_matches(self, repository, db_session):
         # Arrange
         user = UserSQLFactory()
         token = KeySQLFactory(user=user, name="owned-key", never_expires=True)
@@ -373,7 +375,8 @@ class TestDeleteKey:
         assert isinstance(result, Key)
         assert result.id == key_id
         remaining = await db_session.scalar(select(KeyTable).where(KeyTable.id == key_id))
-        assert remaining is None
+        assert remaining is not None
+        assert remaining.revoked is True
 
     async def test_delete_key_should_return_key_not_found_when_user_id_does_not_match(self, repository, db_session):
         # Arrange

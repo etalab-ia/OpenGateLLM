@@ -159,10 +159,14 @@ async def get_keys(
     responses=get_documentation_responses([KeyNotFoundHTTPException, NotAdminUserHTTPException]),
 )
 async def delete_key(
-    key_id: int = Path(description="The ID of the key to delete."),
+    key_id: int = Path(description="The ID of the key to revoke."),
     delete_key_use_case: DeleteKeyUseCase = Depends(delete_key_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
+    """
+    Revoke an API key. A revoked key can no longer be used.
+    """
+
     command = DeleteKeyCommand(key_id=key_id)
     try:
         result = await delete_key_use_case.execute(command)

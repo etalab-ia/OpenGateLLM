@@ -1,5 +1,5 @@
 from pydantic import FutureDatetime
-from sqlalchemy import and_, asc, delete, desc, func, insert, or_, select, update
+from sqlalchemy import and_, asc, desc, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,7 +106,7 @@ class PostgresKeyRepository(KeyRepository):
         return self._row_to_key(result.scalar_one(), value=value)
 
     async def update_key(self, key: Key) -> Key | KeyNotFoundError:
-        result = await self.postgres_session.execute(update(KeyTable).values(revoked=key.revoked).where(KeyTable.id == key.id).returning(KeyTable))
+        result = await self.postgres_session.execute(update(KeyTable).values(name=key.name).where(KeyTable.id == key.id).returning(KeyTable))
         row = result.scalar_one_or_none()
         if row is None:
             return KeyNotFoundError(id=key.id)
@@ -118,7 +118,7 @@ class PostgresKeyRepository(KeyRepository):
         if user_id is not None:
             filters.append(KeyTable.user_id == user_id)
 
-        result = await self.postgres_session.execute(delete(KeyTable).where(*filters).returning(KeyTable))
+        result = await self.postgres_session.execute(update(KeyTable).values(revoked=True).where(*filters).returning(KeyTable))
         row = result.scalar_one_or_none()
         if row is None:
             return KeyNotFoundError(id=key_id)

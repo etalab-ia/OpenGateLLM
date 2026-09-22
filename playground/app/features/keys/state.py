@@ -63,8 +63,8 @@ class KeysState(EntityState):
             "sort_by": self.order_by_value,
             "sort_order": self.order_direction_value,
         }
-        if self.status_filter != "all":
-            params["status"] = self.status_filter
+        if self.status_filter != "All keys":
+            params["status"] = self.status_filter.lower()
 
         response = None
         try:
@@ -120,9 +120,8 @@ class KeysState(EntityState):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.patch(
+                response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/keys/{self.entity_to_delete.id}",
-                    json={"revoked": True},
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=self.opengatellm_timeout,
                 )
@@ -229,8 +228,8 @@ class KeysState(EntityState):
     page: int = 1
     per_page: int = 20
     total: int = 0
-    status_filter: str = "all"
-    status_options: list[str] = ["all", "active", "expired", "revoked"]
+    status_filter: str = "All keys"
+    status_options: list[str] = ["All keys", "Active", "Expired", "Revoked"]
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]

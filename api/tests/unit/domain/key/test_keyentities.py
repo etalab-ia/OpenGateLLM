@@ -30,6 +30,16 @@ class TestKeyIsValid:
         assert decoded.is_valid(expected_key=stored) is False
 
 
+class TestKeyWithName:
+    def test_should_return_copy_with_new_name(self):
+        key = KeyFactory(name="old-name")
+
+        updated = key.with_name("new-name")
+
+        assert updated.name == "new-name"
+        assert key.name == "old-name"
+
+
 class TestKeyWithRevoked:
     def test_should_return_copy_with_revoked_flag(self):
         key = KeyFactory(revoked=False)

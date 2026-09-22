@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, Path, Query, Security
 
 from api.dependencies import (
     create_me_key_use_case_factory,
+    delete_key_use_case_factory,
     get_keys_use_case_factory,
     get_one_key_use_case_factory,
     update_key_use_case_factory,
@@ -28,6 +29,9 @@ from api.use_cases.admin.keys import (
     CreateKeyCommand,
     CreateKeyUseCase,
     CreateKeyUseCaseSuccess,
+    DeleteKeyCommand,
+    DeleteKeyUseCase,
+    DeleteKeyUseCaseSuccess,
     GetKeysCommand,
     GetKeysUseCase,
     GetKeysUseCaseSuccess,
@@ -216,10 +220,10 @@ async def update_key(
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     """
-    Update an API key. Set `revoked` to true to revoke it.
+    Update an API key name.
     """
 
-    command = UpdateKeyCommand(key_id=key_id, user_id=authenticated_user.id, revoked=body.revoked)
+    command = UpdateKeyCommand(key_id=key_id, user_id=authenticated_user.id, name=body.name)
     try:
         result = await update_key_use_case.execute(command)
     except Exception as e:
@@ -235,6 +239,49 @@ async def update_key(
 
     match result:
         case UpdateKeyUseCaseSuccess(key=key):
+            return KeyResponse.model_validate(key, from_attributes=True)
+        case KeyNotFoundError(id=not_found_key_id):
+            raise KeyNotFoundHTTPException(not_found_key_id)
+
+
+@router.delete(
+    path="/me/keys/{key_id}",
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    responses=get_documentation_responses([KeyNotFoundHTTPException]),
+    deprecated=True,
+)
+@router.delete(
+    path=EndpointRoute.KEYS + "/{key_id}",
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    responses=get_documentation_responses([KeyNotFoundHTTPException]),
+)
+async def delete_key(
+    key_id: int = Path(description="The ID of the key to revoke."),
+    delete_key_use_case: DeleteKeyUseCase = Depends(delete_key_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+) -> KeyResponse:
+    """
+    Revoke an API key. A revoked key can no longer be used.
+    """
+
+    command = DeleteKeyCommand(key_id=key_id, user_id=authenticated_user.id)
+    try:
+        result = await delete_key_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing delete_key use case",
+            extra={
+                "authenticated_user_id": authenticated_user.id,
+                "key_id": key_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+
+    match result:
+        case DeleteKeyUseCaseSuccess(key=key):
             return KeyResponse.model_validate(key, from_attributes=True)
         case KeyNotFoundError(id=not_found_key_id):
             raise KeyNotFoundHTTPException(not_found_key_id)

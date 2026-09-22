@@ -3,40 +3,57 @@ from unittest.mock import AsyncMock
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 
 from api.dependencies import delete_key_use_case_factory
 from api.domain.key.errors import KeyNotFoundError
+from api.sql.models import Token as KeyTable
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import KeySQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
-URL = f"/v1{EndpointRoute.ADMIN_KEYS}"
+URL = f"/v1{EndpointRoute.KEYS}"
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestDeleteKey:
+class TestDeleteMeKey:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
-        self.admin_user = UserSQLFactory(admin_user=True)
-        self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+        self.user = UserSQLFactory(regular_user=True)
+        self.key = await create_key(db_session, name="user_key", user=self.user, never_expires=True)
 
     async def test_happy_path(self, client: AsyncClient, db_session):
-        user = UserSQLFactory()
-        key = KeySQLFactory(user=user, name="to-delete", never_expires=True)
+        own_key = KeySQLFactory(user=self.user, name="to-revoke", never_expires=True)
         await db_session.flush()
 
         response = await client.delete(
-            url=f"{URL}/{key.id}",
+            url=f"{URL}/{own_key.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["object"] == "key"
-        assert data["id"] == key.id
-        assert data["name"] == "to-delete"
-        assert data["user_id"] == user.id
+        assert data["id"] == own_key.id
+        assert data["name"] == "to-revoke"
+        assert data["user_id"] == self.user.id
         assert data["revoked"] is True
+        stored = await db_session.scalar(select(KeyTable).where(KeyTable.id == own_key.id))
+        assert stored is not None
+        assert stored.revoked is True
+
+    async def test_cannot_delete_another_users_key(self, client: AsyncClient, db_session):
+        other_user = UserSQLFactory()
+        other_key = KeySQLFactory(user=other_user, name="other-key", never_expires=True)
+        await db_session.flush()
+
+        response = await client.delete(
+            url=f"{URL}/{other_key.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 404, response.text
+        assert response.json().get("detail") == f"Key {other_key.id} not found."
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
@@ -60,18 +77,6 @@ class TestDeleteKey:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
-
-    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
-        regular_user = UserSQLFactory(regular_user=True)
-        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
-
-        response = await client.delete(
-            url=f"{URL}/1",
-            headers={"Authorization": f"Bearer {key.token}"},
-        )
-
-        assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

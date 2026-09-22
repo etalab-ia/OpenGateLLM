@@ -77,20 +77,10 @@ def key_row_content(key: Key) -> rx.Component:
 
 def key_row_description(key: Key) -> rx.Component:
     return rx.vstack(
-        rx.hstack(
-            rx.text(
-                f"Created: {key.created} • Expires: ",
-                size=TEXT_SIZE_LABEL,
-                color=rx.color("mauve", 9),
-            ),
-            rx.text(
-                key.expires,
-                size=TEXT_SIZE_LABEL,
-                weight=rx.cond(key.is_expired, "bold", "regular"),
-                color=rx.cond(key.is_expired, rx.color("red", 10), rx.color("mauve", 9)),
-            ),
-            spacing="1",
-            align="center",
+        rx.text(
+            f"Created: {key.created} • Expires: {key.expires}",
+            size=TEXT_SIZE_LABEL,
+            color=rx.color("mauve", 9),
         ),
         spacing=SPACING_SMALL,
         align_items="start",

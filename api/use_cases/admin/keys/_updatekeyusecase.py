@@ -8,7 +8,7 @@ from api.domain.key.errors import KeyNotFoundError
 @dataclass
 class UpdateKeyCommand:
     key_id: int
-    revoked: bool
+    name: str
     user_id: int | None = None
 
 
@@ -35,7 +35,7 @@ class UpdateKeyUseCase:
         if command.user_id is not None and key.user_id != command.user_id:
             return KeyNotFoundError(id=command.key_id)
 
-        key_to_persist = key.with_revoked(command.revoked)
+        key_to_persist = key.with_name(command.name)
         if key_to_persist == key:
             return UpdateKeyUseCaseSuccess(key=key)
 
