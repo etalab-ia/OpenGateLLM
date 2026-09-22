@@ -39,9 +39,7 @@ Set `settings.usage_source: langfuse` to make Langfuse the usage backend. OpenGa
 
 Requests are never dual-written: only the selected backend receives usage. With `usage_source: postgres` (the default), nothing is written to Langfuse.
 
-<Aside type="caution" title="Environmental impacts">
-`kWh` and `kgCO2eq` are stored as Langfuse scores, which the usage query API cannot aggregate, so they are reported as `0` in the daily usage buckets. Keep `usage_source: postgres` if you need environmental impacts in usage reports.
-</Aside>
+Environmental impacts (`kWh`, `kgCO2eq`) are stored as numeric scores and aggregated into the daily buckets through a second query against Langfuse's numeric-scores metrics, so usage reports keep the same shape as with PostgreSQL.
 
 At startup, OpenGateLLM authenticates against the Langfuse server. If authentication fails, a warning is logged; usage reads and writes still target Langfuse when it is the selected source.
 

@@ -27,9 +27,7 @@ In both cases, the logs contain the following information:
 - environmental footprint (see the dedicated documentation [here](/features/usage/environmental_footprint/))
 - cost (see the dedicated documentation [here](/features/usage/budget/))
 
-<Aside type="caution" title="Environmental impacts with Langfuse">
-When `usage_source` is `langfuse`, environmental impacts (`kWh`, `kgCO2eq`) are stored as Langfuse scores, which the usage query API cannot aggregate. They are reported as `0` in the daily usage buckets returned by `GET /v1/usage`. Use `usage_source: postgres` if you need environmental impacts in usage reports.
-</Aside>
+When `usage_source` is `langfuse`, environmental impacts (`kWh`, `kgCO2eq`) are stored as Langfuse numeric scores and aggregated back into the daily usage buckets with a dedicated query, so `GET /v1/usage` reports them the same way as with PostgreSQL.
 
 User can see their usage in the *Usage* page of the Playground.
 

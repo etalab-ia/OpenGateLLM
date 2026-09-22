@@ -207,22 +207,33 @@ class TestLangfuseUsageRepositoryReading:
     def repository(self, mock_client):
         return LangfuseUsageRepository(client=mock_client)
 
-    def _set_rows(self, mock_client, rows: list[dict]) -> None:
-        mock_client.api.metrics.metrics.return_value = SimpleNamespace(data=rows)
+    def _set_responses(self, mock_client, *, usage_rows: list[dict] | None = None, impacts_rows: list[dict] | None = None) -> None:
+        usage_rows = usage_rows or []
+        impacts_rows = impacts_rows or []
 
-    def _last_query(self, mock_client) -> dict:
-        return json.loads(mock_client.api.metrics.metrics.call_args.kwargs["query"])
+        def _dispatch(*, query: str):
+            view = json.loads(query)["view"]
+            rows = impacts_rows if view == "scores-numeric" else usage_rows
+            return SimpleNamespace(data=rows)
 
-    async def test_should_filter_on_user_success_and_time_range(self, repository, mock_client):
+        mock_client.api.metrics.metrics.side_effect = _dispatch
+
+    def _query_for_view(self, mock_client, view: str) -> dict:
+        for call_args in mock_client.api.metrics.metrics.call_args_list:
+            query = json.loads(call_args.kwargs["query"])
+            if query["view"] == view:
+                return query
+        raise AssertionError(f"no metrics query issued for view {view!r}")
+
+    async def test_should_filter_usage_query_on_user_success_and_time_range(self, repository, mock_client):
         # Arrange
-        self._set_rows(mock_client, [])
+        self._set_responses(mock_client)
 
         # Act
         await repository.get_usage_buckets_page(user_id=6, start_time=START_TIME, end_time=END_TIME, offset=0, limit=10)
 
         # Assert
-        query = self._last_query(mock_client)
-        assert query["view"] == "observations"
+        query = self._query_for_view(mock_client, "observations")
         assert query["timeDimension"] == {"granularity": "day"}
         assert query["fromTimestamp"] == START_TIME.isoformat()
         assert query["toTimestamp"] == END_TIME.isoformat()
@@ -230,22 +241,38 @@ class TestLangfuseUsageRepositoryReading:
         assert _filter_for(query, "type")["value"] == "GENERATION"
         assert _filter_for(query, "level")["value"] == "DEFAULT"
 
-    async def test_should_not_add_optional_filters_when_absent(self, repository, mock_client):
+    async def test_should_query_numeric_impact_scores_over_the_same_range(self, repository, mock_client):
         # Arrange
-        self._set_rows(mock_client, [])
+        self._set_responses(mock_client)
 
         # Act
         await repository.get_usage_buckets_page(user_id=6, start_time=START_TIME, end_time=END_TIME, offset=0, limit=10)
 
         # Assert
-        query = self._last_query(mock_client)
+        query = self._query_for_view(mock_client, "scores-numeric")
+        assert query["metrics"] == [{"measure": "value", "aggregation": "sum"}]
+        assert query["dimensions"] == [{"field": "name"}]
+        assert query["timeDimension"] == {"granularity": "day"}
+        assert query["fromTimestamp"] == START_TIME.isoformat()
+        assert _filter_for(query, "userId") == {"column": "userId", "operator": "=", "value": "6", "type": "string"}
+        assert _filter_for(query, "name") == {"column": "name", "operator": "any of", "value": ["kWh", "kgCO2eq"], "type": "stringOptions"}
+
+    async def test_should_not_add_optional_filters_when_absent(self, repository, mock_client):
+        # Arrange
+        self._set_responses(mock_client)
+
+        # Act
+        await repository.get_usage_buckets_page(user_id=6, start_time=START_TIME, end_time=END_TIME, offset=0, limit=10)
+
+        # Assert
+        query = self._query_for_view(mock_client, "observations")
         assert _metadata_filter_for(query, "endpoint") is None
         assert _metadata_filter_for(query, "key_id") is None
         assert _filter_for(query, "providedModelName") is None
 
-    async def test_should_add_endpoint_model_and_key_filters(self, repository, mock_client):
+    async def test_should_add_endpoint_model_and_key_filters_to_both_queries(self, repository, mock_client):
         # Arrange
-        self._set_rows(mock_client, [])
+        self._set_responses(mock_client)
 
         # Act
         await repository.get_usage_buckets_page(
@@ -259,26 +286,35 @@ class TestLangfuseUsageRepositoryReading:
             key_id=7,
         )
 
-        # Assert
-        query = self._last_query(mock_client)
-        assert _metadata_filter_for(query, "endpoint") == {
-            "column": "metadata",
-            "operator": "=",
-            "value": "/v1/chat/completions",
-            "type": "stringObject",
-            "key": "endpoint",
-        }
-        assert _metadata_filter_for(query, "key_id") == {"column": "metadata", "operator": "=", "value": "7", "type": "stringObject", "key": "key_id"}
-        assert _filter_for(query, "providedModelName") == {
-            "column": "providedModelName",
-            "operator": "any of",
-            "value": ["my-router", "other-router"],
-            "type": "stringOptions",
-        }
+        # Assert — the impacts query must share the usage query's context filters so both aggregate the same requests.
+        for view in ("observations", "scores-numeric"):
+            query = self._query_for_view(mock_client, view)
+            assert _metadata_filter_for(query, "endpoint") == {
+                "column": "metadata",
+                "operator": "=",
+                "value": "/v1/chat/completions",
+                "type": "stringObject",
+                "key": "endpoint",
+            }
+            assert _metadata_filter_for(query, "key_id") == {
+                "column": "metadata",
+                "operator": "=",
+                "value": "7",
+                "type": "stringObject",
+                "key": "key_id",
+            }
+            assert _filter_for(query, "providedModelName") == {
+                "column": "providedModelName",
+                "operator": "any of",
+                "value": ["my-router", "other-router"],
+                "type": "stringOptions",
+            }
 
     async def test_should_map_rows_to_daily_buckets(self, repository, mock_client):
         # Arrange
-        self._set_rows(mock_client, [_metrics_row("2026-09-22", input_tokens=1800, output_tokens=892, total_tokens=2692, cost=0.5, count=7)])
+        self._set_responses(
+            mock_client, usage_rows=[_metrics_row("2026-09-22", input_tokens=1800, output_tokens=892, total_tokens=2692, cost=0.5, count=7)]
+        )
 
         # Act
         page = await repository.get_usage_buckets_page(user_id=6, start_time=START_TIME, end_time=END_TIME, offset=0, limit=10)
@@ -293,14 +329,49 @@ class TestLangfuseUsageRepositoryReading:
         assert bucket.total_tokens == 2692
         assert bucket.cost == 0.5
         assert bucket.requests == 7
-        assert bucket.impacts.kWh == 0.0
-        assert bucket.impacts.kgCO2eq == 0.0
+
+    async def test_should_merge_impact_scores_into_the_matching_day(self, repository, mock_client):
+        # Arrange
+        self._set_responses(
+            mock_client,
+            usage_rows=[
+                _metrics_row("2026-09-22", total_tokens=10, count=2),
+                _metrics_row("2026-09-21", total_tokens=5, count=1),
+            ],
+            impacts_rows=[
+                {"time_dimension": "2026-09-22", "name": "kWh", "sum_value": 1.5},
+                {"time_dimension": "2026-09-22", "name": "kgCO2eq", "sum_value": 0.25},
+                {"time_dimension": "2026-09-21", "name": "kWh", "sum_value": 0.5},
+            ],
+        )
+
+        # Act
+        page = await repository.get_usage_buckets_page(user_id=6, start_time=START_TIME, end_time=END_TIME, offset=0, limit=10)
+
+        # Assert
+        by_day = {bucket.start_time: bucket for bucket in page.data}
+        assert by_day[datetime(2026, 9, 22, tzinfo=UTC)].impacts.kWh == 1.5
+        assert by_day[datetime(2026, 9, 22, tzinfo=UTC)].impacts.kgCO2eq == 0.25
+        assert by_day[datetime(2026, 9, 21, tzinfo=UTC)].impacts.kWh == 0.5
+        # No kgCO2eq score for the 21st -> defaults to 0.
+        assert by_day[datetime(2026, 9, 21, tzinfo=UTC)].impacts.kgCO2eq == 0.0
+
+    async def test_should_default_impacts_to_zero_when_no_scores_returned(self, repository, mock_client):
+        # Arrange
+        self._set_responses(mock_client, usage_rows=[_metrics_row("2026-09-22", total_tokens=10, count=2)], impacts_rows=[])
+
+        # Act
+        page = await repository.get_usage_buckets_page(user_id=6, start_time=START_TIME, end_time=END_TIME, offset=0, limit=10)
+
+        # Assert
+        assert page.data[0].impacts.kWh == 0.0
+        assert page.data[0].impacts.kgCO2eq == 0.0
 
     async def test_should_sort_buckets_by_day_descending_and_page_client_side(self, repository, mock_client):
         # Arrange
-        self._set_rows(
+        self._set_responses(
             mock_client,
-            [
+            usage_rows=[
                 _metrics_row("2026-09-20", total_tokens=1, count=1),
                 _metrics_row("2026-09-22", total_tokens=3, count=3),
                 _metrics_row("2026-09-21", total_tokens=2, count=2),
@@ -317,7 +388,7 @@ class TestLangfuseUsageRepositoryReading:
 
     async def test_should_return_empty_page_when_no_rows(self, repository, mock_client):
         # Arrange
-        self._set_rows(mock_client, [])
+        self._set_responses(mock_client)
 
         # Act
         page = await repository.get_usage_buckets_page(user_id=6, start_time=START_TIME, end_time=END_TIME, offset=0, limit=10)

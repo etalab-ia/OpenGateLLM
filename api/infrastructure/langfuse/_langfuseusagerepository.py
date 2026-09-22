@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 import json
 import logging
 from uuid import uuid4
@@ -11,6 +11,10 @@ from api.domain.usage.entities import EnvironmentalImpacts, Usage, UsageBucket, 
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
+
+# Names of the numeric Langfuse scores carrying environmental impacts (see update_record).
+_KWH_SCORE = "kWh"
+_KGCO2EQ_SCORE = "kgCO2eq"
 
 
 class LangfuseUsageRepository(UsageRepository):
@@ -110,41 +114,44 @@ class LangfuseUsageRepository(UsageRepository):
         models: list[str] | None = None,
         key_id: int | None = None,
     ) -> UsageBucketPage:
-        query = self._build_metrics_query(
-            user_id=user_id,
-            start_time=start_time,
-            end_time=end_time,
-            endpoint=endpoint,
-            models=models,
-            key_id=key_id,
-        )
-        response = await asyncio.to_thread(self.client.api.metrics.metrics, query=json.dumps(query))
-        rows = list(getattr(response, "data", None) or [])
+        context_filters = self._context_filters(user_id=user_id, endpoint=endpoint, models=models, key_id=key_id)
+        usage_query = self._build_usage_query(context_filters, start_time=start_time, end_time=end_time)
+        impacts_query = self._build_impacts_query(context_filters, start_time=start_time, end_time=end_time)
 
-        buckets = sorted((self._row_to_usage_bucket(row) for row in rows), key=lambda bucket: bucket.start_time, reverse=True)
+        # tokens/cost live on the observations view; kWh/kgCO2eq are numeric scores on a separate view.
+        usage_response, impacts_response = await asyncio.gather(
+            asyncio.to_thread(self.client.api.metrics.metrics, query=json.dumps(usage_query)),
+            asyncio.to_thread(self.client.api.metrics.metrics, query=json.dumps(impacts_query)),
+        )
+        impacts_by_day = self._impacts_by_day(list(getattr(impacts_response, "data", None) or []))
+        usage_rows = list(getattr(usage_response, "data", None) or [])
+
+        buckets = sorted(
+            (self._row_to_usage_bucket(row, impacts_by_day) for row in usage_rows),
+            key=lambda bucket: bucket.start_time,
+            reverse=True,
+        )
         return UsageBucketPage(total=len(buckets), data=buckets[offset : offset + limit])
 
     @staticmethod
-    def _build_metrics_query(
-        user_id: int,
-        start_time: datetime,
-        end_time: datetime,
-        endpoint: str | None,
-        models: list[str] | None,
-        key_id: int | None,
-    ) -> dict:
-        filters: list[dict] = [
-            {"column": "userId", "operator": "=", "value": str(user_id), "type": "string"},
-            {"column": "type", "operator": "=", "value": "GENERATION", "type": "string"},
-            {"column": "level", "operator": "=", "value": "DEFAULT", "type": "string"},
-        ]
+    def _context_filters(user_id: int, endpoint: str | None, models: list[str] | None, key_id: int | None) -> list[dict]:
+        """Filters shared by the usage and impacts queries so both aggregate the same requests."""
+        filters: list[dict] = [{"column": "userId", "operator": "=", "value": str(user_id), "type": "string"}]
         if endpoint is not None:
             filters.append({"column": "metadata", "operator": "=", "value": endpoint, "type": "stringObject", "key": "endpoint"})
         if models:
             filters.append({"column": "providedModelName", "operator": "any of", "value": models, "type": "stringOptions"})
         if key_id is not None:
             filters.append({"column": "metadata", "operator": "=", "value": str(key_id), "type": "stringObject", "key": "key_id"})
+        return filters
 
+    @classmethod
+    def _build_usage_query(cls, context_filters: list[dict], start_time: datetime, end_time: datetime) -> dict:
+        filters = [
+            *context_filters,
+            {"column": "type", "operator": "=", "value": "GENERATION", "type": "string"},
+            {"column": "level", "operator": "=", "value": "DEFAULT", "type": "string"},
+        ]
         return {
             "view": "observations",
             "metrics": [
@@ -163,9 +170,41 @@ class LangfuseUsageRepository(UsageRepository):
             "config": {"row_limit": 1000},
         }
 
-    @staticmethod
-    def _row_to_usage_bucket(row: dict) -> UsageBucket:
-        start_time = datetime.fromisoformat(str(row["time_dimension"])).replace(tzinfo=UTC)
+    @classmethod
+    def _build_impacts_query(cls, context_filters: list[dict], start_time: datetime, end_time: datetime) -> dict:
+        # kWh/kgCO2eq are emitted as numeric scores in update_record (only on successful requests).
+        filters = [
+            *context_filters,
+            {"column": "name", "operator": "any of", "value": [_KWH_SCORE, _KGCO2EQ_SCORE], "type": "stringOptions"},
+        ]
+        return {
+            "view": "scores-numeric",
+            "metrics": [{"measure": "value", "aggregation": "sum"}],
+            "dimensions": [{"field": "name"}],
+            "filters": filters,
+            "timeDimension": {"granularity": "day"},
+            "fromTimestamp": start_time.astimezone(UTC).isoformat(),
+            "toTimestamp": end_time.astimezone(UTC).isoformat(),
+            "orderBy": [{"field": "time_dimension", "direction": "desc"}],
+            "config": {"row_limit": 1000},
+        }
+
+    @classmethod
+    def _impacts_by_day(cls, rows: list[dict]) -> dict[date, dict[str, float]]:
+        impacts: dict[date, dict[str, float]] = {}
+        for row in rows:
+            name = row.get("name")
+            if name not in (_KWH_SCORE, _KGCO2EQ_SCORE):
+                continue
+            day = cls._parse_day(row["time_dimension"])
+            impacts.setdefault(day, {_KWH_SCORE: 0.0, _KGCO2EQ_SCORE: 0.0})[name] += float(row.get("sum_value") or 0.0)
+        return impacts
+
+    @classmethod
+    def _row_to_usage_bucket(cls, row: dict, impacts_by_day: dict[date, dict[str, float]]) -> UsageBucket:
+        day = cls._parse_day(row["time_dimension"])
+        start_time = datetime(day.year, day.month, day.day, tzinfo=UTC)
+        impacts = impacts_by_day.get(day, {})
         return UsageBucket(
             start_time=start_time,
             end_time=start_time + timedelta(days=1),
@@ -174,6 +213,9 @@ class LangfuseUsageRepository(UsageRepository):
             total_tokens=int(row.get("sum_totalTokens") or 0),
             cost=float(row.get("sum_totalCost") or 0.0),
             requests=int(row.get("count_count") or 0),
-            # TODO kWh/kgCO2eq are stored as Langfuse scores, which the Metrics V2 observations view canno't agg
-            impacts=EnvironmentalImpacts(kWh=0.0, kgCO2eq=0.0),
+            impacts=EnvironmentalImpacts(kWh=impacts.get(_KWH_SCORE, 0.0), kgCO2eq=impacts.get(_KGCO2EQ_SCORE, 0.0)),
         )
+
+    @staticmethod
+    def _parse_day(value: object) -> date:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
