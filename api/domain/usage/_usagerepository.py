@@ -6,12 +6,6 @@ from api.utils.variables import EndpointRoute
 
 
 class UsageRepository(ABC):
-    """Port for recording inference usage (write) and reading usage reports (read).
-
-    A single adapter both records usage as requests complete and answers usage
-    queries, so operators pick one backend (Postgres or Langfuse) for both sides.
-    """
-
     @abstractmethod
     def start_record(
         self,
