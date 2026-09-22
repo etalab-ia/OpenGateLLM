@@ -76,8 +76,8 @@ class LangfuseUsageRepository(UsageRepository):
             if first_token_at is not None:
                 update["completion_start_time"] = first_token_at
             self._observation.update(**update)
-            self._observation.score(name="kWh", value=usage.impacts.kWh, data_type="NUMERIC")
-            self._observation.score(name="kgCO2eq", value=usage.impacts.kgCO2eq, data_type="NUMERIC")
+            self._observation.score(name=_KWH_SCORE_COLUMN, value=usage.impacts.kWh, data_type="NUMERIC")
+            self._observation.score(name=_KGCO2EQ_SCORE_COLUMN, value=usage.impacts.kgCO2eq, data_type="NUMERIC")
         except Exception:
             logger.exception("Failed to update Langfuse observation")
 

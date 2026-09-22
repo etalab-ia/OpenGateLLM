@@ -161,7 +161,7 @@ def _usage_context() -> UsageContext:
     return ContextVarsUsageContext(request_context=request_context)
 
 
-def _usage_recorder(background_tasks: BackgroundTasks) -> UsageRepository:
+def _recording_usage_repository(background_tasks: BackgroundTasks) -> UsageRepository:
     if configuration.settings.usage_source == UsageSource.LANGFUSE:
         return LangfuseUsageRepository(client=global_context.langfuse)
     return PostgresUsageRepository(background_tasks=background_tasks, postgres_session_provider=get_postgres_session)
@@ -220,7 +220,7 @@ def create_audio_transcriptions_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_recorder: UsageRepository = Depends(_usage_recorder),
+    usage_recorder: UsageRepository = Depends(_recording_usage_repository),
 ) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -244,7 +244,7 @@ def create_chat_completions_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_recorder: UsageRepository = Depends(_usage_recorder),
+    usage_recorder: UsageRepository = Depends(_recording_usage_repository),
 ) -> CreateChatCompletionsUseCase:
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -311,7 +311,7 @@ def create_embeddings_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_recorder: UsageRepository = Depends(_usage_recorder),
+    usage_recorder: UsageRepository = Depends(_recording_usage_repository),
 ) -> CreateEmbeddingsUseCase:
     return CreateEmbeddingsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -388,7 +388,7 @@ def create_ocr_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_recorder: UsageRepository = Depends(_usage_recorder),
+    usage_recorder: UsageRepository = Depends(_recording_usage_repository),
 ) -> CreateOCRUseCase:
     return CreateOCRUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -453,7 +453,7 @@ def create_rerank_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_recorder: UsageRepository = Depends(_usage_recorder),
+    usage_recorder: UsageRepository = Depends(_recording_usage_repository),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
