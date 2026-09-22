@@ -47,7 +47,7 @@ Reference implementations of these patterns:
 | Model-forward (autocommit) | embeddings, OCR, rerank, audio transcriptions |
 | Model-forward with streaming | `api/infrastructure/fastapi/endpoints/chat.py` + `api/use_cases/chat/` (see [Streaming](#streaming)) |
 
-Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key.
+Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`, `UpdateKeyUseCase`, `DeleteKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key. `PATCH /v1/keys/{id}` updates the name; `DELETE` revokes the key (it stays in the database and cannot be reactivated).
 
 Self-service `/v1/organizations/me` reuses `GetOneOrganizationUseCase` with `organization_id=authenticated_user.organization_id`. Later org routes land in the same module (`api/infrastructure/fastapi/endpoints/organizations.py`).
 
@@ -509,8 +509,6 @@ Avoid adding `begin_nested()` just to keep the session usable after a mapped `In
 except IntegrityError as e:
     if "token_user_id_fkey" in str(e.orig):
         return UserNotFoundError(id=user_id)
-    if "unique_token_name_per_user" in str(e.orig):
-        return KeyAlreadyExistsError(name=name)
     raise  # unknown constraint → bubble up as 500
 ```
 

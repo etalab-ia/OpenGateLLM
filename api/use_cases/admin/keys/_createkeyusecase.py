@@ -5,7 +5,7 @@ from pydantic import FutureDatetime
 
 from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
-from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError
+from api.domain.key.errors import KeyExpirationInvalidError
 from api.domain.user.errors import UserNotFoundError
 
 
@@ -21,7 +21,7 @@ class CreateKeyUseCaseSuccess:
     key: Key
 
 
-type CreateKeyUseCaseResult = CreateKeyUseCaseSuccess | KeyAlreadyExistsError | KeyExpirationInvalidError | UserNotFoundError
+type CreateKeyUseCaseResult = CreateKeyUseCaseSuccess | KeyExpirationInvalidError | UserNotFoundError
 
 
 class CreateKeyUseCase:

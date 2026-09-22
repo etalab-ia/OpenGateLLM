@@ -4,7 +4,8 @@ from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import create_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
 from api.domain import SortField, SortOrder
-from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNotFoundError
+from api.domain.key.entities import KeyStatus
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -13,7 +14,6 @@ from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
-    KeyAlreadyExistsHTTPException,
     KeyExpirationInvalidHTTPException,
     KeyNotFoundHTTPException,
     NotAdminUserHTTPException,
@@ -43,9 +43,7 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_KEYS,
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=201,
-    responses=get_documentation_responses(
-        [KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, NotAdminUserHTTPException, UserNotFoundHTTPException]
-    ),
+    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, NotAdminUserHTTPException, UserNotFoundHTTPException]),
 )
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
@@ -72,8 +70,6 @@ async def create_key(
     match result:
         case CreateKeyUseCaseSuccess(key=key):
             return KeyResponse.model_validate(key, from_attributes=True)
-        case KeyAlreadyExistsError(name=name):
-            raise KeyAlreadyExistsHTTPException(name)
         case KeyExpirationInvalidError(max_expiration_days=max_expiration_days):
             raise KeyExpirationInvalidHTTPException(max_expiration_days)
         case UserNotFoundError(id=user_id):
@@ -124,13 +120,11 @@ async def get_keys(
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of keys to return."),
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
-    active: bool = Query(
-        default=False, description="Return every key, including expired ones. When false, only active (non-expired) keys are returned."
-    ),
+    status: KeyStatus | None = Query(default=None, description="Filter by key status. Omit to return all keys."),
     get_keys_use_case: GetKeysUseCase = Depends(get_keys_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeysResponse:
-    command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order, active=active)
+    command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order, status=status)
     try:
         result = await get_keys_use_case.execute(command)
     except Exception as e:
@@ -142,7 +136,7 @@ async def get_keys(
                 "limit": command.limit,
                 "sort_by": command.sort_by,
                 "sort_order": command.sort_order,
-                "active": command.active,
+                "status": command.status,
                 "error_type": type(e).__name__,
             },
         )
@@ -165,10 +159,14 @@ async def get_keys(
     responses=get_documentation_responses([KeyNotFoundHTTPException, NotAdminUserHTTPException]),
 )
 async def delete_key(
-    key_id: int = Path(description="The ID of the key to delete."),
+    key_id: int = Path(description="The ID of the key to revoke."),
     delete_key_use_case: DeleteKeyUseCase = Depends(delete_key_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
+    """
+    Revoke an API key. A revoked key can no longer be used.
+    """
+
     command = DeleteKeyCommand(key_id=key_id)
     try:
         result = await delete_key_use_case.execute(command)

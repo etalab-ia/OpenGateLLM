@@ -36,12 +36,14 @@ class TestGetMeKeys:
         assert len(data["data"]) == 2
         assert all(item["object"] == "key" for item in data["data"])
         assert all(item["user_id"] == self.user.id for item in data["data"])
+        assert all(item["revoked"] is False for item in data["data"])
         returned_ids = {item["id"] for item in data["data"]}
         assert own_key.id in returned_ids
         assert self.key.id in returned_ids
 
-    async def test_excludes_expired_keys_by_default(self, client: AsyncClient, db_session):
+    async def test_returns_expired_and_revoked_keys_when_status_is_omitted(self, client: AsyncClient, db_session):
         expired_key = KeySQLFactory(user=self.user, name="expired-key", expired=True)
+        revoked_key = KeySQLFactory(user=self.user, name="revoked-key", never_expires=True, revoked=True)
         await db_session.flush()
 
         response = await client.get(
@@ -50,24 +52,60 @@ class TestGetMeKeys:
         )
 
         assert response.status_code == 200, response.text
-        data = response.json()
-        assert expired_key.id not in {item["id"] for item in data["data"]}
-
-    async def test_includes_expired_keys_when_active_is_true(self, client: AsyncClient, db_session):
-        expired_key = KeySQLFactory(user=self.user, name="expired-key", expired=True)
-        await db_session.flush()
-
-        response = await client.get(
-            url=URL,
-            params={"active": True},
-            headers={"Authorization": f"Bearer {self.key.token}"},
-        )
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        returned = {item["id"] for item in data["data"]}
+        returned = {item["id"] for item in response.json()["data"]}
         assert expired_key.id in returned
+        assert revoked_key.id in returned
         assert self.key.id in returned
+
+    async def test_filters_active_keys(self, client: AsyncClient, db_session):
+        expired_key = KeySQLFactory(user=self.user, name="expired-key", expired=True)
+        revoked_key = KeySQLFactory(user=self.user, name="revoked-key", never_expires=True, revoked=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"status": "active"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        returned = {item["id"] for item in response.json()["data"]}
+        assert self.key.id in returned
+        assert expired_key.id not in returned
+        assert revoked_key.id not in returned
+
+    async def test_filters_expired_keys(self, client: AsyncClient, db_session):
+        expired_key = KeySQLFactory(user=self.user, name="expired-key", expired=True)
+        KeySQLFactory(user=self.user, name="revoked-expired-key", expired=True, revoked=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"status": "expired"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert data["data"][0]["id"] == expired_key.id
+
+    async def test_filters_revoked_keys(self, client: AsyncClient, db_session):
+        revoked_key = KeySQLFactory(user=self.user, name="revoked-key", never_expires=True, revoked=True)
+        KeySQLFactory(user=self.user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"status": "revoked"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert data["data"][0]["id"] == revoked_key.id
+        assert data["data"][0]["revoked"] is True
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

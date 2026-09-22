@@ -1,6 +1,6 @@
 import reflex as rx
 
-from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import SELECT_MEDIUM_WIDTH, SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.keys.components.dialogs import keys_delete_dialog
 from app.features.keys.models import Key
 from app.features.keys.state import KeysState
@@ -14,7 +14,11 @@ def key_row_content(key: Key) -> rx.Component:
                 key.name,
                 size=TEXT_SIZE_LARGE,
                 weight="bold",
-                color=rx.cond(key.is_expired, rx.color("mauve", 9), rx.color("mauve", 12)),
+                color=rx.cond(
+                    key.is_revoked,
+                    rx.color("mauve", 9),
+                    rx.cond(key.is_expired, rx.color("mauve", 9), rx.color("mauve", 12)),
+                ),
             ),
             rx.tooltip(
                 rx.badge(
@@ -25,14 +29,25 @@ def key_row_content(key: Key) -> rx.Component:
                 content="ID",
             ),
             rx.cond(
-                key.is_expired,
+                key.is_revoked,
                 rx.tooltip(
                     rx.badge(
-                        "Expired",
+                        "Revoked",
                         variant="soft",
                         color_scheme="red",
                     ),
-                    content="This key has expired and can no longer be used.",
+                    content="This key has been revoked and can no longer be used.",
+                ),
+                rx.cond(
+                    key.is_expired,
+                    rx.tooltip(
+                        rx.badge(
+                            "Expired",
+                            variant="soft",
+                            color_scheme="red",
+                        ),
+                        content="This key has expired and can no longer be used.",
+                    ),
                 ),
             ),
             spacing=SPACING_SMALL,
@@ -62,20 +77,10 @@ def key_row_content(key: Key) -> rx.Component:
 
 def key_row_description(key: Key) -> rx.Component:
     return rx.vstack(
-        rx.hstack(
-            rx.text(
-                f"Created: {key.created} • Expires: ",
-                size=TEXT_SIZE_LABEL,
-                color=rx.color("mauve", 9),
-            ),
-            rx.text(
-                key.expires,
-                size=TEXT_SIZE_LABEL,
-                weight=rx.cond(key.is_expired, "bold", "regular"),
-                color=rx.cond(key.is_expired, rx.color("red", 10), rx.color("mauve", 9)),
-            ),
-            spacing="1",
-            align="center",
+        rx.text(
+            f"Created: {key.created} • Expires: {key.expires}",
+            size=TEXT_SIZE_LABEL,
+            color=rx.color("mauve", 9),
         ),
         spacing=SPACING_SMALL,
         align_items="start",
@@ -97,10 +102,12 @@ def key_renderer_row(key: Key, with_settings: bool = False) -> rx.Component:
 def key_filters() -> rx.Component:
     """Filters for keys list."""
     return rx.hstack(
-        rx.text("Show expired", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        rx.checkbox(
-            checked=KeysState.show_expired,
-            on_change=KeysState.set_show_expired,
+        rx.text("Status", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.select(
+            KeysState.status_options,
+            value=KeysState.status_filter,
+            on_change=KeysState.set_status_filter,
+            width=SELECT_MEDIUM_WIDTH,
         ),
         spacing=SPACING_SMALL,
         align="center",

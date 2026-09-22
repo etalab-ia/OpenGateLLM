@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from pydantic import FutureDatetime
 
 from api.domain import SortField, SortOrder
-from api.domain.key.entities import Key, KeyPage
-from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
+from api.domain.key.entities import Key, KeyPage, KeyStatus
+from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 
 
@@ -21,16 +21,20 @@ class KeyRepository(ABC):
         offset: int = 0,
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
-        active: bool = False,
+        status: KeyStatus | None = None,
     ) -> KeyPage:
         pass
 
     @abstractmethod
-    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
+    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
         pass
 
     @abstractmethod
     async def upsert_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
+        pass
+
+    @abstractmethod
+    async def update_key(self, key: Key) -> Key | KeyNotFoundError:
         pass
 
     @abstractmethod

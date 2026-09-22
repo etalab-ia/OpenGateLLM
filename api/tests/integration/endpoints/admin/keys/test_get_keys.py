@@ -55,10 +55,11 @@ class TestGetKeys:
         assert data["data"][0]["id"] == key.id
         assert data["data"][0]["user_id"] == user.id
 
-    async def test_excludes_expired_keys_by_default(self, client: AsyncClient, db_session):
+    async def test_returns_expired_and_revoked_keys_when_status_is_omitted(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
         KeySQLFactory(user=user, name="active-key", never_expires=True)
         KeySQLFactory(user=user, name="expired-key", expired=True)
+        KeySQLFactory(user=user, name="revoked-key", never_expires=True, revoked=True)
         await db_session.flush()
 
         response = await client.get(
@@ -69,10 +70,28 @@ class TestGetKeys:
 
         assert response.status_code == 200, response.text
         data = response.json()
+        assert data["total"] == 3
+        assert {item["name"] for item in data["data"]} == {"active-key", "expired-key", "revoked-key"}
+
+    async def test_filters_active_keys(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        KeySQLFactory(user=user, name="revoked-key", never_expires=True, revoked=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"user": user.id, "status": "active"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
         assert data["total"] == 1
         assert data["data"][0]["name"] == "active-key"
 
-    async def test_includes_expired_keys_when_active_is_true(self, client: AsyncClient, db_session):
+    async def test_filters_expired_keys(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
         KeySQLFactory(user=user, name="active-key", never_expires=True)
         KeySQLFactory(user=user, name="expired-key", expired=True)
@@ -80,14 +99,32 @@ class TestGetKeys:
 
         response = await client.get(
             url=URL,
-            params={"user": user.id, "active": True},
+            params={"user": user.id, "status": "expired"},
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
-        assert data["total"] == 2
-        assert {item["name"] for item in data["data"]} == {"active-key", "expired-key"}
+        assert data["total"] == 1
+        assert data["data"][0]["name"] == "expired-key"
+
+    async def test_filters_revoked_keys(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="revoked-key", never_expires=True, revoked=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"user": user.id, "status": "revoked"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert data["data"][0]["name"] == "revoked-key"
+        assert data["data"][0]["revoked"] is True
 
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)

@@ -27,3 +27,7 @@ class CreateKeyBody(BaseModel):
         expires = datetime.fromtimestamp(timestamp=expires, tz=UTC)
 
         return expires
+
+
+class UpdateKeyBody(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Name of the key.", examples=["key-1"])]  # fmt: off

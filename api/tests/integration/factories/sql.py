@@ -127,6 +127,7 @@ class KeySQLFactory(BaseSQLFactory):
     name = factory.Sequence(lambda n: f"key_{n}")
     expires = factory.LazyFunction(lambda: datetime.now(tz=UTC) + timedelta(days=30))
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    revoked = False
 
     class Params:
         expired = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now(tz=UTC) - timedelta(days=1)))

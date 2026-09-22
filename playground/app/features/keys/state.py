@@ -29,6 +29,7 @@ class KeysState(EntityState):
             expires=format_datetime(key["expires"], default="never"),
             created=format_datetime(key["created"]),
             is_expired=is_past(key["expires"]),
+            is_revoked=key.get("revoked", False),
         )
 
     @rx.var
@@ -61,9 +62,9 @@ class KeysState(EntityState):
             "limit": self.per_page,
             "sort_by": self.order_by_value,
             "sort_order": self.order_direction_value,
-            # the API returns every key when active is true, and only the usable ones when it is false
-            "active": self.show_expired,
         }
+        if self.status_filter != "All keys":
+            params["status"] = self.status_filter.lower()
 
         response = None
         try:
@@ -112,7 +113,7 @@ class KeysState(EntityState):
             self.entity_to_delete = Key()
 
     async def delete_entity(self):
-        """Delete a key."""
+        """Revoke a key."""
         self.delete_entity_loading = True
         yield
 
@@ -127,7 +128,7 @@ class KeysState(EntityState):
                 response.raise_for_status()
 
                 self.handle_delete_entity_dialog_change(is_open=False)
-                yield rx.toast.success("Key deleted successfully", position="bottom-right")
+                yield rx.toast.success("Key revoked successfully", position="bottom-right")
                 async for _ in self.load_entities():
                     yield
 
@@ -227,7 +228,8 @@ class KeysState(EntityState):
     page: int = 1
     per_page: int = 20
     total: int = 0
-    show_expired: bool = True
+    status_filter: str = "All keys"
+    status_options: list[str] = ["All keys", "Active", "Expired", "Revoked"]
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
@@ -239,9 +241,9 @@ class KeysState(EntityState):
         return max(1, math.ceil(self.total / self.per_page))
 
     @rx.event
-    async def set_show_expired(self, value: bool):
-        """Toggle expired keys visibility and reload."""
-        self.show_expired = value
+    async def set_status_filter(self, value: str):
+        """Filter keys by status and reload."""
+        self.status_filter = value
         self.page = 1
         yield
         async for _ in self.load_entities():

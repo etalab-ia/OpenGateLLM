@@ -10,7 +10,7 @@ class EnvironmentalImpacts(BaseModel):
     @field_validator("kWh", "kgCO2eq")
     @classmethod
     def round_to_six_decimals(cls, value: float) -> float:
-        return round(number=value, ndigits=8)
+        return round(number=value, ndigits=6)
 
 
 class PromptTokensDetails(BaseModel):

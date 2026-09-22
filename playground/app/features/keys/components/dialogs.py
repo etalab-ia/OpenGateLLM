@@ -100,6 +100,6 @@ def keys_created_dialog() -> rx.Component:
 def keys_delete_dialog() -> rx.Component:
     return entity_delete_dialog(
         state=KeysState,
-        title="Delete key",
-        description="Are you sure you want to delete this key? This action cannot be undone.",
+        title="Revoke key",
+        description="Are you sure you want to revoke this key? It will no longer be usable.",
     )

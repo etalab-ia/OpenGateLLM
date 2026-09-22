@@ -3,9 +3,11 @@ from unittest.mock import AsyncMock
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 
 from api.dependencies import delete_key_use_case_factory
 from api.domain.key.errors import KeyNotFoundError
+from api.sql.models import Token as KeyTable
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import KeySQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -21,7 +23,7 @@ class TestDeleteMeKey:
         self.key = await create_key(db_session, name="user_key", user=self.user, never_expires=True)
 
     async def test_happy_path(self, client: AsyncClient, db_session):
-        own_key = KeySQLFactory(user=self.user, name="to-delete", never_expires=True)
+        own_key = KeySQLFactory(user=self.user, name="to-revoke", never_expires=True)
         await db_session.flush()
 
         response = await client.delete(
@@ -33,8 +35,12 @@ class TestDeleteMeKey:
         data = response.json()
         assert data["object"] == "key"
         assert data["id"] == own_key.id
-        assert data["name"] == "to-delete"
+        assert data["name"] == "to-revoke"
         assert data["user_id"] == self.user.id
+        assert data["revoked"] is True
+        stored = await db_session.scalar(select(KeyTable).where(KeyTable.id == own_key.id))
+        assert stored is not None
+        assert stored.revoked is True
 
     async def test_cannot_delete_another_users_key(self, client: AsyncClient, db_session):
         other_user = UserSQLFactory()
