@@ -92,8 +92,8 @@ class TestLangfuseUsageRecorder:
         )
         mock_observation.score.assert_has_calls(
             [
-                call(name="kWh", value=1.23456789, data_type="NUMERIC"),
-                call(name="kgCO2eq", value=0.12345679, data_type="NUMERIC"),
+                call(name="kWh", value=1.234568, data_type="NUMERIC"),
+                call(name="kgCO2eq", value=0.123457, data_type="NUMERIC"),
             ]
         )
 
