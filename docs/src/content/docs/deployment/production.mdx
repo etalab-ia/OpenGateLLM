@@ -142,8 +142,7 @@ For more information, see [configuration file documentation](/configuration/conf
 
 ## Observability
 
-- Keep usage logging enabled with `monitoring_postgres_enabled` unless you explicitly accept losing usage history. 
-Consider implementing a data retention policy for the usage table to manage database size. 
+- Usage is logged to PostgreSQL. Consider a data retention policy for the usage table to manage database size. 
 For more information, see [usage monitoring documentation](/features/usage/inference_monitoring/).
 - Keep Prometheus metrics enabled with `monitoring_prometheus_enabled`. 
 For more information, see [Prometheus documentation](/configuration/dependencies/prometheus/). 
@@ -163,7 +162,6 @@ dependencies:
 
 settings:
   [...]
-  monitoring_postgres_enabled: true
   monitoring_prometheus_enabled: true
 ```
 

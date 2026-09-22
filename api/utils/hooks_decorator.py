@@ -10,7 +10,6 @@ from starlette.responses import StreamingResponse
 
 from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.sql.models import Usage, User
-from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
 
@@ -166,9 +165,6 @@ async def log_usage(usage: Usage):
     Logs the usage information to the database.
     This function captures the duration of the request and sets the status code of the response if available.
     """
-
-    if configuration.settings.monitoring_postgres_enabled is False:
-        return
 
     async for postgres_session in get_postgres_session():
         postgres_session.add(usage)

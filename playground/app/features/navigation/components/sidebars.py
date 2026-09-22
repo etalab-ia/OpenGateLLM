@@ -23,15 +23,16 @@ def nav_item(label: str, icon: str | None, page: str, is_external: bool = False,
     Returns:
         A navigation item component.
     """
+    is_current = rx.State.router.route_id == page
     return rx.link(
         rx.hstack(
             rx.icon(icon, size=20) if icon else rx.box(width="20px", min_width="20px", height="20px"),
-            rx.text(label, size="3"),
+            rx.text(label, size="3", weight=rx.cond(is_current, "bold", "regular")),
             rx.spacer() if admin else rx.fragment(),
             nav_admin_badge() if admin else rx.fragment(),
             padding=PADDING_NAV,
             border_radius="8px",
-            color=rx.color("mauve", 11),
+            color=rx.cond(is_current, rx.color("mauve", 12), rx.color("mauve", 11)),
             _hover={
                 "background_color": rx.color("mauve", 4),
             },
@@ -115,7 +116,6 @@ def navigation_sidebar() -> rx.Component:
                                             rx.text(
                                                 "Models",
                                                 size="4",
-                                                weight="bold",
                                                 color=rx.color("mauve", 12),
                                             ),
                                             rx.spacer(),

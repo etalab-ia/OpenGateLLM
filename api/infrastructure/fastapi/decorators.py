@@ -15,7 +15,6 @@ from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.dependencies import request_context
 from api.sql.models import Usage, User
-from api.utils.configuration import configuration
 
 logger = logging.getLogger(__name__)
 PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession | Any, Any]]
@@ -86,10 +85,6 @@ def _record_usage(
     _schedule_background_task(
         coroutine=charge_router_limits(user=user, usage=usage, router_rate_limiter_provider=router_rate_limiter_provider),
         task_name="hooks-charge-router-limits",
-    )
-    _schedule_background_task(
-        coroutine=log_usage(usage=usage, postgres_session_provider=postgres_session_provider),
-        task_name="hooks-log-usage",
     )
     _schedule_background_task(
         coroutine=update_budget(usage=usage, postgres_session_provider=postgres_session_provider),
@@ -164,24 +159,6 @@ async def charge_router_limits(user: AuthenticatedUserView | None, usage: Usage,
         )
     except Exception:
         logger.exception("Unexpected failure during rate limit state update for user %s.", user.id)
-
-
-async def log_usage(usage: Usage, postgres_session_provider: PostgresSessionProvider):
-    if configuration.settings.monitoring_postgres_enabled is False:
-        return
-
-    try:
-        async for postgres_session in postgres_session_provider():
-            postgres_session.add(usage)
-            try:
-                await postgres_session.commit()
-            except Exception as e:
-                logger.error(f"Failed to log usage: {e}")
-                await postgres_session.rollback()
-    except RuntimeError as e:
-        logger.warning("Skipping usage logging because postgres session is unavailable: %s", e)
-    except Exception:
-        logger.exception("Unexpected failure during usage logging.")
 
 
 async def update_budget(usage: Usage, postgres_session_provider: PostgresSessionProvider):

@@ -275,7 +275,6 @@ class Settings(ConfigBaseModel):
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off
 
     # monitoring
-    monitoring_postgres_enabled: bool = Field(default=True, description="If true, the log usage will be written in the PostgreSQL database.")  # fmt: off
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
 
     # audio

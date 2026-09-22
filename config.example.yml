@@ -61,7 +61,6 @@ settings:
   # rate_limiting_strategy: fixed_window
 
   # monitoring_sentry_enabled: True
-  # monitoring_postgres_enabled: True
   # monitoring_prometheus_enabled: True
 
   playground_opengatellm_url: ${OPENGATELLM_URL:-http://api:8000}
