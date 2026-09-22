@@ -5,7 +5,7 @@ import pytest
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
-from api.schemas.core.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.use_cases.models import BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
 from api.utils.lifespan import bootstrap_models
 

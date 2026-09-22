@@ -8,7 +8,7 @@ from api.domain.provider.entities import BasicAuth, HostingZone, Provider, Provi
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.entities import RouterType
 from api.infrastructure.postgres import PostgresProviderRepository
-from api.sql.models import Provider as ProviderTable
+from api.infrastructure.postgres.models import Provider as ProviderTable
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 
 _EXCLUDE = {"id", "created", "updated"}

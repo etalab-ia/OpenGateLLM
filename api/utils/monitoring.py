@@ -3,7 +3,7 @@ from collections.abc import Callable
 from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator.metrics import Info
 
-from api.utils.context import request_context
+from api.infrastructure.fastapi.dependencies import request_context
 
 
 def _build_metric_name(namespace: str, name: str) -> str:

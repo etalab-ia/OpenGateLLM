@@ -7,7 +7,7 @@ import pytest
 
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 from api.infrastructure.postgres import PostgresUsageRecorder
-from api.sql.models import Usage as UsageTable
+from api.infrastructure.postgres.models import Usage as UsageTable
 from api.utils.variables import EndpointRoute
 
 IDENTITY = {

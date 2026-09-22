@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from api.schemas.core.configuration import Configuration
+from api.infrastructure.configuration import Configuration
 
 
 @lru_cache

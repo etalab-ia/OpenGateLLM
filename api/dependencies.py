@@ -122,7 +122,7 @@ def _key_encoder() -> KeyEncoder:
 
 
 def _model_tokenizer() -> ModelTokenizer:
-    return TiktokenModelTokenizer(model=global_context._tokenizer)
+    return TiktokenModelTokenizer(model=global_context.tokenizer)
 
 
 def _model_environmental_impacts_computer() -> ModelEnvironmentalImpactsComputer:

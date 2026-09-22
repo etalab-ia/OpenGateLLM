@@ -1,11 +1,10 @@
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI, Security
 import prometheus_client
 from prometheus_client import CollectorRegistry, multiprocess
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from starlette.responses import Response
 
-from api.domain.role.entities import PermissionType
-from api.helpers._accesscontroller import AccessController
+from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.utils.configuration import configuration
 from api.utils.monitoring import (
     inference_output_tokens_per_second,
@@ -35,7 +34,7 @@ def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_sch
     @app.get(
         path="/metrics",
         tags=[RouterName.MONITORING.title()],
-        dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))],
+        dependencies=[Security(dependency=AccessController())],
         include_in_schema=include_in_schema,
     )
     def get_metrics() -> Response:

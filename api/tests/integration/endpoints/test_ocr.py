@@ -18,7 +18,6 @@ from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
@@ -52,7 +51,7 @@ class TestCreateOCR:
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []  # OCR requests carry no textual prompt
-        with override_global_context(redis_pool=test_redis_pool, _tokenizer=mock_tokenizer):
+        with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
             yield
 
     @respx.mock
@@ -61,7 +60,7 @@ class TestCreateOCR:
         RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
-            type=ModelType.IMAGE_TO_TEXT,
+            type=RouterType.IMAGE_TO_TEXT,
             providers=1,
             providers__type=ProviderType.MISTRAL,
             providers__url=DEFAULT_PROVIDER_URL,

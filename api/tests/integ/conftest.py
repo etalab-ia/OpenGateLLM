@@ -8,8 +8,8 @@ import pytest
 from sqlalchemy import create_engine
 
 from api.domain.role.entities import LimitType, PermissionType
+from api.infrastructure.postgres.models import Base
 from api.main import app
-from api.sql.models import Base
 from api.utils.configuration import configuration
 from api.utils.variables import EndpointRoute
 

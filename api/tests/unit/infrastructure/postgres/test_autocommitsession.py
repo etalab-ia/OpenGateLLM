@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.infrastructure.postgres import AutocommitSession, TransactionRequiredError
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import User as UserTable
 
 
 class TestAutocommitSession:

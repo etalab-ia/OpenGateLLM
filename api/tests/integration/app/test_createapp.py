@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from api.app import create_app
-from api.schemas.core.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.utils.variables import EndpointRoute, RouterName
 
 

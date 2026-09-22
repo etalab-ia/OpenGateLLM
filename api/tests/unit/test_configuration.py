@@ -1,6 +1,6 @@
 import logging
 
-from api.schemas.core.configuration import Settings
+from api.infrastructure.configuration import Settings
 
 
 class TestSettingsDefaults:

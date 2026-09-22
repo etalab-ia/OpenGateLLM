@@ -8,9 +8,8 @@ from faker import Faker
 
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
-from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.models import ModelType
-from api.sql.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, Usage, User
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
+from api.infrastructure.postgres.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, Usage, User
 
 fake = Faker("fr_FR")
 
@@ -145,7 +144,7 @@ class RouterSQLFactory(BaseSQLFactory):
     id = None
     user = factory.SubFactory(UserSQLFactory)
     name = factory.Sequence(lambda n: f"router-{n}")  # not "router_<n>": several tests use explicit "router_1" … "router_7" names
-    type = factory.Faker("random_element", elements=list(ModelType))
+    type = factory.Faker("random_element", elements=list(RouterType))
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)

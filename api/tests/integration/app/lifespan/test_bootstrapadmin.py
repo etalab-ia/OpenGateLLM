@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from api.schemas.core.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.use_cases.admin import BootstrapAdminCommand, BootstrapAdminUseCaseSkipped, BootstrapAdminUseCaseSuccess
 from api.utils.lifespan import bootstrap_admin_role_and_user
 

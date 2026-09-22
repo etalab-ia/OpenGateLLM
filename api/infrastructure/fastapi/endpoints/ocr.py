@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from api.dependencies import create_ocr_use_case_factory, get_router_rate_limiter
+from api.dependencies import create_ocr_use_case_factory, get_postgres_session, get_router_rate_limiter
 from api.domain.key.entities import Key
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
@@ -32,7 +32,6 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.infrastructure.fastapi.schemas.ocr import CreateOCRBody, OCRResponse
 from api.use_cases.ocr import CreateOCRCommand, CreateOCRUseCase, CreateOCRUseCaseSuccess
-from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)

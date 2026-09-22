@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from api.dependencies import update_key_use_case_factory
 from api.domain.key.errors import KeyNotFoundError
-from api.sql.models import Token as KeyTable
+from api.infrastructure.postgres.models import Token as KeyTable
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import KeySQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute

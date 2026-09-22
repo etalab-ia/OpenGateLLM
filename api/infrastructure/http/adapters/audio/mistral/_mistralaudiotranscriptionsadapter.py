@@ -5,13 +5,12 @@ from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk
 from pydantic import ValidationError
 
 from api.domain import BaseModel
-from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat
+from api.domain.audio.entities import AudioTranscriptionLanguage, AudioTranscriptions, AudioTranscriptionsResponseFormat
 from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
-from api.schemas.audio import AudioTranscriptionLanguage
 
 
 class MistralCreateAudioTranscriptionsBody(BaseModel):

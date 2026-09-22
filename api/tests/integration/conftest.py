@@ -13,15 +13,11 @@ from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
-from api.helpers.models import ModelRegistry
-from api.schemas.core.configuration import Configuration, Dependencies, Settings
-from api.sql.models import Base
+from api.infrastructure.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.postgres.models import Base
 from api.tests.integration import factories
 from api.utils.configuration import configuration as global_configuration
-from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry
-from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
-from api.utils.dependencies import get_redis_client as get_redis_client_utils
+from api.utils.context import GlobalContext, global_context
 
 TEST_POSTGRES_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
 TEST_REDIS_URL = "redis://:changeme@localhost:6379/1"
@@ -115,7 +111,11 @@ def _all_sql_factories():
 
 @contextmanager
 def override_global_context(**overrides):
-    previous = {key: getattr(global_context, key, None) for key in overrides}
+    unknown = sorted(set(overrides) - set(GlobalContext.model_fields))
+    if unknown:
+        raise AttributeError(f"GlobalContext has no field {unknown}: the override would silently do nothing.")
+
+    previous = {key: getattr(global_context, key) for key in overrides}
     for key, value in overrides.items():
         setattr(global_context, key, value)
     try:
@@ -182,13 +182,8 @@ async def redis_client(test_redis_pool) -> AsyncGenerator[redis.Redis]:
         await client.aclose()
 
 
-@pytest.fixture(scope="session")
-def model_registry():
-    return ModelRegistry(app_title="test")
-
-
 @pytest_asyncio.fixture(scope="session")
-async def app(model_registry, test_configuration, test_redis_pool):
+async def app(test_configuration, test_redis_pool):
     app = create_app(test_configuration, skip_lifespan=True)
 
     async def override_get_postgres_session():
@@ -210,11 +205,8 @@ async def app(model_registry, test_configuration, test_redis_pool):
             await client.aclose()
 
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
-    app.dependency_overrides[get_postgres_session_utils] = override_get_postgres_session  # @TODO: remove after legacy migration
     app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_redis_client] = override_get_redis_client
-    app.dependency_overrides[get_redis_client_utils] = override_get_redis_client  # @TODO: remove after legacy migration
-    app.dependency_overrides[get_model_registry] = lambda: model_registry
 
     try:
         yield app

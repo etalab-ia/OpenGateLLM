@@ -12,8 +12,7 @@ from pydantic_settings import BaseSettings
 import yaml
 
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
-from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.models import ModelType
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
 
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -139,7 +138,7 @@ class Model(ConfigBaseModel):
     """
 
     name: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(..., description="Unique name exposed to clients when selecting the model.", examples=["gpt-4o"])  # fmt: off
-    type: ModelType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
+    type: RouterType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]], json_schema_extra={"default": []})  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model.", examples=["least_busy"])  # fmt: off
     cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
@@ -341,7 +340,7 @@ class ConfigFile(ConfigBaseModel):
     def validate_models(self) -> Any:
         # get all models and aliases for each model type
         models = {"all": []}
-        for model_type in ModelType:
+        for model_type in RouterType:
             models[model_type.value] = []
             for model in self.models:
                 if model.type == model_type:
@@ -349,7 +348,7 @@ class ConfigFile(ConfigBaseModel):
                     models[model_type.value].extend(model_names_and_aliases)
 
         # build the complete list of all models
-        for model_type in ModelType:
+        for model_type in RouterType:
             models["all"].extend(models[model_type.value])
 
         return self

@@ -8,8 +8,8 @@ from api.domain.role import RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role, RolePage
 from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
 from api.infrastructure.postgres.decorators import with_lock
-from api.sql.models import Role as RoleTable
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import Role as RoleTable
+from api.infrastructure.postgres.models import User as UserTable
 
 
 class PostgresRolesRepository(RoleRepository):

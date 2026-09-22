@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket, UsageBucketPage
 from api.infrastructure.postgres._pagination import fetch_page_with_total
-from api.sql.models import Usage as UsageTable
+from api.infrastructure.postgres.models import Usage as UsageTable
 
 
 class PostgresUsageRepository(UsageRepository):

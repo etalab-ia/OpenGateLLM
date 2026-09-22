@@ -11,7 +11,7 @@ from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi.decorators import charge_router_limits, set_usage_from_context
 from api.infrastructure.fastapi.dependencies import request_context
-from api.sql.models import Usage
+from api.infrastructure.postgres.models import Usage
 
 ROUTER_ID = 3
 OTHER_ROUTER_ID = 4

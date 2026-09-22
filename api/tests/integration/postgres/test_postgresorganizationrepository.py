@@ -7,7 +7,7 @@ from api.domain import SortOrder
 from api.domain.organization.entities import Organization, OrganizationSortField
 from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
 from api.infrastructure.postgres import PostgresOrganizationRepository
-from api.sql.models import Organization as OrganizationTable
+from api.infrastructure.postgres.models import Organization as OrganizationTable
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
 
 

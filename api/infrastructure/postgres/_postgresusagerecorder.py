@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
-from api.sql.models import Usage as UsageTable
+from api.infrastructure.postgres.models import Usage as UsageTable
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)

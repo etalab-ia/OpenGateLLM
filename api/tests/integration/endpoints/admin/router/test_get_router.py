@@ -5,8 +5,8 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import get_one_router_use_case_factory
+from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
-from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -22,7 +22,7 @@ class TestGetRouter:
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
     async def test_happy_path(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION)
+        router = RouterSQLFactory(user=self.admin_user, type=RouterType.TEXT_GENERATION)
         await db_session.flush()
 
         response = await client.get(

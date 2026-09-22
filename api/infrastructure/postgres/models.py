@@ -9,8 +9,7 @@ from sqlalchemy.types import JSON
 
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
-from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.models import ModelType
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.utils.variables import DEFAULT_TIMEOUT
 
 Base = declarative_base()
@@ -169,7 +168,7 @@ class Router(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="RESTRICT"))
     name: Mapped[str] = mapped_column(unique=True)
-    type: Mapped[ModelType]
+    type: Mapped[RouterType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
