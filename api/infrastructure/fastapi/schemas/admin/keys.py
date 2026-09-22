@@ -33,6 +33,7 @@ class KeyResponse(BaseModel):
     user_id: Annotated[int, Field(description="ID of the user that owns the key.")]
     expires: Annotated[UnixTimestamp | None, Field(default=None, description="Time of expiration, as Unix timestamp. If None, the key never expires.")]  # fmt: off
     created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
+    revoked: Annotated[bool, Field(description="Whether the key has been revoked.")]
 
 
 class KeysResponse(BaseModel):

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain import SortField, SortOrder
 from api.domain.key import KeyRepository
-from api.domain.key.entities import KeyPage
+from api.domain.key.entities import KeyPage, KeyStatus
 
 
 @dataclass
@@ -12,7 +12,7 @@ class GetKeysCommand:
     limit: int
     sort_by: SortField
     sort_order: SortOrder
-    active: bool = False
+    status: KeyStatus | None = None
 
 
 @dataclass
@@ -34,7 +34,7 @@ class GetKeysUseCase:
             offset=command.offset,
             sort_by=command.sort_by,
             sort_order=command.sort_order,
-            active=command.active,
+            status=command.status,
         )
 
         return GetKeysUseCaseSuccess(key_page=key_page)

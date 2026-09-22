@@ -10,3 +10,4 @@ class Key(Entity):
     expires: str | None = None
     created: str | None = None
     is_expired: bool = False
+    is_revoked: bool = False

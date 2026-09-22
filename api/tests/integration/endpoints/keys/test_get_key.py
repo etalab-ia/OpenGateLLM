@@ -34,6 +34,7 @@ class TestGetMeKey:
         assert data["user_id"] == self.user.id
         assert data["value"] == self.key.token
         assert data["expires"] is None
+        assert data["revoked"] is False
         assert isinstance(data["created"], int)
 
     async def test_returns_not_found_for_another_users_key(self, client: AsyncClient, db_session):

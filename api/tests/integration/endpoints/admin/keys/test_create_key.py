@@ -46,6 +46,7 @@ class TestCreateKey:
         assert isinstance(data["id"], int)
         assert data["value"].startswith("sk-")
         assert data["expires"] is None
+        assert data["revoked"] is False
         assert isinstance(data["created"], int)
 
     @pytest.mark.parametrize(

@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import create_me_key_use_case_factory
-from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError
+from api.domain.key.errors import KeyExpirationInvalidError
 from api.domain.user.errors import UserNotFoundError
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import UserSQLFactory
@@ -42,16 +42,12 @@ class TestCreateMeKey:
         assert isinstance(data["id"], int)
         assert data["value"].startswith("sk-")
         assert data["expires"] is None
+        assert data["revoked"] is False
         assert isinstance(data["created"], int)
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
-            (
-                KeyAlreadyExistsError(name="new-key"),
-                409,
-                "Key new-key already exists.",
-            ),
             (
                 KeyExpirationInvalidError(max_expiration_days=365),
                 400,

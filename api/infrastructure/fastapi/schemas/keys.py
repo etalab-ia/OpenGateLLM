@@ -27,3 +27,7 @@ class CreateKeyBody(BaseModel):
         expires = datetime.fromtimestamp(timestamp=expires, tz=UTC)
 
         return expires
+
+
+class UpdateKeyBody(BaseModel):
+    revoked: Annotated[bool, Field(description="Whether the key is revoked.")]

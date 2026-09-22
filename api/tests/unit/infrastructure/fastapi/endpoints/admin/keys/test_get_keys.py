@@ -4,9 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from api.domain import EntitiesPage, SortField, SortOrder
-from api.domain.key.entities import Key
+from api.domain.key.entities import KeyStatus
 from api.infrastructure.fastapi.endpoints.admin.keys import get_keys
 from api.infrastructure.fastapi.schemas.admin.keys import KeysResponse
+from api.tests.unit.use_case.factories import KeyFactory
 from api.use_cases.admin.keys import GetKeysCommand, GetKeysUseCaseSuccess
 
 
@@ -18,7 +19,7 @@ def mock_authenticated_user():
 class TestGetKeysEndpoint:
     @pytest.mark.asyncio
     async def test_should_map_key_page_to_keys_response(self, mock_authenticated_user):
-        key = Key(
+        key = KeyFactory(
             id=1,
             name="my-key",
             user_id=42,
@@ -35,7 +36,7 @@ class TestGetKeysEndpoint:
             limit=10,
             sort_by=SortField.ID,
             sort_order=SortOrder.ASC,
-            active=False,
+            status=None,
             get_keys_use_case=mock_use_case,
             authenticated_user=mock_authenticated_user,
         )
@@ -47,12 +48,13 @@ class TestGetKeysEndpoint:
         assert len(result.data) == 1
         assert result.data[0].name == "my-key"
         assert result.data[0].user_id == 42
+        assert result.data[0].revoked is False
         mock_use_case.execute.assert_awaited_once_with(
-            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, active=False)
+            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, status=None)
         )
 
     @pytest.mark.asyncio
-    async def test_should_forward_active_to_the_use_case(self, mock_authenticated_user):
+    async def test_should_forward_status_to_the_use_case(self, mock_authenticated_user):
         mock_use_case = MagicMock()
         mock_use_case.execute = AsyncMock(return_value=GetKeysUseCaseSuccess(key_page=EntitiesPage(total=0, data=[])))
 
@@ -62,11 +64,11 @@ class TestGetKeysEndpoint:
             limit=10,
             sort_by=SortField.ID,
             sort_order=SortOrder.ASC,
-            active=True,
+            status=KeyStatus.REVOKED,
             get_keys_use_case=mock_use_case,
             authenticated_user=mock_authenticated_user,
         )
 
         mock_use_case.execute.assert_awaited_once_with(
-            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, active=True)
+            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, status=KeyStatus.REVOKED)
         )

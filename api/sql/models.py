@@ -3,7 +3,7 @@ from enum import StrEnum
 from http import HTTPMethod
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, false, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -146,11 +146,10 @@ class Token(Base):
     token: Mapped[str | None]
     expires: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    revoked: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     user: Mapped["User"] = relationship(back_populates="token")
     usage: Mapped[list["Usage"]] = relationship(back_populates="token", passive_deletes=True)
-
-    __table_args__ = (UniqueConstraint("user_id", "name", name="unique_token_name_per_user"),)
 
 
 class Organization(Base):

@@ -2,9 +2,15 @@ import logging
 
 from fastapi import APIRouter, Body, Depends, Path, Query, Security
 
-from api.dependencies import create_me_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
+from api.dependencies import (
+    create_me_key_use_case_factory,
+    get_keys_use_case_factory,
+    get_one_key_use_case_factory,
+    update_key_use_case_factory,
+)
 from api.domain import SortField, SortOrder
-from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNotFoundError
+from api.domain.key.entities import KeyStatus
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -12,26 +18,25 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
-    KeyAlreadyExistsHTTPException,
     KeyExpirationInvalidHTTPException,
     KeyNotFoundHTTPException,
     UserNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.admin.keys import KeyResponse, KeysResponse
-from api.infrastructure.fastapi.schemas.keys import CreateKeyBody
+from api.infrastructure.fastapi.schemas.keys import CreateKeyBody, UpdateKeyBody
 from api.use_cases.admin.keys import (
     CreateKeyCommand,
     CreateKeyUseCase,
     CreateKeyUseCaseSuccess,
-    DeleteKeyCommand,
-    DeleteKeyUseCase,
-    DeleteKeyUseCaseSuccess,
     GetKeysCommand,
     GetKeysUseCase,
     GetKeysUseCaseSuccess,
     GetOneKeyCommand,
     GetOneKeyUseCase,
     GetOneKeyUseCaseSuccess,
+    UpdateKeyCommand,
+    UpdateKeyUseCase,
+    UpdateKeyUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute, RouterName
 
@@ -44,14 +49,14 @@ router = APIRouter(prefix="/v1", tags=[RouterName.KEYS.title()])
     path="/me/keys",
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
     deprecated=True,
 )
 @router.post(
     path=EndpointRoute.KEYS,
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
 )
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
@@ -79,8 +84,6 @@ async def create_key(
     match result:
         case CreateKeyUseCaseSuccess(key=key):
             return KeyResponse.model_validate(key, from_attributes=True)
-        case KeyAlreadyExistsError(name=name):
-            raise KeyAlreadyExistsHTTPException(name)
         case KeyExpirationInvalidError(max_expiration_days=max_expiration_days):
             raise KeyExpirationInvalidHTTPException(max_expiration_days)
         case UserNotFoundError(id=user_id):
@@ -105,16 +108,14 @@ async def get_keys(
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of keys to return."),
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
-    active: bool = Query(
-        default=False, description="Return every key, including expired ones. When false, only active (non-expired) keys are returned."
-    ),
+    status: KeyStatus | None = Query(default=None, description="Filter by key status. Omit to return all keys."),
     get_keys_use_case: GetKeysUseCase = Depends(get_keys_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeysResponse:
     """
     Get all your keys.
 
-    Expired keys are omitted by default. Set `active` to list them as well.
+    Omit `status` to list every key. Use `active`, `expired`, or `revoked` to filter.
     """
 
     command = GetKeysCommand(
@@ -123,7 +124,7 @@ async def get_keys(
         limit=limit,
         sort_by=sort_by,
         sort_order=sort_order,
-        active=active,
+        status=status,
     )
     try:
         result = await get_keys_use_case.execute(command)
@@ -136,7 +137,7 @@ async def get_keys(
                 "limit": command.limit,
                 "sort_by": command.sort_by,
                 "sort_order": command.sort_order,
-                "active": command.active,
+                "status": command.status,
                 "error_type": type(e).__name__,
             },
         )
@@ -195,34 +196,35 @@ async def get_key(
             raise KeyNotFoundHTTPException(not_found_key_id)
 
 
-@router.delete(
+@router.patch(
     path="/me/keys/{key_id}",
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses([KeyNotFoundHTTPException]),
     deprecated=True,
 )
-@router.delete(
+@router.patch(
     path=EndpointRoute.KEYS + "/{key_id}",
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses([KeyNotFoundHTTPException]),
 )
-async def delete_key(
-    key_id: int = Path(description="The ID of the key to delete."),
-    delete_key_use_case: DeleteKeyUseCase = Depends(delete_key_use_case_factory),
+async def update_key(
+    key_id: int = Path(description="The ID of the key to update."),
+    body: UpdateKeyBody = Body(description="The key update request."),
+    update_key_use_case: UpdateKeyUseCase = Depends(update_key_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     """
-    Delete an API key.
+    Update an API key. Set `revoked` to true to revoke it.
     """
 
-    command = DeleteKeyCommand(key_id=key_id, user_id=authenticated_user.id)
+    command = UpdateKeyCommand(key_id=key_id, user_id=authenticated_user.id, revoked=body.revoked)
     try:
-        result = await delete_key_use_case.execute(command)
+        result = await update_key_use_case.execute(command)
     except Exception as e:
         logger.exception(
-            "Unexpected error while executing delete_key use case",
+            "Unexpected error while executing update_key use case",
             extra={
                 "authenticated_user_id": authenticated_user.id,
                 "key_id": key_id,
@@ -232,7 +234,7 @@ async def delete_key(
         raise InternalServerHTTPException()
 
     match result:
-        case DeleteKeyUseCaseSuccess(key=key):
+        case UpdateKeyUseCaseSuccess(key=key):
             return KeyResponse.model_validate(key, from_attributes=True)
         case KeyNotFoundError(id=not_found_key_id):
             raise KeyNotFoundHTTPException(not_found_key_id)

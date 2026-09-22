@@ -2,6 +2,7 @@ from ._createkeyusecase import CreateKeyCommand, CreateKeyUseCase, CreateKeyUseC
 from ._deletekeyusecase import DeleteKeyCommand, DeleteKeyUseCase, DeleteKeyUseCaseSuccess
 from ._getkeysusecase import GetKeysCommand, GetKeysUseCase, GetKeysUseCaseSuccess
 from ._getonekeyusecase import GetOneKeyCommand, GetOneKeyUseCase, GetOneKeyUseCaseSuccess
+from ._updatekeyusecase import UpdateKeyCommand, UpdateKeyUseCase, UpdateKeyUseCaseSuccess
 
 __all__ = [
     "CreateKeyCommand",
@@ -16,4 +17,7 @@ __all__ = [
     "GetOneKeyCommand",
     "GetOneKeyUseCase",
     "GetOneKeyUseCaseSuccess",
+    "UpdateKeyCommand",
+    "UpdateKeyUseCase",
+    "UpdateKeyUseCaseSuccess",
 ]

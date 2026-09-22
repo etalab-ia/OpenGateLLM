@@ -1,6 +1,13 @@
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from api.domain import BaseModel, EntitiesPage, UtcDatetime
+
+
+class KeyStatus(StrEnum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    REVOKED = "revoked"
 
 
 class Key(BaseModel):
@@ -10,6 +17,7 @@ class Key(BaseModel):
     value: str
     expires: UtcDatetime | None
     created: UtcDatetime
+    revoked: bool = False
 
     @classmethod
     def build_from_claims(cls, claims: dict):
@@ -22,7 +30,13 @@ class Key(BaseModel):
             created=0,
         )
 
+    def with_revoked(self, revoked: bool) -> "Key":
+        return self.model_copy(update={"revoked": revoked})
+
     def is_valid(self, expected_key: "Key") -> bool:
+        if expected_key.revoked:
+            return False
+
         now_ts = int(datetime.now(tz=UTC).timestamp())
         expected_expires_ts = self._expires_timestamp(expected_key.expires)
 

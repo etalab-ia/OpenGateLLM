@@ -372,6 +372,31 @@ class TestAccessController:
                 request_context=reset_request_context,
             )
 
+    async def test_should_raise_invalid_api_key_when_key_is_revoked(
+        self,
+        access_controller: AccessController,
+        request_obj: Mock,
+        key_repository: PostgresKeyRepository,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
+        reset_request_context: ContextVar[RequestContext],
+        secret_key: str,
+        db_session,
+    ):
+        user = UserSQLFactory()
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
+        key.revoked = True
+        await db_session.flush()
+        api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
+
+        with pytest.raises(InvalidAPIKeyHTTPException):
+            await access_controller(
+                request=request_obj,
+                api_key=api_key,
+                key_repository=key_repository,
+                authenticated_user_query=authenticated_user_query,
+                request_context=reset_request_context,
+            )
+
     async def test_should_raise_account_expired_when_user_has_expired(
         self,
         access_controller: AccessController,
@@ -576,7 +601,7 @@ class TestAccessController:
         """
         # Arrange
         user = UserSQLFactory()
-        database_stored_expires = datetime.now() + timedelta(days=1)
+        database_stored_expires = datetime.now(tz=UTC) + timedelta(days=1)
         token = KeySQLFactory(user=user, expires=database_stored_expires)
         await db_session.flush()
 
@@ -602,4 +627,4 @@ class TestAccessController:
         assert context.key is not None
         assert context.key.id == token.id
         assert context.key.user_id == user.id
-        assert int(context.key.expires.timestamp()) == key_stored_expires
+        assert context.key.expires == database_stored_expires

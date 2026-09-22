@@ -169,6 +169,7 @@ class KeyFactory(factory.Factory):
     value = "sk-x"
     expires = None
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    revoked = False
 
 
 # Configuration factories

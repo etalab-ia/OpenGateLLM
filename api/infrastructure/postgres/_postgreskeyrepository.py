@@ -1,13 +1,12 @@
 from pydantic import FutureDatetime
-from sqlalchemy import asc, delete, desc, func, insert, or_, select, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import and_, asc, delete, desc, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortField, SortOrder
 from api.domain.key import KeyEncoder, KeyRepository
-from api.domain.key.entities import Key, KeyPage
-from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
+from api.domain.key.entities import Key, KeyPage, KeyStatus
+from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.sql.models import Token as KeyTable
@@ -27,6 +26,7 @@ class PostgresKeyRepository(KeyRepository):
             value=value if value is not None else row.token,
             expires=row.expires,
             created=row.created,
+            revoked=row.revoked,
         )
 
     async def get_key_by_id(self, key_id: int) -> Key | KeyNotFoundError:
@@ -46,7 +46,7 @@ class PostgresKeyRepository(KeyRepository):
         offset: int = 0,
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
-        active: bool = False,
+        status: KeyStatus | None = None,
     ) -> KeyPage:
         sort_column = {SortField.ID: KeyTable.id, SortField.NAME: KeyTable.name, SortField.CREATED: KeyTable.created}[sort_by]
         order_fn = asc if sort_order == SortOrder.ASC else desc
@@ -54,9 +54,17 @@ class PostgresKeyRepository(KeyRepository):
         filters = []
         if user_id is not None:
             filters.append(KeyTable.user_id == user_id)
-        # active=True returns every key; active=False narrows the page to the keys that are still usable
-        if not active:
-            filters.append(or_(KeyTable.expires.is_(None), KeyTable.expires >= func.now()))
+        match status:
+            case KeyStatus.ACTIVE:
+                filters.append(KeyTable.revoked.is_(False))
+                filters.append(or_(KeyTable.expires.is_(None), KeyTable.expires >= func.now()))
+            case KeyStatus.EXPIRED:
+                filters.append(KeyTable.revoked.is_(False))
+                filters.append(and_(KeyTable.expires.is_not(None), KeyTable.expires < func.now()))
+            case KeyStatus.REVOKED:
+                filters.append(KeyTable.revoked.is_(True))
+            case None:
+                pass
 
         key_query = select(KeyTable, func.count().over().label("total")).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)
         count_query = select(func.count()).select_from(KeyTable).where(*filters)
@@ -64,15 +72,13 @@ class PostgresKeyRepository(KeyRepository):
         keys = [self._row_to_key(row[0]) for row in rows]
         return KeyPage(total=total, data=keys)
 
-    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
+    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
         try:
             result = await self.postgres_session.execute(insert(KeyTable).values(user_id=user_id, name=name, expires=expire).returning(KeyTable))
             row = result.scalar_one()
         except IntegrityError as e:
             if "token_user_id_fkey" in str(e.orig):
                 return UserNotFoundError(id=user_id)
-            if "unique_token_name_per_user" in str(e.orig):
-                return KeyAlreadyExistsError(name=name)
             raise
 
         value = self.key_encoder.encode_token(user_id=user_id, key_id=row.id, expires=expire)
@@ -83,28 +89,29 @@ class PostgresKeyRepository(KeyRepository):
         return self._row_to_key(row, value=value)
 
     async def upsert_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
-        try:
-            result = await self.postgres_session.execute(
-                pg_insert(KeyTable)
-                .values(user_id=user_id, name=name, expires=expire)
-                .on_conflict_do_update(
-                    constraint="unique_token_name_per_user",
-                    set_={"expires": expire},
-                )
-                .returning(KeyTable)
-            )
-            row = result.scalar_one()
-        except IntegrityError as e:
-            if "token_user_id_fkey" in str(e.orig):
-                return UserNotFoundError(id=user_id)
-            raise
+        existing = await self.postgres_session.scalar(
+            select(KeyTable)
+            .where(KeyTable.user_id == user_id, KeyTable.name == name, KeyTable.revoked.is_(False))
+            .order_by(KeyTable.id.desc())
+            .limit(1)
+        )
+        if existing is None:
+            return await self.create_key(user_id=user_id, name=name, expire=expire)
 
-        value = self.key_encoder.encode_token(user_id=user_id, key_id=row.id, expires=expire)
+        value = self.key_encoder.encode_token(user_id=user_id, key_id=existing.id, expires=expire)
         registered_value = f"{value[:8]}...{value[-8:]}"
+        result = await self.postgres_session.execute(
+            update(KeyTable).values(expires=expire, token=registered_value).where(KeyTable.id == existing.id).returning(KeyTable)
+        )
+        return self._row_to_key(result.scalar_one(), value=value)
 
-        await self.postgres_session.execute(update(KeyTable).values(token=registered_value).where(KeyTable.id == row.id))
+    async def update_key(self, key: Key) -> Key | KeyNotFoundError:
+        result = await self.postgres_session.execute(update(KeyTable).values(revoked=key.revoked).where(KeyTable.id == key.id).returning(KeyTable))
+        row = result.scalar_one_or_none()
+        if row is None:
+            return KeyNotFoundError(id=key.id)
 
-        return self._row_to_key(row, value=value)
+        return self._row_to_key(row)
 
     async def delete_key(self, key_id: int, user_id: int | None = None) -> Key | KeyNotFoundError:
         filters = [KeyTable.id == key_id]
