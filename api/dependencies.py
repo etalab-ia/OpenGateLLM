@@ -162,7 +162,6 @@ def _usage_context() -> UsageContext:
 
 
 def _usage_recorder(background_tasks: BackgroundTasks) -> UsageRepository:
-    # usage_source=langfuse guarantees the langfuse dependency (enforced in Configuration), so the client is set.
     if configuration.settings.usage_source == UsageSource.LANGFUSE:
         return LangfuseUsageRepository(client=global_context.langfuse)
     return PostgresUsageRepository(background_tasks=background_tasks, postgres_session_provider=get_postgres_session)

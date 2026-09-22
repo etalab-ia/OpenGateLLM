@@ -62,7 +62,7 @@ settings:
 
   # monitoring_sentry_enabled: True
   # monitoring_prometheus_enabled: True
-  # usage_source: postgres  # postgres (default) or langfuse; langfuse requires the langfuse dependency
+  # usage_source: langfuse  # postgres (default) or langfuse
 
   playground_opengatellm_url: ${OPENGATELLM_URL:-http://api:8000}
   # playground_opengatellm_timeout: 60
