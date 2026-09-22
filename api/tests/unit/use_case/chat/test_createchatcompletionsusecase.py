@@ -15,7 +15,7 @@ from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContext, UsageRecorder
+from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases.chat import (
@@ -45,7 +45,7 @@ def mock_usage_recorder():
 
 @pytest.fixture
 def mock_trace_recorder():
-    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
+    recorder = create_autospec(UsageRepository, instance=True, spec_set=True)
     recorder.start_record.return_value = TRACE_ID
     return recorder
 

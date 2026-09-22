@@ -9,7 +9,12 @@ import { Aside, LinkButton, TabItem, Tabs } from '@astrojs/starlight/components'
 
 OpenGateLLM records usage for each model-forward API request (chat completions, embeddings, OCR, rerank, audio transcriptions). This helps you analyze consumption over time, identify patterns, and support reporting.
 
-By default, usage is stored in **PostgreSQL**. You can replace that store with **Langfuse** by configuring the optional Langfuse dependency. Only one backend is used at a time: when Langfuse is connected, new requests are not written to the `usage` table.
+The usage backend is selected with the `settings.usage_source` setting:
+
+- `postgres` (default): usage is recorded in and read from the PostgreSQL `usage` table.
+- `langfuse`: usage is recorded in and read from **Langfuse** instead. This requires the [Langfuse dependency](/configuration/dependencies/langfuse/) to be configured; otherwise OpenGateLLM fails to start.
+
+A single backend both records and serves usage, so requests are never dual-written. `GET /v1/usage` (and the Playground *Usage* page) reads from whichever backend is selected. Budget deduction always stays on PostgreSQL, independently of `usage_source`.
 
 Sensitive information such as the prompt or response content is not included in the logs.
 
@@ -21,6 +26,10 @@ In both cases, the logs contain the following information:
 - number of output tokens
 - environmental footprint (see the dedicated documentation [here](/features/usage/environmental_footprint/))
 - cost (see the dedicated documentation [here](/features/usage/budget/))
+
+<Aside type="caution" title="Environmental impacts with Langfuse">
+When `usage_source` is `langfuse`, environmental impacts (`kWh`, `kgCO2eq`) are stored as Langfuse scores, which the usage query API cannot aggregate. They are reported as `0` in the daily usage buckets returned by `GET /v1/usage`. Use `usage_source: postgres` if you need environmental impacts in usage reports.
+</Aside>
 
 User can see their usage in the *Usage* page of the Playground.
 

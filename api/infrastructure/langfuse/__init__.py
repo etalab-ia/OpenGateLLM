@@ -1,3 +1,3 @@
-from ._langfuseusagerecord import LangfuseUsageRecorder
+from ._langfuseusagerepository import LangfuseUsageRepository
 
-__all__ = ["LangfuseUsageRecorder"]
+__all__ = ["LangfuseUsageRepository"]

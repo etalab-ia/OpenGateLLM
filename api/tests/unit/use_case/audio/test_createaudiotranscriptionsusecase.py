@@ -11,7 +11,7 @@ from api.domain.audio.entities import (
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.provider.entities import ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
-from api.domain.usage import UsageContext, UsageRecorder
+from api.domain.usage import UsageContext, UsageRepository
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, RouterFactory
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
@@ -38,7 +38,7 @@ def usage_recorder():
 
 @pytest.fixture
 def trace_recorder():
-    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
+    recorder = create_autospec(UsageRepository, instance=True, spec_set=True)
     recorder.start_record.return_value = TRACE_ID
     return recorder
 

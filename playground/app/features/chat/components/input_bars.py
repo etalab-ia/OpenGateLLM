@@ -51,7 +51,7 @@ def chat_input_bar() -> rx.Component:
         padding_y="16px",
         backdrop_filter="auto",
         backdrop_blur="lg",
-        border_top=f"1px solid {rx.color("mauve", 3)}",
+        border_top=f"1px solid {rx.color('mauve', 3)}",
         background_color=rx.color("mauve", 2),
         width="100%",
     )

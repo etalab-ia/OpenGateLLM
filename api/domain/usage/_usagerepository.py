@@ -1,10 +1,44 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from api.domain.usage.entities import UsageBucketPage
+from api.domain.usage.entities import Usage, UsageBucketPage
+from api.utils.variables import EndpointRoute
 
 
 class UsageRepository(ABC):
+    """Port for recording inference usage (write) and reading usage reports (read).
+
+    A single adapter both records usage as requests complete and answers usage
+    queries, so operators pick one backend (Postgres or Langfuse) for both sides.
+    """
+
+    @abstractmethod
+    def start_record(
+        self,
+        endpoint: EndpointRoute,
+        model: str,
+        user_id: int,
+        router_id: int,
+        router_name: str,
+        user_email: str,
+        key_id: int,
+        key_name: str,
+    ) -> str:
+        """Start a record and return the request id."""
+        pass
+
+    @abstractmethod
+    def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
+        pass
+
+    @abstractmethod
+    def fail_record(self, message: str) -> None:
+        pass
+
+    @abstractmethod
+    def end_record(self) -> None:
+        pass
+
     @abstractmethod
     async def get_usage_buckets_page(
         self,

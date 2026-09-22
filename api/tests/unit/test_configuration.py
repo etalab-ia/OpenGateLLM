@@ -1,6 +1,8 @@
 import logging
 
-from api.schemas.core.configuration import Settings
+import pytest
+
+from api.schemas.core.configuration import ConfigFile, Settings, UsageSource
 
 
 class TestSettingsDefaults:
@@ -45,3 +47,27 @@ class TestAuthMasterKeyDeprecation:
         with caplog.at_level(logging.WARNING):
             Settings(auth_master_key="changeme", auth_secret_key=None)
         assert any("v1.0.0" in msg for msg in caplog.messages)
+
+
+REQUIRED_DEPENDENCIES = {
+    "postgres": {"url": "postgresql+asyncpg://postgres:changeme@localhost:5432/postgres"},
+    "redis": {"url": "redis://:changeme@localhost:6379"},
+}
+LANGFUSE_DEPENDENCY = {"public_key": "pk-lf-test", "secret_key": "sk-lf-test"}
+
+
+class TestUsageSource:
+    def test_defaults_to_postgres_without_langfuse_dependency(self):
+        config = ConfigFile(dependencies=REQUIRED_DEPENDENCIES)
+        assert config.settings.usage_source == UsageSource.POSTGRES
+
+    def test_langfuse_source_is_accepted_when_langfuse_dependency_is_configured(self):
+        config = ConfigFile(
+            dependencies={**REQUIRED_DEPENDENCIES, "langfuse": LANGFUSE_DEPENDENCY},
+            settings={"usage_source": "langfuse"},
+        )
+        assert config.settings.usage_source == UsageSource.LANGFUSE
+
+    def test_langfuse_source_without_langfuse_dependency_is_rejected(self):
+        with pytest.raises(Exception, match="usage_source"):
+            ConfigFile(dependencies=REQUIRED_DEPENDENCIES, settings={"usage_source": "langfuse"})

@@ -6,7 +6,7 @@ from fastapi import BackgroundTasks
 import pytest
 
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
-from api.infrastructure.postgres import PostgresUsageRecorder
+from api.infrastructure.postgres import PostgresUsageRepository
 from api.sql.models import Usage as UsageTable
 from api.utils.variables import EndpointRoute
 
@@ -64,10 +64,10 @@ def background_tasks():
 
 @pytest.fixture
 def recorder(background_tasks, postgres_session_provider):
-    return PostgresUsageRecorder(background_tasks=background_tasks, postgres_session_provider=postgres_session_provider)
+    return PostgresUsageRepository(background_tasks=background_tasks, postgres_session_provider=postgres_session_provider)
 
 
-class TestPostgresUsageRecorder:
+class TestPostgresUsageRepositoryRecording:
     def test_should_return_a_request_id(self, recorder):
         # Act
         request_id = _start_record(recorder)
@@ -117,7 +117,7 @@ class TestPostgresUsageRecorder:
         end = datetime(2026, 9, 21, 10, 0, 0, 250000, tzinfo=UTC)
 
         # Act
-        with patch("api.infrastructure.postgres._postgresusagerecorder.datetime") as mock_datetime:
+        with patch("api.infrastructure.postgres._postgresusagerepository.datetime") as mock_datetime:
             mock_datetime.now.side_effect = [start, end]
             _start_record(recorder)
             recorder.update_record(usage=_usage(), provider_id=9, provider_model_name="vllm-model")
@@ -133,7 +133,7 @@ class TestPostgresUsageRecorder:
         end = datetime(2026, 9, 21, 10, 0, 0, 250000, tzinfo=UTC)
 
         # Act
-        with patch("api.infrastructure.postgres._postgresusagerecorder.datetime") as mock_datetime:
+        with patch("api.infrastructure.postgres._postgresusagerepository.datetime") as mock_datetime:
             mock_datetime.now.side_effect = [start, end]
             _start_record(recorder)
             recorder.update_record(usage=_usage(), provider_id=9, provider_model_name="vllm-model", first_token_at=first_token_at)
