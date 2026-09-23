@@ -33,8 +33,9 @@ class LangfuseUsageRepository(UsageRepository):
         key_id: int,
         key_name: str,
     ) -> str:
+        endpoint_path = f"/v1{endpoint}"
         self._metadata = {
-            "endpoint": f"/v1{endpoint}",
+            "endpoint": endpoint_path,
             "router_id": router_id,
             "router_name": router_name,
             "user_email": user_email,
@@ -45,7 +46,7 @@ class LangfuseUsageRepository(UsageRepository):
             with propagate_attributes(user_id=str(user_id)):
                 self._observation = self.client.start_observation(
                     as_type="generation",
-                    name=endpoint.strip("/").replace("/", "-"),
+                    name=endpoint_path,
                     model=model,
                     metadata=self._metadata,
                 )

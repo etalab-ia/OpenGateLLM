@@ -58,7 +58,7 @@ class TestLangfuseUsageRepositoryRecording:
         assert request_id == mock_observation.trace_id
         mock_client.start_observation.assert_called_once_with(
             as_type="generation",
-            name="chat-completions",
+            name="/v1/chat/completions",
             model="chat-router",
             metadata=EXPECTED_START_METADATA,
         )
