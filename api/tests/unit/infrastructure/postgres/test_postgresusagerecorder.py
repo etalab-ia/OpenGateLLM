@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from http import HTTPMethod
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import BackgroundTasks
@@ -82,7 +81,6 @@ class TestPostgresUsageRecorder:
         # Assert
         row = recorder._row
         assert row.endpoint == "/v1/chat/completions"
-        assert row.method == HTTPMethod.POST
         assert row.user_id == 42
         assert row.user_email == "alice@example.com"
         assert row.token_id == 7
@@ -148,7 +146,17 @@ class TestPostgresUsageRecorder:
 
     def test_should_not_fail_when_start_was_not_called(self, recorder):
         # Act / Assert
-        recorder.fail_record(message="TooBusyModelError")
+        recorder.fail_record(message="TooBusyModelError", status_code=503)
+
+    def test_should_set_status_on_fail_record(self, recorder):
+        # Arrange
+        _start_record(recorder)
+
+        # Act
+        recorder.fail_record(message="TooBusyModelError", status_code=503)
+
+        # Assert
+        assert recorder._row.status == 503
 
     def test_should_schedule_persist_on_end_record(self, recorder, background_tasks):
         # Arrange

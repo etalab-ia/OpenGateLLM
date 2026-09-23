@@ -2,7 +2,6 @@ from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from json import dumps
-import time
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
 from api.domain.model.errors import StatusCodeModelError
@@ -67,7 +66,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case AsyncGenerator() as chunks:
                     pass
                 case error:
-                    self.usage_recorder.fail_record(message=type(error).__name__)
+                    self.usage_recorder.fail_record(message=type(error).__name__, status_code=getattr(error, "status_code", 500))
                     self.usage_recorder.end_record()
                     return error
 
@@ -82,7 +81,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case ProviderResponse() as provider_response:
                     pass
                 case error:
-                    self.usage_recorder.fail_record(message=type(error).__name__)
+                    self.usage_recorder.fail_record(message=type(error).__name__, status_code=getattr(error, "status_code", 500))
                     return error
 
             return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
@@ -97,7 +96,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         prompt_tokens: int,
         request_id: str,
     ) -> AsyncGenerator[ProviderChunkResponse]:
-        start_time = time.perf_counter()
         buffer: list[dict] = []
         first_token_at: datetime | None = None
 
@@ -105,7 +103,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             async with self._inflight(provider=provider):
                 async for chunk in chunks:
                     if chunk.status_code // 100 != 2:
-                        self.usage_recorder.fail_record(message=StatusCodeModelError.__name__)
+                        self.usage_recorder.fail_record(message=StatusCodeModelError.__name__, status_code=chunk.status_code)
                         yield chunk
                         return
 
@@ -125,14 +123,14 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     relayed = {**parsed_chunk, "model": router.name, "id": request_id}
                     yield ProviderChunkResponse(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
 
-                latency = self._elapsed(start_time=start_time)
+                latency_ms = self.usage_recorder.compute_elapsed_ms()
                 yield ProviderChunkResponse(
                     content=self._build_usage_event(
                         router=router,
                         provider=provider,
                         buffer=buffer,
                         prompt_tokens=prompt_tokens,
-                        latency=latency,
+                        latency=latency_ms / 1000,
                         request_id=request_id,
                         first_token_at=first_token_at,
                     ),

@@ -468,10 +468,10 @@ class TestSendRequest:
         self, use_case, router, provider, sample_data, payload, model_tokenizer, model_environmental_impacts_computer
     ):
         # Arrange
-        with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
-            with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
-                # Act
-                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+        use_case.usage_recorder.compute_elapsed_ms.return_value = 12000
+        with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
+            # Act
+            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -534,11 +534,11 @@ class TestSendRequest:
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(self, use_case, router, provider, payload):
         # Arrange
         use_case.provider_client.forward.return_value = ProviderResponse(text="hello world")
+        use_case.usage_recorder.compute_elapsed_ms.return_value = 12000
 
         # Act
-        with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
-            with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
-                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+        with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
+            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -639,7 +639,7 @@ class TestExecute:
             key_id=command.authenticated_key.id,
             key_name=command.authenticated_key.name,
         )
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError")
+        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError", status_code=503)
         use_case.usage_recorder.end_record.assert_called_once()
 
     @pytest.mark.asyncio

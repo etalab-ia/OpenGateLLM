@@ -235,7 +235,6 @@ class UsageSQLFactory(BaseSQLFactory):
     router_name = factory.Sequence(lambda n: f"model_{n}")
     provider_model_name = None
     endpoint = "/v1/chat/completions"
-    method = "POST"
     latency = 100
     ttft = 50
     status = 200

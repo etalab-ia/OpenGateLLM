@@ -124,7 +124,6 @@ def set_usage_from_context(usage: Usage):
     usage.token_id = context.key.id
     usage.token_name = context.key.name
     usage.endpoint = context.endpoint
-    usage.method = context.method
     usage.router_id = context.router_id
     usage.provider_id = context.provider_id
     usage.router_name = context.router_name

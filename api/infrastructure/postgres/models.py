@@ -1,6 +1,5 @@
 import datetime as dt
 from enum import StrEnum
-from http import HTTPMethod
 from typing import Any, Optional
 
 from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, false, func
@@ -42,7 +41,6 @@ class Usage(Base):
 
     # request
     endpoint: Mapped[str]
-    method: Mapped[HTTPMethod | None]
 
     # metrics
     latency: Mapped[int | None]

@@ -10,7 +10,6 @@ class RequestContext(BaseModel):
 
     # request identifiers
     id: str | None = None  # @TODO: add request id to usage table
-    method: str | None = None
     endpoint: str | None = None
 
     # user identifiers

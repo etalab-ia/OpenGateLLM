@@ -236,7 +236,7 @@ class TestCreateChatCompletionsUseCaseExecute:
 
         # Assert
         assert result is error
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError")
+        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError", status_code=503)
         use_case.usage_recorder.end_record.assert_called_once()
 
     @pytest.mark.asyncio
@@ -251,7 +251,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert result is error
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError")
+        use_case.usage_recorder.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=500)
         use_case.usage_recorder.end_record.assert_called_once()
 
 
@@ -350,7 +350,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert chunks[0].status_code == 503
         use_case.usage_context.record_usage.assert_not_called()
         use_case.usage_recorder.update_record.assert_not_called()
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="StatusCodeModelError")
+        use_case.usage_recorder.fail_record.assert_called_once_with(message="StatusCodeModelError", status_code=503)
         use_case.usage_recorder.end_record.assert_called_once()
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
 
