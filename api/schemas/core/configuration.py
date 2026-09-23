@@ -219,7 +219,6 @@ class OpenFgaDependency(ConfigBaseModel):
     url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., pattern=r"^https?://", description="OpenFGA API url.", examples=["http://localhost:8080"])  # fmt: off
     store_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="opengatellm", description="Name of the OpenFGA store. Resolved to its ID at startup, and created if missing.", examples=["opengatellm"])  # fmt: off
     api_token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Pre-shared key sent as a Bearer token.", examples=["${OPENFGA_API_TOKEN}"])  # fmt: off
-    timeout_millisec: int = Field(default=5000, ge=1, description="Timeout of a single OpenFGA call.")  # fmt: off
 
 
 @custom_validation_error()
