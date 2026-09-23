@@ -45,7 +45,6 @@ def mock_postgres_session():
     session = AsyncMock()
     session.add = MagicMock()
     session.commit = AsyncMock()
-    session.rollback = AsyncMock()
     return session
 
 
@@ -64,7 +63,7 @@ def background_tasks():
 
 @pytest.fixture
 def recorder(background_tasks, postgres_session_provider):
-    return PostgresUsageRepository(background_tasks=background_tasks, postgres_session_provider=postgres_session_provider)
+    return PostgresUsageRepository(postgres_session_provider=postgres_session_provider, background_tasks=background_tasks)
 
 
 class TestPostgresUsageRepositoryRecording:
@@ -197,4 +196,4 @@ class TestPostgresUsageRepositoryRecording:
 
         # Act / Assert
         await background_tasks()
-        mock_postgres_session.rollback.assert_awaited_once()
+        mock_postgres_session.commit.assert_awaited_once()

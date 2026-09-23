@@ -16,19 +16,13 @@ from api.sql.models import Usage as UsageTable
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
-PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession | Any, Any]]
+PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession, Any]]
 
 
 class PostgresUsageRepository(UsageRepository):
-    def __init__(
-        self,
-        postgres_session: AsyncSession | None = None,
-        background_tasks: BackgroundTasks | None = None,
-        postgres_session_provider: PostgresSessionProvider | None = None,
-    ) -> None:
-        self.postgres_session = postgres_session
-        self.background_tasks = background_tasks
+    def __init__(self, postgres_session_provider: PostgresSessionProvider, background_tasks: BackgroundTasks) -> None:
         self.postgres_session_provider = postgres_session_provider
+        self.background_tasks = background_tasks
         self._row: UsageTable | None = None
         self._start_time: datetime | None = None
 
@@ -86,7 +80,7 @@ class PostgresUsageRepository(UsageRepository):
         row = self._row
         self._row = None
         self._start_time = None
-        if row is None or self.background_tasks is None or self.postgres_session_provider is None:
+        if row is None:
             return
         self.background_tasks.add_task(self._persist, row)
 
@@ -94,15 +88,9 @@ class PostgresUsageRepository(UsageRepository):
         try:
             async for postgres_session in self.postgres_session_provider():
                 postgres_session.add(row)
-                try:
-                    await postgres_session.commit()
-                except Exception as e:
-                    logger.error("Failed to log usage: %s", e)
-                    await postgres_session.rollback()
-        except RuntimeError as e:
-            logger.warning("Skipping usage logging because postgres session is unavailable: %s", e)
+                await postgres_session.commit()
         except Exception:
-            logger.exception("Unexpected failure during usage logging.")
+            logger.exception("Failed to persist usage row.")
 
     @staticmethod
     def _utc_day_start():
@@ -153,7 +141,11 @@ class PostgresUsageRepository(UsageRepository):
             .limit(limit)
         )
         count_query = select(func.count()).select_from(select(utc_day_start).where(*filters).group_by(utc_day_start).subquery())
-        rows, total = await fetch_page_with_total(self.postgres_session, buckets_query, count_query)
+
+        rows: list = []
+        total = 0
+        async for postgres_session in self.postgres_session_provider():
+            rows, total = await fetch_page_with_total(postgres_session, buckets_query, count_query)
 
         return UsageBucketPage(total=total, data=[self._row_to_usage_bucket(row) for row in rows])
 
