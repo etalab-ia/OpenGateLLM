@@ -4,8 +4,7 @@ from typing import Annotated, Literal
 from pydantic import ConfigDict, Field, StringConstraints, field_validator
 
 from api.domain import BaseModel
-from api.infrastructure.fastapi.schemas import UnixTimestamp
-from api.utils.variables import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
+from api.infrastructure.fastapi.schemas import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, UnixTimestamp
 
 
 class CreateUserBody(BaseModel):

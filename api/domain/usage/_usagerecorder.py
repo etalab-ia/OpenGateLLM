@@ -2,15 +2,15 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from uuid import uuid4
 
+from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage.entities import Usage
-from api.utils.variables import EndpointRoute
 
 
 class UsageRecorder(ABC):
     @abstractmethod
     def start_record(
         self,
-        endpoint: EndpointRoute,
+        endpoint: ProviderEndpoint,
         model: str,
         user_id: int,
         router_id: int,
@@ -38,7 +38,7 @@ class UsageRecorder(ABC):
 class DummyUsageRecorder(UsageRecorder):
     def start_record(
         self,
-        endpoint: EndpointRoute,
+        endpoint: ProviderEndpoint,
         model: str,
         user_id: int,
         router_id: int,

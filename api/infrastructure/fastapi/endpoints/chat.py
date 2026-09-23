@@ -32,6 +32,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.chat import ChatCompletionChunkResponse, ChatCompletionResponse, CreateChatCompletionsBody
 from api.use_cases.chat import (
     CreateChatCompletionsCommand,
@@ -39,7 +40,6 @@ from api.use_cases.chat import (
     CreateChatCompletionsUseCase,
     CreateChatCompletionsUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])

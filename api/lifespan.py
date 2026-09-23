@@ -11,12 +11,11 @@ from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
-from api.helpers._identityaccessmanager import IdentityAccessManager
-from api.helpers._limiter import Limiter
-from api.helpers._usagetokenizer import UsageTokenizer
-from api.helpers.models import ModelRegistry
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
+from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.logging import init_logger
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -27,7 +26,6 @@ from api.infrastructure.postgres import (
     PostgresRouterRepository,
     PostgresUserRepository,
 )
-from api.schemas.core.configuration import Configuration, Tokenizer
 from api.use_cases.admin import (
     BootstrapAdminCommand,
     BootstrapAdminUseCase,
@@ -36,9 +34,6 @@ from api.use_cases.admin import (
 )
 from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
 from api.use_cases.services import ProviderCapabilitiesProbe
-from api.utils.configuration import get_configuration
-from api.utils.context import global_context
-from api.utils.logging import init_logger
 
 logger = init_logger(name=__name__)
 
@@ -57,14 +52,8 @@ async def lifespan(_: FastAPI):
         if bootstrap_admin_user_id is not None:
             await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
-    global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
-
     global_context.langfuse = create_langfuse(configuration=configuration)
-    # global_context.langfuse_client = LangfuseManager(client=global_context.langfuse) if global_context.langfuse is not None else None
-    global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
-    global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
-    global_context.tokenizer = create_tokenizer(configuration=configuration)
-    global_context._tokenizer = initialize_tokenizer(configuration=configuration)
+    global_context.tokenizer = initialize_tokenizer(configuration=configuration)
 
     yield
 
@@ -165,30 +154,6 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
         case InconsistentModelMaxContextLengthError() as error:
             raise RuntimeError(f"Inconsistent model max context length ({error.router_name}).")
-
-
-async def create_model_registry(
-    configuration: Configuration,
-    session_factory: async_sessionmaker,
-) -> ModelRegistry:
-    registry = ModelRegistry(app_title=configuration.settings.app_title)
-    return registry
-
-
-def create_identity_access_manager(configuration: Configuration) -> IdentityAccessManager:
-    return IdentityAccessManager(
-        secret_key=configuration.settings.auth_secret_key,
-        key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
-        playground_session_duration=configuration.settings.auth_login_session_duration,
-    )
-
-
-def create_limiter(configuration: Configuration, redis_pool: redis.ConnectionPool) -> Limiter:
-    return Limiter(redis_pool=redis_pool, strategy=configuration.settings.rate_limiting_strategy)
-
-
-def create_tokenizer(configuration: Configuration) -> UsageTokenizer:
-    return UsageTokenizer(tokenizer=configuration.settings.usage_tokenizer)
 
 
 def initialize_tokenizer(configuration: Configuration) -> Encoding:

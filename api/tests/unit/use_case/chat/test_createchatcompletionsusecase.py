@@ -9,7 +9,7 @@ from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderChunkResponse, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -24,7 +24,6 @@ from api.use_cases.chat import (
     CreateChatCompletionsUseCase,
     CreateChatCompletionsUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
 
 MODEL_NAME = "chat-router"
 REQUEST_ID = "req-123"
@@ -129,7 +128,7 @@ class TestCreateChatCompletionsUseCase:
         assert CreateChatCompletionsUseCase.ROUTER_TYPE == RouterType.TEXT_GENERATION
 
     def test_should_use_chat_completions_endpoint(self):
-        assert CreateChatCompletionsUseCase.ENDPOINT == EndpointRoute.CHAT_COMPLETIONS
+        assert CreateChatCompletionsUseCase.ENDPOINT == ProviderEndpoint.CHAT_COMPLETIONS
 
 
 class TestCreateChatCompletionsUseCaseExecute:

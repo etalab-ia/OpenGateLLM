@@ -6,11 +6,11 @@ from api.domain.model.entities import ModelCosts
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.model.views import ModelView
 from api.domain.router.entities import RouterType
-from api.sql.models import Organization as OrganizationTable
-from api.sql.models import Provider as ProviderTable
-from api.sql.models import Router as RouterTable
-from api.sql.models import RouterAlias as RouterAliasTable
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import Organization as OrganizationTable
+from api.infrastructure.postgres.models import Provider as ProviderTable
+from api.infrastructure.postgres.models import Router as RouterTable
+from api.infrastructure.postgres.models import RouterAlias as RouterAliasTable
+from api.infrastructure.postgres.models import User as UserTable
 
 
 class PostgresModelQuery(ModelQuery):

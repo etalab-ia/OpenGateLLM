@@ -7,9 +7,9 @@ from api.domain import SortField, SortOrder
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres import PostgresRouterRepository
-from api.sql.models import Provider as ProviderTable
-from api.sql.models import Router as RouterTable
-from api.sql.models import RouterAlias as RouterAliasTable
+from api.infrastructure.postgres.models import Provider as ProviderTable
+from api.infrastructure.postgres.models import Router as RouterTable
+from api.infrastructure.postgres.models import RouterAlias as RouterAliasTable
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 
 

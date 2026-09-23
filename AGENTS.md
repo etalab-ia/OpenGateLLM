@@ -16,9 +16,14 @@ Coding conventions for this repository. New and changed code follows clean archi
 domain/           entities, errors, repository ports, query ports + views (no FastAPI, no SQL)
 use_cases/        Command, UseCase, UseCaseSuccess, execute()
 infrastructure/
-  fastapi/        endpoints, schemas, HTTP exceptions, AccessController
+  fastapi/        endpoints, schemas, HTTP exceptions, AccessController, routes, monitoring
   postgres/       Postgres*Repository / Postgres*Query adapters, AutocommitSession
+  configuration.py  Settings + get_configuration() / the `configuration` singleton
+  context.py      GlobalContext — the process-wide infrastructure handles
+  logging.py      init_logger
+app.py            create_app: middleware, router registration, monitoring
 dependencies.py   DI factories (transactional vs autocommit session)
+lifespan.py       startup/shutdown: builds what GlobalContext holds, runs bootstrap
 ```
 
 **Dependency rule:** `infrastructure → use_cases → domain`.
@@ -32,6 +37,7 @@ dependencies.py   DI factories (transactional vs autocommit session)
 | Postgres adapters | `api/infrastructure/postgres/_postgres<entity>repository.py` |
 | Read models | `api/domain/<context>/views.py` + `_<noun>query.py` |
 | DI | `api/dependencies.py` |
+| Composition root | `api/app.py`, `api/dependencies.py`, `api/lifespan.py` |
 
 Admin CRUD is grouped per resource: `api/use_cases/admin/roles/`, `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/schemas/admin/roles.py`. Everything else stays flat under its area (`api/use_cases/auth/`, `api/infrastructure/fastapi/endpoints/models.py`, `api/infrastructure/fastapi/schemas/models.py`).
 
@@ -51,25 +57,6 @@ Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `Get
 
 Self-service `/v1/organizations/me` reuses `GetOneOrganizationUseCase` with `organization_id=authenticated_user.organization_id`. Later org routes land in the same module (`api/infrastructure/fastapi/endpoints/organizations.py`).
 
-### `api/endpoints/` — legacy, scheduled for removal
-
-Do not confuse `api/endpoints/` (pre-clean-architecture) with `api/infrastructure/fastapi/endpoints/` (current). **Never add a route or a module to `api/endpoints/`.** Two items remain:
-
-| Remaining | Exposes | Migrate to |
-|-----------|---------|------------|
-| `api/endpoints/admin/organizations.py` | `PATCH /v1/admin/organizations/{organization}` | `api/infrastructure/fastapi/endpoints/admin/organizations.py` — the other organization routes already live there |
-| `api/endpoints/monitoring.py` | no route — `setup_prometheus`, called by `_setup_monitoring` | not a router; needs a home under `api/infrastructure/` |
-
-These files run on the legacy stack (`api/helpers/_accesscontroller.py`, `api/schemas/`, `api/utils/dependencies.py`, `global_context.identity_access_manager`). Migrating one means porting it to the patterns in this file — do not carry its imports over, and do not copy them into new code.
-
-The directory disappears once both are moved and these go with them:
-
-- the `@TODO: legacy import` block registering `api.endpoints.admin` (`api/app.py`)
-- `from api.endpoints.monitoring import setup_prometheus` (`api/app.py`)
-
-`api/endpoints/me/` and `api/endpoints/proconnect/` are already empty — their contents were migrated.
-
-If a task makes you touch one of these files, migrate it rather than extend it (principle 4).
 
 ---
 
@@ -78,7 +65,7 @@ If a task makes you touch one of these files, migrate it rather than extend it (
 ```
 - [ ] Domain entity + errors in api/domain/<context>/
 - [ ] Repository port in api/domain/<context>/_<entity>repository.py — or query port + view for a read-only projection (see Query and view)
-- [ ] SQL model in api/sql/models.py if the schema changes, then an Alembic revision: uv run alembic -c api/alembic.ini revision --autogenerate -m "<slug>" — test upgrade AND downgrade locally
+- [ ] SQL model in api/infrastructure/postgres/models.py if the schema changes, then an Alembic revision: uv run alembic -c api/alembic.ini revision --autogenerate -m "<slug>" — test upgrade AND downgrade locally
 - [ ] Postgres adapter in api/infrastructure/postgres/_postgres<entity>repository.py
 - [ ] Use case in api/use_cases/<area>/_<verb><noun>usecase.py
 - [ ] Export from domain/__init__.py, use_cases/__init__.py, postgres/__init__.py
@@ -86,7 +73,7 @@ If a task makes you touch one of these files, migrate it rather than extend it (
 - [ ] API schemas in api/infrastructure/fastapi/schemas/
 - [ ] HTTP exceptions in api/infrastructure/fastapi/endpoints/exceptions.py
 - [ ] Endpoint in api/infrastructure/fastapi/endpoints/
-- [ ] EndpointRoute member in api/utils/variables.py for the path
+- [ ] EndpointRoute member in api/infrastructure/fastapi/routes.py for the path (plus a ProviderEndpoint member in api/domain/provider/entities.py for a model-forward capability)
 - [ ] Route registration (see below) — a new endpoint module is invisible until its router is registered
 - [ ] Tests: unit use case (every distinct execute() branch) + integration endpoint (happy path, auth, error mapping) + repository if new query/column + domain entity if new method + ForwardScenario if the use case calls a provider
 ```
@@ -95,7 +82,7 @@ Read existing code for the same resource (or the closest pattern above) before w
 
 ### Route registration
 
-`_register_routers` (`api/app.py`) iterates over the `RouterName` enum (`api/utils/variables.py`), imports each `module_path`, and reads the module-level `router` attribute. A module with no `RouterName` member is never imported, so its routes do not exist.
+`_register_routers` (`api/app.py`) iterates over the `RouterName` enum (`api/infrastructure/fastapi/routes.py`), imports each `module_path`, and reads the module-level `router` attribute. A module with no `RouterName` member is never imported, so its routes do not exist.
 
 ```python
 class RouterName(StrEnum):
@@ -123,9 +110,22 @@ from . import keys, organizations, providers, roles, routers, users  # noqa: F40
 
 `RouterName` members are toggled by `disabled_routers` / `hidden_routers` in settings, so one member = one independently switchable surface. All admin resources deliberately share `RouterName.ADMIN`.
 
+Three enums address the API surface, and they are **not the same concept**:
+
+| Enum | Location | Holds | Used by |
+|------|----------|-------|---------|
+| `RouterName` | `api/infrastructure/fastapi/routes.py` | the 14 routers + their `module_path` | `_register_routers`, `disabled_routers` / `hidden_routers`, `tags=[...]` |
+| `EndpointRoute` | `api/infrastructure/fastapi/routes.py` | the 22 mount paths | `@router.<verb>(path=...)` only |
+| `ProviderEndpoint` | `api/domain/provider/entities.py` | the 7 **capabilities** a provider request targets | `ProviderRequest.endpoint`, `UnsupportedProviderEndpointError`, `UsageRecorder.start_record`, `HttpProviderAdapter.SOURCE_ENDPOINT`, `ADAPTER_REGISTRY`, the use cases' `ENDPOINT` |
+
+A new route needs an `EndpointRoute` member. A new **model-forward** capability also needs a `ProviderEndpoint` member — they are declared separately on purpose.
+
+Their 7 common members carry the **same string** today, and that is a contract, not a coincidence: `PostgresUsageRecorder` persists `f"/v1{endpoint}"` in `usage.endpoint` (a plain `str` column) and `EndpointUsage` exposes those values through the public `GET /v1/usage` filter. Changing a `ProviderEndpoint` value means a data migration on `usage` **and** a breaking API change.
+
+Do not merge them back, and do not reintroduce `f"/{RouterName.X}/..."` inside `EndpointRoute`: the first would make the domain import `api/infrastructure/fastapi/`, the second would let a router rename silently move a public API path.
+
 Adding a route to an **existing** module needs neither: declare the `EndpointRoute` member and the handler.
 
-`_register_routers` ends with a hardcoded block registering the legacy `api.endpoints.admin` router alongside the enum. That block is temporary — see [`api/endpoints/`](#apiendpoints--legacy-scheduled-for-removal). Do not add a second one.
 
 ---
 

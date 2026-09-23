@@ -3,6 +3,8 @@ from enum import StrEnum
 
 from api.domain import BaseModel, EntitiesPage, UtcDatetime
 
+SYSTEM_PLAYGROUND_KEY_NAME: str = "_system_playground_key"
+
 
 class KeyStatus(StrEnum):
     ACTIVE = "active"

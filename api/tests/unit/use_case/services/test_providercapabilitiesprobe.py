@@ -7,7 +7,7 @@ from api.domain.embeddings.entities import Embeddings
 from api.domain.model.entities import Model, Models
 from api.domain.model.errors import ModelNotFoundError, StatusCodeModelError
 from api.domain.provider import ProviderClient
-from api.domain.provider.entities import ProviderCapabilities, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderCapabilities, ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import (
     ProviderAdapterValidationResponseError,
     ProviderInvalidResponseError,
@@ -16,7 +16,6 @@ from api.domain.provider.errors import (
 )
 from api.domain.router.entities import RouterType
 from api.use_cases.services import ProviderCapabilitiesProbe
-from api.utils.variables import EndpointRoute
 
 DEFAULT_PROVIDER_URL = "https://test.com"
 DEFAULT_PROVIDER_KEY = "test-key"
@@ -79,7 +78,7 @@ class TestProviderCapabilitiesProbe:
 
         assert result == ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_client.forward.assert_awaited_once()
-        assert provider_client.forward.await_args.kwargs["request"].endpoint == EndpointRoute.MODELS
+        assert provider_client.forward.await_args.kwargs["request"].endpoint == ProviderEndpoint.MODELS
         probed_provider = provider_client.forward.await_args.kwargs["provider"]
         assert probed_provider.type == ProviderType.ALBERT
         assert probed_provider.model_name == DEFAULT_MODEL_ID
@@ -105,8 +104,8 @@ class TestProviderCapabilitiesProbe:
 
         assert result == ProviderCapabilities(max_context_length=2048, vector_size=3)
         assert [call.kwargs["request"].endpoint for call in provider_client.forward.await_args_list] == [
-            EndpointRoute.MODELS,
-            EndpointRoute.EMBEDDINGS,
+            ProviderEndpoint.MODELS,
+            ProviderEndpoint.EMBEDDINGS,
         ]
         assert provider_client.forward.await_args.kwargs["provider"].type == ProviderType.TEI
         embeddings_request = provider_client.forward.await_args_list[1].kwargs["request"]
@@ -129,7 +128,7 @@ class TestProviderCapabilitiesProbe:
 
     @pytest.mark.asyncio
     async def test_should_return_provider_invalid_response_error_when_the_provider_type_has_no_adapter(self, probe, provider_client):
-        provider_client.forward.return_value = UnsupportedProviderEndpointError(endpoint=EndpointRoute.MODELS, provider_type=ProviderType.ALBERT)
+        provider_client.forward.return_value = UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.MODELS, provider_type=ProviderType.ALBERT)
 
         result = await probe.get_capabilities(
             router_type=RouterType.TEXT_GENERATION,

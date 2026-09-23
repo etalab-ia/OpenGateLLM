@@ -6,7 +6,7 @@ from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError
 from api.infrastructure.postgres import PostgresUserRepository
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import User as UserTable
 from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory
 
 

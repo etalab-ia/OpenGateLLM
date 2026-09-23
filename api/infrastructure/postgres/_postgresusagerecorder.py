@@ -8,10 +8,10 @@ from uuid import uuid4
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
-from api.sql.models import Usage as UsageTable
-from api.utils.variables import EndpointRoute
+from api.infrastructure.postgres.models import Usage as UsageTable
 
 logger = logging.getLogger(__name__)
 PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession | Any, Any]]
@@ -26,7 +26,7 @@ class PostgresUsageRecorder(UsageRecorder):
 
     def start_record(
         self,
-        endpoint: EndpointRoute,
+        endpoint: ProviderEndpoint,
         model: str,
         user_id: int,
         router_id: int,

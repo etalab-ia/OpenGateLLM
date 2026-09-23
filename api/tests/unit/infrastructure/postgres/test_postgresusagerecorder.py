@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import BackgroundTasks
 import pytest
 
+from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 from api.infrastructure.postgres import PostgresUsageRecorder
-from api.sql.models import Usage as UsageTable
-from api.utils.variables import EndpointRoute
+from api.infrastructure.postgres.models import Usage as UsageTable
 
 IDENTITY = {
     "router_id": 3,
@@ -21,7 +21,7 @@ IDENTITY = {
 
 def _start_record(recorder, **overrides):
     return recorder.start_record(
-        endpoint=EndpointRoute.CHAT_COMPLETIONS,
+        endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
         model="chat-router",
         user_id=42,
         **IDENTITY,

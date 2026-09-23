@@ -4,9 +4,9 @@ from sqlalchemy import select
 from api.domain.role.entities import LimitType, PermissionType, Role
 from api.domain.role.errors import RoleHasUsersError, RoleNotFoundError
 from api.infrastructure.postgres import PostgresRolesRepository
-from api.sql.models import Limit as LimitTable
-from api.sql.models import Permission as PermissionTable
-from api.sql.models import Role as RoleTable
+from api.infrastructure.postgres.models import Limit as LimitTable
+from api.infrastructure.postgres.models import Permission as PermissionTable
+from api.infrastructure.postgres.models import Role as RoleTable
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 
 

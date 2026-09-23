@@ -2,7 +2,7 @@ from contextvars import ContextVar
 from logging import Filter, Formatter, Logger, StreamHandler, getLogger
 import sys
 
-from api.utils.configuration import configuration
+from api.infrastructure.configuration import configuration
 
 client_ip: ContextVar[str | None] = ContextVar("client_ip", default=None)
 

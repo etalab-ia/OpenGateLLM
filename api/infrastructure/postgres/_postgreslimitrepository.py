@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role import LimitRepository
 from api.domain.role.entities import Limit
-from api.sql.models import Limit as LimitTable
+from api.infrastructure.postgres.models import Limit as LimitTable
 
 
 class PostgresLimitRepository(LimitRepository):

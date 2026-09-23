@@ -1,4 +1,4 @@
-from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
+from api.infrastructure.redis import PREFIX__REDIS_METRIC_GAUGE
 
 
 class MetricsRedisFactory:

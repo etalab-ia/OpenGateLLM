@@ -3,7 +3,7 @@ from typing import assert_never
 from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.errors import ModelNotFoundError, StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderClientError
-from api.domain.provider.entities import Provider, ProviderCapabilities, ProviderRequest, ProviderResponse, ProviderType
+from api.domain.provider.entities import Provider, ProviderCapabilities, ProviderEndpoint, ProviderRequest, ProviderResponse, ProviderType
 from api.domain.provider.errors import (
     ProviderAdapterValidationRequestError,
     ProviderAdapterValidationResponseError,
@@ -12,7 +12,6 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router.entities import RouterType
-from api.utils.variables import EndpointRoute
 
 
 class ProviderCapabilitiesProbe:
@@ -72,7 +71,7 @@ class ProviderCapabilitiesProbe:
         self,
         provider: Provider,
     ) -> int | None | ModelNotFoundError | ProviderNotReachableError | ProviderInvalidResponseError:
-        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
+        request = ProviderRequest(endpoint=ProviderEndpoint.MODELS)
         response = await self.provider_client.forward(provider=provider, request=request)
         match response:
             case ProviderResponse() as provider_response:
@@ -88,7 +87,7 @@ class ProviderCapabilitiesProbe:
         return model.max_context_length
 
     async def _get_vector_size(self, provider: Provider) -> int | ProviderNotReachableError | ProviderInvalidResponseError:
-        request = ProviderRequest(endpoint=EndpointRoute.EMBEDDINGS, payload=CreateEmbeddingsBody(model=provider.model_name, input="hello world"))
+        request = ProviderRequest(endpoint=ProviderEndpoint.EMBEDDINGS, payload=CreateEmbeddingsBody(model=provider.model_name, input="hello world"))
         response = await self.provider_client.forward(provider=provider, request=request)
         match response:
             case ProviderResponse() as provider_response:

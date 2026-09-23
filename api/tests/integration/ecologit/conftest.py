@@ -8,7 +8,7 @@ def test_redis_pool():
 
 @pytest.fixture(scope="session")
 def test_configuration():
-    from api.schemas.core.configuration import Configuration, Dependencies, Settings
+    from api.infrastructure.configuration import Configuration, Dependencies, Settings
 
     return Configuration.model_construct(
         settings=Settings.model_construct(

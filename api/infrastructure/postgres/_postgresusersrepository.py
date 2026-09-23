@@ -14,8 +14,8 @@ from api.domain.user.entities import User, UserPage, UserSortField
 from api.domain.user.errors import UserAlreadyExistsError, UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
-from api.sql.models import Permission as PermissionTable
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import Permission as PermissionTable
+from api.infrastructure.postgres.models import User as UserTable
 
 _USER_COLUMNS = (
     UserTable.id,

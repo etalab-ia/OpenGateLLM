@@ -7,9 +7,9 @@ import pytest_asyncio
 from api.dependencies import get_one_role_use_case_factory
 from api.domain.role.entities import LimitType, PermissionType
 from api.domain.role.errors import RoleNotFoundError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_ROLES}"
 

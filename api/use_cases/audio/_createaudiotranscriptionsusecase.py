@@ -4,12 +4,11 @@ from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsRe
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.usage import UsageContext, UsageRecorder
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
-from api.utils.variables import EndpointRoute
 
 
 class CreateAudioTranscriptionsCommand(ForwardingCommand[CreateAudioTranscriptionsForm]):
@@ -45,7 +44,7 @@ type CreateAudioTranscriptionsUseCaseResult = (
 
 class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAudioTranscriptionsCommand, CreateAudioTranscriptionsUseCaseResult]):
     ROUTER_TYPE = RouterType.AUTOMATIC_SPEECH_RECOGNITION
-    ENDPOINT = EndpointRoute.AUDIO_TRANSCRIPTIONS
+    ENDPOINT = ProviderEndpoint.AUDIO_TRANSCRIPTIONS
 
     def __init__(
         self,

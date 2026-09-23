@@ -6,10 +6,9 @@ import time
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
 from api.domain.model.errors import StatusCodeModelError
-from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
-from api.utils.variables import EndpointRoute
 
 
 class CreateChatCompletionsCommand(ForwardingCommand[CreateChatCompletionsBody]):
@@ -37,7 +36,7 @@ type CreateChatCompletionsUseCaseResult = (
 
 class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCompletionsCommand, CreateChatCompletionsUseCaseResult]):
     ROUTER_TYPE = RouterType.TEXT_GENERATION
-    ENDPOINT = EndpointRoute.CHAT_COMPLETIONS
+    ENDPOINT = ProviderEndpoint.CHAT_COMPLETIONS
 
     async def execute(self, command: CreateChatCompletionsCommand) -> CreateChatCompletionsUseCaseResult:
         authenticated_user = command.authenticated_user

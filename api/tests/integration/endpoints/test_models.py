@@ -6,10 +6,10 @@ import pytest_asyncio
 
 from api.dependencies import get_one_model_use_case_factory
 from api.domain.model.errors import ModelNotFoundError
-from api.schemas.models import ModelType
+from api.domain.router.entities import RouterType
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.MODELS}"
 
@@ -26,7 +26,7 @@ class TestGetModels:
         router_1 = RouterSQLFactory(
             user=self.router_owner,
             name="router_1",
-            type=ModelType.TEXT_GENERATION,
+            type=RouterType.TEXT_GENERATION,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
             providers=2,
@@ -36,7 +36,7 @@ class TestGetModels:
         router_2 = RouterSQLFactory(
             user=self.router_owner,
             name="router_2",
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
+            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             providers=1,
@@ -56,13 +56,13 @@ class TestGetModels:
 
         models_by_id = {model["id"]: model for model in data["data"]}
 
-        assert models_by_id["router_1"]["type"] == ModelType.TEXT_GENERATION.value
+        assert models_by_id["router_1"]["type"] == RouterType.TEXT_GENERATION.value
         assert sorted(models_by_id["router_1"]["aliases"]) == ["alias1_m1", "alias2_m1", "alias3_m1"]
         assert models_by_id["router_1"]["costs"] == {"prompt_tokens": 0.001, "completion_tokens": 0.002}
         assert models_by_id["router_1"]["max_context_length"] == 2048
         assert models_by_id["router_1"]["created"] == int(router_1.created.timestamp())
 
-        assert models_by_id["router_2"]["type"] == ModelType.TEXT_EMBEDDINGS_INFERENCE.value
+        assert models_by_id["router_2"]["type"] == RouterType.TEXT_EMBEDDINGS_INFERENCE.value
         assert models_by_id["router_2"]["aliases"] == []
         assert models_by_id["router_2"]["costs"] == {"prompt_tokens": 0.0, "completion_tokens": 0.0}
         assert models_by_id["router_2"]["max_context_length"] == 16384
@@ -95,7 +95,7 @@ class TestGetModel:
         router_1 = RouterSQLFactory(
             user=self.router_owner,
             name="router_1",
-            type=ModelType.TEXT_GENERATION,
+            type=RouterType.TEXT_GENERATION,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
             providers=2,
@@ -105,7 +105,7 @@ class TestGetModel:
         router_2 = RouterSQLFactory(
             user=self.router_owner,
             name="router_2",
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
+            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             providers=1,
@@ -120,7 +120,7 @@ class TestGetModel:
         # Assert
         actual_data = response.json()
         assert actual_data["id"] == "router_1"
-        assert actual_data["type"] == ModelType.TEXT_GENERATION.value
+        assert actual_data["type"] == RouterType.TEXT_GENERATION.value
         assert actual_data["aliases"] == ["alias1_m1", "alias2_m1", "alias3_m1"]
         assert actual_data["costs"] == {"prompt_tokens": 0.001, "completion_tokens": 0.002}
         assert actual_data["max_context_length"] == 2048

@@ -8,8 +8,8 @@ from api.domain.organization.entities import Organization, OrganizationPage, Org
 from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
-from api.sql.models import Organization as OrganizationTable
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import Organization as OrganizationTable
+from api.infrastructure.postgres.models import User as UserTable
 
 
 class PostgresOrganizationRepository(OrganizationRepository):

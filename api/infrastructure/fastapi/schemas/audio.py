@@ -1,4 +1,3 @@
-from enum import StrEnum
 from typing import Annotated
 
 from fastapi import File, Form, UploadFile
@@ -6,21 +5,8 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import Field, ValidationError
 
 from api.domain import BaseModel
+from api.domain.audio.entities import AudioTranscriptionLanguage, AudioTranscriptionsResponseFormat
 from api.domain.usage.entities import Usage
-from api.utils.variables import SUPPORTED_LANGUAGES
-
-SUPPORTED_LANGUAGES = list(SUPPORTED_LANGUAGES.keys()) + list(SUPPORTED_LANGUAGES.values())
-AudioTranscriptionLanguage = StrEnum("AudioTranscriptionLanguage", {str(lang).upper(): str(lang) for lang in sorted(set(SUPPORTED_LANGUAGES))})
-
-
-class AudioTranscriptionsResponseFormat(StrEnum):
-    JSON = "json"
-    TEXT = "text"
-    VERBOSE_JSON = "verbose_json"
-    DIARIZED_JSON = "diarized_json"
-    SRT = "srt"
-    VTT = "vtt"
-
 
 PLAIN_TEXT_SUBTITLE_FORMATS = {
     AudioTranscriptionsResponseFormat.TEXT: "text/plain",

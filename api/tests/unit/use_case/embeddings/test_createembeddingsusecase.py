@@ -1,6 +1,6 @@
+from api.domain.provider.entities import ProviderEndpoint
 from api.domain.router.entities import RouterType
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
-from api.utils.variables import EndpointRoute
 
 
 class TestCreateEmbeddingsUseCase:
@@ -8,4 +8,4 @@ class TestCreateEmbeddingsUseCase:
         assert CreateEmbeddingsUseCase.ROUTER_TYPE == RouterType.TEXT_EMBEDDINGS_INFERENCE
 
     def test_should_use_embeddings_endpoint(self):
-        assert CreateEmbeddingsUseCase.ENDPOINT == EndpointRoute.EMBEDDINGS
+        assert CreateEmbeddingsUseCase.ENDPOINT == ProviderEndpoint.EMBEDDINGS

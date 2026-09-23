@@ -11,7 +11,7 @@ from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -25,7 +25,6 @@ from api.domain.usage import UsageContext, UsageRecorder
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
-from api.utils.variables import EndpointRoute
 
 
 class ForwardingCommand[TPayload: ForwardablePayload](BaseModel):
@@ -67,7 +66,7 @@ type ProviderRequestForwardingUseCaseResult[TData] = ProviderRequestForwardingUs
 
 class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     ROUTER_TYPE: ClassVar[RouterType]
-    ENDPOINT: ClassVar[EndpointRoute]
+    ENDPOINT: ClassVar[ProviderEndpoint]
 
     def __init__(
         self,

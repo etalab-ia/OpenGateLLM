@@ -1,16 +1,15 @@
 from http import HTTPMethod
 
 from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.router.entities import RouterType
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters import HttpProviderAdapter
-from api.utils.variables import EndpointRoute
 
 
 class ModelsAdapter(HttpProviderAdapter):
-    SOURCE_ENDPOINT = EndpointRoute.MODELS
+    SOURCE_ENDPOINT = ProviderEndpoint.MODELS
     TARGET_ENDPOINT_ROUTE = "/v1/models"
     TARGET_ENDPOINT_METHOD = HTTPMethod.GET
     RESPONSE_TYPE = Model

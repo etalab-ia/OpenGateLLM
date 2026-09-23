@@ -24,6 +24,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RoleHasUsersHTTPException,
     RoleNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, RoleResponse, RolesResponse, UpdateRoleBody
 from api.use_cases.admin.roles import (
     CreateRoleCommand,
@@ -42,7 +43,6 @@ from api.use_cases.admin.roles import (
     UpdateRoleUseCase,
     UpdateRoleUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 

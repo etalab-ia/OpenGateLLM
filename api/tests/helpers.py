@@ -1,6 +1,6 @@
+from api.infrastructure.configuration import configuration
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.tests.integration.factories.sql import KeySQLFactory
-from api.utils.configuration import configuration
 
 INVALID_API_KEY = "sk-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0b2tlbl9pZCI6OCwiZXhwaXJlcyI6MTc3OTMxMzE5NH0.jrigYbCVgAMhHLLEORa1fw-M9dtmZtRNNmsQDl3Fb10"
 

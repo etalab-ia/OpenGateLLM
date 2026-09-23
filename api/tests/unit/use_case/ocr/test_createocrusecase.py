@@ -1,6 +1,6 @@
+from api.domain.provider.entities import ProviderEndpoint
 from api.domain.router.entities import RouterType
 from api.use_cases.ocr import CreateOCRUseCase
-from api.utils.variables import EndpointRoute
 
 
 class TestCreateOCRUseCase:
@@ -8,4 +8,4 @@ class TestCreateOCRUseCase:
         assert CreateOCRUseCase.ROUTER_TYPE == RouterType.IMAGE_TO_TEXT
 
     def test_should_use_embeddings_endpoint(self):
-        assert CreateOCRUseCase.ENDPOINT == EndpointRoute.OCR
+        assert CreateOCRUseCase.ENDPOINT == ProviderEndpoint.OCR

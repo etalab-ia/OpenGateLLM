@@ -4,8 +4,8 @@ from pydantic import Field, StringConstraints
 
 from api.domain import BaseModel
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
+from api.infrastructure.configuration import ModelProvider
 from api.infrastructure.fastapi.schemas import UnixTimestamp
-from api.schemas.core.configuration import ModelProvider
 
 
 class CreateProviderBody(ModelProvider):

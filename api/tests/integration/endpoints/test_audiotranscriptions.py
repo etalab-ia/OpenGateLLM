@@ -8,7 +8,7 @@ import respx
 from api.dependencies import create_audio_transcriptions_use_case_factory
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider.entities import HostingZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderEndpoint, ProviderType
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -19,14 +19,13 @@ from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.schemas.models import ModelType
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_audio_transcriptions_responses
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.vllm import VllmAudioTranscriptionsResponseFactory
 from api.use_cases.audio import CreateAudioTranscriptionsTextUseCaseSuccess
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}"
 
@@ -55,7 +54,7 @@ class TestCreateAudioTranscriptions:
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []  # default prompt is empty
-        with override_global_context(redis_pool=test_redis_pool, _tokenizer=mock_tokenizer):
+        with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
             yield
 
     @respx.mock
@@ -64,7 +63,7 @@ class TestCreateAudioTranscriptions:
         RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
-            type=ModelType.AUTOMATIC_SPEECH_RECOGNITION,
+            type=RouterType.AUTOMATIC_SPEECH_RECOGNITION,
             providers=1,
             providers__type=ProviderType.VLLM,
             providers__url=DEFAULT_PROVIDER_URL,
@@ -100,7 +99,7 @@ class TestCreateAudioTranscriptions:
         RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
-            type=ModelType.AUTOMATIC_SPEECH_RECOGNITION,
+            type=RouterType.AUTOMATIC_SPEECH_RECOGNITION,
             providers=1,
             providers__type=ProviderType.VLLM,
             providers__url=DEFAULT_PROVIDER_URL,
@@ -185,7 +184,7 @@ class TestCreateAudioTranscriptions:
                 "upstream failure",
             ),
             (
-                UnsupportedProviderEndpointError(endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS, provider_type=ProviderType.VLLM),
+                UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.AUDIO_TRANSCRIPTIONS, provider_type=ProviderType.VLLM),
                 500,
                 "Model provider type vllm does not support the /audio/transcriptions endpoint.",
             ),

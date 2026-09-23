@@ -5,7 +5,7 @@ from http import HTTPMethod
 import pytest
 
 from api.domain.embeddings.entities import Embeddings, EncodingFormat
-from api.domain.provider.entities import ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.infrastructure.http import HttpProviderRequest, HttpProviderResponse
 from api.infrastructure.http.adapters.embeddings.tei import TeiEmbeddingsAdapter
@@ -14,7 +14,6 @@ from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
 from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
-from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
@@ -286,4 +285,4 @@ class TestEmbeddingsAdapter:
     )
     def test_source_endpoint_is_embeddings(self, adapter):
         # Assert
-        assert adapter.SOURCE_ENDPOINT == EndpointRoute.EMBEDDINGS
+        assert adapter.SOURCE_ENDPOINT == ProviderEndpoint.EMBEDDINGS

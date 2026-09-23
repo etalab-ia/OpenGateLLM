@@ -8,8 +8,9 @@ from redis.asyncio import ConnectionPool, Redis, RedisError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter
 from api.domain.router.entities import RouterRateLimitState, RpdRateLimitState, RpmRateLimitState, TpdRateLimitState, TpmRateLimitState
-from api.schemas.core.configuration import LimitingStrategy
-from api.utils.variables import PREFIX__REDIS_RATE_LIMIT
+from api.infrastructure.configuration import LimitingStrategy
+
+from ._keys import PREFIX__REDIS_RATE_LIMIT
 
 logger = logging.getLogger(__name__)
 

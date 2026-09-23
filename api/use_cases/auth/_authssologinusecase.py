@@ -5,7 +5,7 @@ from typing import Any, Literal
 from api.domain.auth import AuthSsoSessionValidator
 from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError, SsoProviderNotAvailableError
 from api.domain.key import KeyRepository
-from api.domain.key.entities import Key
+from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME, Key
 from api.domain.organization import OrganizationRepository
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role import RoleRepository
@@ -13,7 +13,6 @@ from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
-from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME
 
 
 @dataclass

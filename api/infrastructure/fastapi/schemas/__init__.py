@@ -10,4 +10,7 @@ def _to_unix_timestamp(value: datetime | int) -> int:
 
 UnixTimestamp = Annotated[int, BeforeValidator(_to_unix_timestamp)]
 
-__all__ = ["UnixTimestamp"]
+MIN_PASSWORD_LENGTH: int = 6
+MAX_PASSWORD_LENGTH: int = 72
+
+__all__ = ["MAX_PASSWORD_LENGTH", "MIN_PASSWORD_LENGTH", "UnixTimestamp"]

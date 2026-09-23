@@ -7,7 +7,17 @@ from pydantic import Field, model_validator
 
 from api.domain import BaseModel, EntitiesPage, ForwardablePayload, UtcDatetime
 from api.domain.router.entities import Router, RouterType
-from api.utils.variables import EndpointRoute
+
+
+class ProviderEndpoint(StrEnum):
+    AUDIO_TRANSCRIPTIONS = "/audio/transcriptions"
+    CHAT_COMPLETIONS = "/chat/completions"
+    EMBEDDINGS = "/embeddings"
+    METRICS = "/metrics"
+    MODELS = "/models"
+    OCR = "/ocr"
+    RERANK = "/rerank"
+
 
 # Add world as a country code, default value of the carbon footprint computation framework
 _country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
@@ -125,7 +135,7 @@ class ProviderCapabilities(BaseModel):
 
 class ProviderRequest(BaseModel):
     id: Annotated[str, Field(default_factory=lambda: uuid4().hex, description="The request identifier.")]
-    endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
+    endpoint: Annotated[ProviderEndpoint, Field(description="The capability targeted by the request.")]
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
 
