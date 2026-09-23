@@ -389,11 +389,3 @@ class SsoProviderNotAvailableHTTPException(HTTPException):
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)
-
-
-class AuthorizationNotAvailableHTTPException(HTTPException):
-    status_code = 503
-    detail = "Authorization service is not available."
-
-    def __init__(self) -> None:
-        super().__init__(status_code=self.status_code, detail=self.detail)
