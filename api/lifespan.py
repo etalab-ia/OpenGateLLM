@@ -3,6 +3,7 @@ import logging
 
 from fastapi import FastAPI
 from langfuse import Langfuse
+from openfga_sdk.client import OpenFgaClient
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 import tiktoken
@@ -17,6 +18,7 @@ from api.infrastructure.configuration import Configuration, Tokenizer
 from api.infrastructure.configuration import Model as ModelConfiguration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.openfga import OpenFgaAuthorizationProvisioner
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -54,6 +56,7 @@ async def lifespan(app: FastAPI):
     configuration = app.state.configuration
 
     global_context.redis_pool = await create_redis_pool(configuration)
+    global_context.openfga_client = await create_openfga_client(configuration)
     global_context.postgres_engine = create_postgres_engine(configuration)
     global_context.postgres_session_factory = create_postgres_session_factory(engine=global_context.postgres_engine)
     global_context.autocommit_postgres_session_factory = create_autocommit_postgres_session_factory(engine=global_context.postgres_engine)
@@ -69,6 +72,9 @@ async def lifespan(app: FastAPI):
     yield
 
     await PostgresUsageRepository.wait_for_pending_saves(timeout=USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS)
+
+    if global_context.openfga_client:
+        await global_context.openfga_client.close()
 
     if global_context.redis_pool:
         await global_context.redis_pool.aclose()
@@ -227,3 +233,14 @@ def create_langfuse(configuration: Configuration) -> Langfuse | None:
         return None
 
     return langfuse
+
+
+async def create_openfga_client(configuration: Configuration) -> OpenFgaClient:
+    openfga = configuration.dependencies.openfga
+    provisioner = OpenFgaAuthorizationProvisioner(
+        url=openfga.url,
+        store_name=openfga.store_name,
+        api_token=openfga.api_token,
+    )
+
+    return await provisioner.connect()
