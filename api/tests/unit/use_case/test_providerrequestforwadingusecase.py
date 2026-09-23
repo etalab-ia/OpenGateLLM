@@ -468,7 +468,7 @@ class TestSendRequest:
         self, use_case, router, provider, sample_data, payload, model_tokenizer, model_environmental_impacts_computer
     ):
         # Arrange
-        use_case.usage_recorder.compute_elapsed_ms.return_value = 12000
+        use_case.usage_recorder.compute_latency.return_value = 12000
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
             # Act
             result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
@@ -500,7 +500,7 @@ class TestSendRequest:
             model_total_params=provider.model_total_params,
             model_zone=provider.model_hosting_zone,
             completion_tokens=1,
-            request_latency=12,
+            request_latency=12000,
         )
         compute_request_cost.assert_called_once_with(
             prompt_tokens=1,
@@ -534,7 +534,7 @@ class TestSendRequest:
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(self, use_case, router, provider, payload):
         # Arrange
         use_case.provider_client.forward.return_value = ProviderResponse(text="hello world")
-        use_case.usage_recorder.compute_elapsed_ms.return_value = 12000
+        use_case.usage_recorder.compute_latency.return_value = 12000
 
         # Act
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):

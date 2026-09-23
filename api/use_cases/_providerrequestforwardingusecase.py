@@ -220,7 +220,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         async with self._inflight(provider=provider):
             result = await self.provider_client.forward(provider=provider, request=request)
-            latency_ms = self.usage_recorder.compute_elapsed_ms()
+            latency = self.usage_recorder.compute_latency()
 
         match result:
             case ProviderResponse() as provider_response:
@@ -230,7 +230,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                     router=router,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
-                    latency=latency_ms / 1000,
+                    latency=latency,
                 )
 
                 if provider_response.data is not None:

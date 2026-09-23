@@ -123,14 +123,14 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     relayed = {**parsed_chunk, "model": router.name, "id": request_id}
                     yield ProviderChunkResponse(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
 
-                latency_ms = self.usage_recorder.compute_elapsed_ms()
+                latency = self.usage_recorder.compute_latency()
                 yield ProviderChunkResponse(
                     content=self._build_usage_event(
                         router=router,
                         provider=provider,
                         buffer=buffer,
                         prompt_tokens=prompt_tokens,
-                        latency=latency_ms / 1000,
+                        latency=latency,
                         request_id=request_id,
                         first_token_at=first_token_at,
                     ),

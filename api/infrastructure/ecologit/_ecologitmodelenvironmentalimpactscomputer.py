@@ -33,7 +33,7 @@ class EcologitModelEnvironmentalImpactsComputer(ModelEnvironmentalImpactsCompute
             # WUE: Water Usage Effectiveness (L/kWh, typical ~1.8)
             datacenter_pue=1.2,
             datacenter_wue=1.8,
-            request_latency=request_latency,
+            request_latency=request_latency / 1000,  # milliseconds to seconds
         )
 
         return EnvironmentalImpacts(kWh=(impacts.energy.value or 0.0), kgCO2eq=(impacts.gwp.value or 0.0))

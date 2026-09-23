@@ -79,7 +79,7 @@ class LangfuseUsageRecorder(UsageRecorder):
         except Exception:
             logger.exception("Failed to mark Langfuse observation as error")
 
-    def compute_elapsed_ms(self, end_time: datetime | None = None) -> int:
+    def compute_latency(self, end_time: datetime | None = None) -> int:
         if self.start_time is None:
             return 0
 

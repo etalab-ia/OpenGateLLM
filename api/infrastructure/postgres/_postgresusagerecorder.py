@@ -51,7 +51,6 @@ class PostgresUsageRecorder(UsageRecorder):
         if self._row is None or self.start_time is None:
             return
 
-        now = datetime.now(tz=UTC)
         self._row.provider_id = provider_id
         self._row.provider_model_name = provider_model_name
         self._row.prompt_tokens = usage.prompt_tokens
@@ -61,20 +60,22 @@ class PostgresUsageRecorder(UsageRecorder):
         self._row.kwh = usage.impacts.kWh
         self._row.kgco2eq = usage.impacts.kgCO2eq
         self._row.status = 200
-        self._row.latency = self.compute_elapsed_ms(end_time=now)
+        self._row.latency = self.compute_latency()
         if first_token_at is not None:
-            self._row.ttft = self.compute_elapsed_ms(end_time=first_token_at)
+            self._row.ttft = self.compute_latency(end_time=first_token_at)
 
     def fail_record(self, message: str, status_code: int) -> None:
         if self._row is None:
             return
         self._row.status = status_code
 
-    def compute_elapsed_ms(self, end_time: datetime | None = None) -> int:
+    def compute_latency(self, end_time: datetime | None = None) -> int:
         if self.start_time is None:
             return 0
+        if end_time is None:
+            end_time = datetime.now(tz=UTC)
 
-        return round(((end_time or datetime.now(tz=UTC)) - self.start_time).total_seconds() * 1000)
+        return round((end_time - self.start_time).total_seconds() * 1000)
 
     def end_record(self) -> None:
         row = self._row

@@ -22,7 +22,7 @@ class UsageRecorder(ABC):
         pass
 
     @abstractmethod
-    def compute_elapsed_ms(self, end_time: datetime | None = None) -> int:
+    def compute_latency(self, end_time: datetime | None = None) -> int:
         pass
 
     @abstractmethod
