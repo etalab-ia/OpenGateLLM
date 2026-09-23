@@ -1,8 +1,6 @@
-from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime, timedelta
 from http import HTTPMethod
 import logging
-from typing import Any
 from uuid import uuid4
 
 from fastapi import BackgroundTasks
@@ -16,12 +14,11 @@ from api.sql.models import Usage as UsageTable
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
-PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession, Any]]
 
 
 class PostgresUsageRepository(UsageRepository):
-    def __init__(self, postgres_session_provider: PostgresSessionProvider, background_tasks: BackgroundTasks) -> None:
-        self.postgres_session_provider = postgres_session_provider
+    def __init__(self, postgres_session: AsyncSession, background_tasks: BackgroundTasks) -> None:
+        self.postgres_session = postgres_session
         self.background_tasks = background_tasks
         self._row: UsageTable | None = None
         self._start_time: datetime | None = None
@@ -86,9 +83,8 @@ class PostgresUsageRepository(UsageRepository):
 
     async def _persist(self, row: UsageTable) -> None:
         try:
-            async for postgres_session in self.postgres_session_provider():
-                postgres_session.add(row)
-                await postgres_session.commit()
+            self.postgres_session.add(row)
+            await self.postgres_session.commit()
         except Exception:
             logger.exception("Failed to persist usage row.")
 
@@ -142,10 +138,7 @@ class PostgresUsageRepository(UsageRepository):
         )
         count_query = select(func.count()).select_from(select(utc_day_start).where(*filters).group_by(utc_day_start).subquery())
 
-        rows: list = []
-        total = 0
-        async for postgres_session in self.postgres_session_provider():
-            rows, total = await fetch_page_with_total(postgres_session, buckets_query, count_query)
+        rows, total = await fetch_page_with_total(self.postgres_session, buckets_query, count_query)
 
         return UsageBucketPage(total=total, data=[self._row_to_usage_bucket(row) for row in rows])
 

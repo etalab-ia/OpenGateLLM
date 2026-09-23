@@ -201,10 +201,13 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
 
-def _usage_repository(background_tasks: BackgroundTasks) -> UsageRepository:
+def _usage_repository(
+    background_tasks: BackgroundTasks,
+    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
+) -> UsageRepository:
     if configuration.settings.usage_source == UsageSource.LANGFUSE:
         return LangfuseUsageRepository(client=global_context.langfuse)
-    return PostgresUsageRepository(postgres_session_provider=get_autocommit_postgres_session, background_tasks=background_tasks)
+    return PostgresUsageRepository(postgres_session=postgres_session, background_tasks=background_tasks)
 
 
 # audio use cases
