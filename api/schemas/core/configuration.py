@@ -224,11 +224,6 @@ class LimitingStrategy(StrEnum):
     SLIDING_WINDOW = "sliding_window"
 
 
-class UsageSource(StrEnum):
-    POSTGRES = "postgres"
-    LANGFUSE = "langfuse"
-
-
 class Tokenizer(StrEnum):
     TIKTOKEN_GPT2 = "tiktoken_gpt2"
     TIKTOKEN_R50K_BASE = "tiktoken_r50k_base"
@@ -281,7 +276,6 @@ class Settings(ConfigBaseModel):
 
     # monitoring
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
-    usage_source: UsageSource = Field(default=UsageSource.POSTGRES, description="Backend used to record and read inference usage (`GET /v1/usage`). `postgres` (default) uses the `usage` table; `langfuse` records and reads usage from Langfuse instead, requiring the `langfuse` dependency to be configured. Only the selected backend is written to (no dual-write); budget deduction always stays on PostgreSQL.")  # fmt: off
 
     # audio
     audio_file_size_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum size of the audio file in bytes. If not provided, the audio file size limit is not applied.", examples=[100_000_000])]  # fmt: off
@@ -358,12 +352,6 @@ class ConfigFile(ConfigBaseModel):
         for model_type in ModelType:
             models["all"].extend(models[model_type.value])
 
-        return self
-
-    @model_validator(mode="after")
-    def validate_usage_source(self) -> Any:
-        if self.settings.usage_source == UsageSource.LANGFUSE and self.dependencies.langfuse is None:
-            raise ValueError("'usage_source' is set to 'langfuse' but the 'langfuse' dependency is not configured. Configure the 'langfuse' dependency or set 'usage_source' to 'postgres'.")  # fmt: off
         return self
 
 

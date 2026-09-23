@@ -9,9 +9,9 @@ import { Aside, LinkButton } from '@astrojs/starlight/components';
 Langfuse is an **optional dependency** for OpenGateLLM. The application works without it.
 </Aside>
 
-OpenGateLLM supports [Langfuse](https://langfuse.com/) for LLM observability. It can be used as an alternative usage backend: with `settings.usage_source: langfuse`, inference usage is recorded in **and read from** Langfuse as generation observations, instead of the PostgreSQL `usage` table.
+OpenGateLLM supports [Langfuse](https://langfuse.com/) for LLM observability. It doubles as an alternative usage backend: as soon as this dependency is configured, inference usage is recorded in **and read from** Langfuse as generation observations, instead of the PostgreSQL `usage` table.
 
-Selecting Langfuse as the usage source requires this dependency to be configured; otherwise OpenGateLLM fails to start. Configuring this dependency while keeping `usage_source: postgres` (the default) leaves usage on PostgreSQL and does not write usage observations to Langfuse.
+When this dependency is not configured, usage stays on the PostgreSQL `usage` table.
 
 PostgreSQL remains required for application data (users, keys, routers, providers) and for budget deduction, which always stays on PostgreSQL. Only the usage backend changes.
 
@@ -35,13 +35,13 @@ Prompts and completions are not sent to Langfuse.
 
 ## Langfuse as the usage source
 
-Set `settings.usage_source: langfuse` to make Langfuse the usage backend. OpenGateLLM then records usage as generation observations and serves `GET /v1/usage` (and the Playground *Usage* page) by querying Langfuse — successful requests only, aggregated into daily buckets, with the same filters as PostgreSQL (user, time range, endpoint, models, key).
+Once this dependency is configured, Langfuse becomes the usage backend automatically. OpenGateLLM then records usage as generation observations and serves `GET /v1/usage` (and the Playground *Usage* page) by querying Langfuse — successful requests only, aggregated into daily buckets, with the same filters as PostgreSQL (user, time range, endpoint, models, key).
 
-Requests are never dual-written: only the selected backend receives usage. With `usage_source: postgres` (the default), nothing is written to Langfuse.
+Requests are never dual-written: only the selected backend receives usage. When the Langfuse dependency is not configured, nothing is written to Langfuse and usage stays on PostgreSQL.
 
 Environmental impacts (`kWh`, `kgCO2eq`) are stored as numeric scores and aggregated into the daily buckets through a second query against Langfuse's numeric-scores metrics, so usage reports keep the same shape as with PostgreSQL.
 
-At startup, OpenGateLLM authenticates against the Langfuse server. If authentication fails, a warning is logged; usage reads and writes still target Langfuse when it is the selected source.
+At startup, OpenGateLLM authenticates against the Langfuse server. If authentication fails, a warning is logged; usage reads and writes still target Langfuse when the dependency is configured.
 
 ## Configuration
 

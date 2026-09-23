@@ -43,7 +43,6 @@ from api.infrastructure.postgres import (
 )
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
-from api.schemas.core.configuration import UsageSource
 from api.use_cases.admin.keys import CreateKeyUseCase, DeleteKeyUseCase, GetKeysUseCase, GetOneKeyUseCase, UpdateKeyUseCase
 from api.use_cases.admin.organizations import (
     CreateOrganizationUseCase,
@@ -205,7 +204,7 @@ def _usage_repository(
     background_tasks: BackgroundTasks,
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
 ) -> UsageRepository:
-    if configuration.settings.usage_source == UsageSource.LANGFUSE:
+    if configuration.dependencies.langfuse is not None:
         return LangfuseUsageRepository(client=global_context.langfuse)
     return PostgresUsageRepository(postgres_session=postgres_session, background_tasks=background_tasks)
 

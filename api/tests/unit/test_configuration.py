@@ -1,8 +1,6 @@
 import logging
 
-import pytest
-
-from api.schemas.core.configuration import ConfigFile, Settings, UsageSource
+from api.schemas.core.configuration import ConfigFile, Settings
 
 
 class TestSettingsDefaults:
@@ -56,18 +54,29 @@ REQUIRED_DEPENDENCIES = {
 LANGFUSE_DEPENDENCY = {"public_key": "pk-lf-test", "secret_key": "sk-lf-test"}
 
 
-class TestUsageSource:
+class TestUsageRepositorySelection:
+    """The usage backend is picked from the presence of the `langfuse` dependency,
+    without any dedicated `usage_source` setting."""
+
+    def _resolve(self, langfuse_dependency):
+        from unittest.mock import MagicMock, patch
+
+        import api.dependencies as dependencies
+        from api.infrastructure.langfuse import LangfuseUsageRepository
+        from api.infrastructure.postgres import PostgresUsageRepository
+
+        config = ConfigFile(dependencies={**REQUIRED_DEPENDENCIES, **({"langfuse": langfuse_dependency} if langfuse_dependency else {})})
+        with (
+            patch.object(dependencies, "configuration", config),
+            patch.object(dependencies.global_context, "langfuse", MagicMock()),
+        ):
+            repository = dependencies._usage_repository(background_tasks=MagicMock(), postgres_session=MagicMock())
+        return repository, LangfuseUsageRepository, PostgresUsageRepository
+
     def test_defaults_to_postgres_without_langfuse_dependency(self):
-        config = ConfigFile(dependencies=REQUIRED_DEPENDENCIES)
-        assert config.settings.usage_source == UsageSource.POSTGRES
+        repository, LangfuseUsageRepository, PostgresUsageRepository = self._resolve(langfuse_dependency=None)
+        assert isinstance(repository, PostgresUsageRepository)
 
-    def test_langfuse_source_is_accepted_when_langfuse_dependency_is_configured(self):
-        config = ConfigFile(
-            dependencies={**REQUIRED_DEPENDENCIES, "langfuse": LANGFUSE_DEPENDENCY},
-            settings={"usage_source": "langfuse"},
-        )
-        assert config.settings.usage_source == UsageSource.LANGFUSE
-
-    def test_langfuse_source_without_langfuse_dependency_is_rejected(self):
-        with pytest.raises(Exception, match="usage_source"):
-            ConfigFile(dependencies=REQUIRED_DEPENDENCIES, settings={"usage_source": "langfuse"})
+    def test_uses_langfuse_when_langfuse_dependency_is_configured(self):
+        repository, LangfuseUsageRepository, PostgresUsageRepository = self._resolve(langfuse_dependency=LANGFUSE_DEPENDENCY)
+        assert isinstance(repository, LangfuseUsageRepository)

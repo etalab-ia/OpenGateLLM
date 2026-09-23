@@ -9,12 +9,12 @@ import { Aside, LinkButton, TabItem, Tabs } from '@astrojs/starlight/components'
 
 OpenGateLLM records usage for each model-forward API request (chat completions, embeddings, OCR, rerank, audio transcriptions). This helps you analyze consumption over time, identify patterns, and support reporting.
 
-The usage backend is selected with the `settings.usage_source` setting:
+The usage backend is selected automatically from your configuration:
 
-- `postgres` (default): usage is recorded in and read from the PostgreSQL `usage` table.
-- `langfuse`: usage is recorded in and read from **Langfuse** instead. This requires the [Langfuse dependency](/configuration/dependencies/langfuse/) to be configured; otherwise OpenGateLLM fails to start.
+- By default, usage is recorded in and read from the PostgreSQL `usage` table.
+- When the [Langfuse dependency](/configuration/dependencies/langfuse/) is configured, usage is recorded in and read from **Langfuse** instead. Configuring the Langfuse dependency is all that is required — there is no separate setting to toggle.
 
-A single backend both records and serves usage, so requests are never dual-written. `GET /v1/usage` (and the Playground *Usage* page) reads from whichever backend is selected. Budget deduction always stays on PostgreSQL, independently of `usage_source`.
+A single backend both records and serves usage, so requests are never dual-written. `GET /v1/usage` (and the Playground *Usage* page) reads from whichever backend is selected. Budget deduction always stays on PostgreSQL, independently of the usage backend.
 
 Sensitive information such as the prompt or response content is not included in the logs.
 
@@ -27,7 +27,7 @@ In both cases, the logs contain the following information:
 - environmental footprint (see the dedicated documentation [here](/features/usage/environmental_footprint/))
 - cost (see the dedicated documentation [here](/features/usage/budget/))
 
-When `usage_source` is `langfuse`, environmental impacts (`kWh`, `kgCO2eq`) are stored as Langfuse numeric scores and aggregated back into the daily usage buckets with a dedicated query, so `GET /v1/usage` reports them the same way as with PostgreSQL.
+When Langfuse is the usage backend, environmental impacts (`kWh`, `kgCO2eq`) are stored as Langfuse numeric scores and aggregated back into the daily usage buckets with a dedicated query, so `GET /v1/usage` reports them the same way as with PostgreSQL.
 
 User can see their usage in the *Usage* page of the Playground.
 
