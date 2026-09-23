@@ -13,7 +13,6 @@ dependencies:
     url: http://${OPENFGA_HOST:-openfga}:${OPENFGA_PORT:-8080}
     store_name: opengatellm
     api_token: ${OPENFGA_API_TOKEN:-changeme}
-    timeout_millisec: 5000
 
   redis: # required
     url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
