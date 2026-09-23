@@ -9,4 +9,6 @@ rm -rf "${PROMETHEUS_MULTIPROC_DIR:?}"/*
 
 python -m alembic -c api/alembic.ini upgrade head
 
+python -m scripts.provision_openfga
+
 exec gunicorn api.main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --config scripts/gunicorn.conf.py $GUNICORN_CMD_ARGS
