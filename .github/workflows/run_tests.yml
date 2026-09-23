@@ -2,7 +2,7 @@ name: Testing
 
 # PR targeting main:
 #   draft  → unit + integration
-#   ready  → unit & integration (coverage + badge commit) + e2e
+#   ready  → unit & integration (coverage; badge commit only on same-repo PRs)
 # workflow_call / workflow_dispatch → all jobs; unit with coverage (badge commit only on a ready PR to main)
 
 on:
@@ -30,7 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
@@ -59,7 +61,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
@@ -86,7 +90,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
@@ -133,10 +139,12 @@ jobs:
           PY
 
       - name: Commit tests coverage badge
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "chore(tests): update tests coverage badge"
           file_pattern: .github/badges/coverage.json
+          branch: ${{ github.head_ref }}
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 
