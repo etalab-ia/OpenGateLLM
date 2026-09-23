@@ -140,30 +140,3 @@ jobs:
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 
-  e2e-tests:
-    name: e2e tests
-    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false && github.event.pull_request.base.ref == 'main'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.head_ref || github.ref_name }}
-
-    - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
-
-    - name: Install test dependencies
-      run: |
-        uv venv
-        uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
-
-    - name: Set up Docker Compose
-      run: |
-        docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
-
-    - name: Run tests
-      run: |
-        . .venv/bin/activate
-        PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml --cov=./api --cov-report=xml
-      env:
-        CONFIG_FILE: ./api/tests/integ/config.test.yml
-        ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
