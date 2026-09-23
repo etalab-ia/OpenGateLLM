@@ -14,7 +14,7 @@ from app.shared.utils.timestamps import date_to_timestamp, format_local_date, fo
 ALL_ENDPOINTS = "All endpoints"
 ALL_MODELS = "All models"
 ALL_KEYS = "All keys"
-SYSTEM_KEY_NAMES = {"_system_playground_key", "_system_search_tool"}
+SYSTEM_KEY_NAMES = {"_system_playground_key"}
 USAGE_PAGE_LIMIT = 100
 
 

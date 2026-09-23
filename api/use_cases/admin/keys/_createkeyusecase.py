@@ -4,10 +4,9 @@ from datetime import UTC, datetime, timedelta
 from pydantic import FutureDatetime
 
 from api.domain.key import KeyRepository
-from api.domain.key.entities import Key
-from api.domain.key.errors import KeyExpirationInvalidError, KeyExpirationInvalidError, KeyNameReservedError
+from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME, Key
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError
 from api.domain.user.errors import UserNotFoundError
-from api.utils.variables import RESERVED_KEY_NAMES
 
 
 @dataclass
@@ -31,7 +30,7 @@ class CreateKeyUseCase:
         self.key_max_expiration_days = key_max_expiration_days
 
     async def execute(self, command: CreateKeyCommand) -> CreateKeyUseCaseResult:
-        if command.name in RESERVED_KEY_NAMES:
+        if command.name == SYSTEM_PLAYGROUND_KEY_NAME:
             return KeyNameReservedError(name=command.name)
 
         expire = command.expire

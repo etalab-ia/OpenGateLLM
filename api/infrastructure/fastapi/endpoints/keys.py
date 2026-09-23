@@ -11,7 +11,7 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.key.entities import KeyStatus
-from api.domain.key.errors import KeyExpirationInvalidError, KeyNotFoundError, KeyNameReservedError
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -54,18 +54,14 @@ router = APIRouter(prefix="/v1", tags=[RouterName.KEYS.title()])
     path="/me/keys",
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses(
-        [KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]
-    ),
+    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]),
     deprecated=True,
 )
 @router.post(
     path=EndpointRoute.KEYS,
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses(
-        [KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]
-    ),
+    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]),
 )
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),

@@ -4,26 +4,25 @@ from unittest.mock import create_autospec, patch
 import pytest
 
 from api.domain.key import KeyRepository
-from api.domain.key.entities import Key
+from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME, Key
 from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError
 from api.domain.user.errors import UserNotFoundError
 from api.use_cases.admin.keys import CreateKeyCommand, CreateKeyUseCase, CreateKeyUseCaseSuccess
-from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME, SYSTEM_SEARCH_TOOL_KEY_NAME
 
 
 @pytest.fixture
-def key_repository():
+def mock_key_repository():
     return create_autospec(KeyRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def use_case(key_repository):
-    return CreateKeyUseCase(key_repository=key_repository)
+def use_case(mock_key_repository):
+    return CreateKeyUseCase(key_repository=mock_key_repository)
 
 
 @pytest.fixture
-def use_case_with_max_expiration(key_repository):
-    return CreateKeyUseCase(key_repository=key_repository, key_max_expiration_days=10)
+def use_case_with_max_expiration(mock_key_repository):
+    return CreateKeyUseCase(key_repository=mock_key_repository, key_max_expiration_days=10)
 
 
 @pytest.fixture
@@ -45,10 +44,10 @@ def created_key():
 
 class TestCreateKeyUseCase:
     @pytest.mark.asyncio
-    async def test_should_create_key(self, use_case, key_repository, created_key):
+    async def test_should_create_key(self, use_case, mock_key_repository, created_key):
         # Arrange
         command = CreateKeyCommand(user_id=1, name="my-key", expire=None)
-        key_repository.create_key.return_value = created_key
+        mock_key_repository.create_key.return_value = created_key
 
         # Act
         result = await use_case.execute(command)
@@ -57,12 +56,12 @@ class TestCreateKeyUseCase:
         assert isinstance(result, CreateKeyUseCaseSuccess)
         assert result.key.id == 42
         assert result.key.name == "my-key"
-        key_repository.create_key.assert_awaited_once_with(user_id=1, name="my-key", expire=None)
+        mock_key_repository.create_key.assert_awaited_once_with(user_id=1, name="my-key", expire=None)
 
     @pytest.mark.asyncio
-    async def test_should_return_user_not_found_error(self, use_case, key_repository, default_command):
+    async def test_should_return_user_not_found_error(self, use_case, mock_key_repository, default_command):
         # Arrange
-        key_repository.create_key.return_value = UserNotFoundError(id=1)
+        mock_key_repository.create_key.return_value = UserNotFoundError(id=1)
 
         # Act
         result = await use_case.execute(default_command)
@@ -73,10 +72,10 @@ class TestCreateKeyUseCase:
 
     @pytest.mark.asyncio
     async def test_should_default_expiration_when_max_days_configured(
-        self, use_case_with_max_expiration, key_repository, default_command, created_key
+        self, use_case_with_max_expiration, mock_key_repository, default_command, created_key
     ):
         # Arrange
-        key_repository.create_key.return_value = created_key
+        mock_key_repository.create_key.return_value = created_key
         fixed_now = datetime(2030, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         # Act
@@ -86,14 +85,14 @@ class TestCreateKeyUseCase:
 
         # Assert
         assert isinstance(result, CreateKeyUseCaseSuccess)
-        key_repository.create_key.assert_awaited_once_with(user_id=1, name="my-key", expire=fixed_now + timedelta(days=10))
+        mock_key_repository.create_key.assert_awaited_once_with(user_id=1, name="my-key", expire=fixed_now + timedelta(days=10))
 
     @pytest.mark.asyncio
-    async def test_should_create_key_when_expiration_is_within_max_days(self, use_case_with_max_expiration, key_repository, created_key):
+    async def test_should_create_key_when_expiration_is_within_max_days(self, use_case_with_max_expiration, mock_key_repository, created_key):
         # Arrange
         expire = datetime(2030, 1, 5, tzinfo=UTC)
         command = CreateKeyCommand(user_id=1, name="my-key", expire=expire)
-        key_repository.create_key.return_value = created_key
+        mock_key_repository.create_key.return_value = created_key
         fixed_now = datetime(2030, 1, 1, tzinfo=UTC)
 
         # Act
@@ -103,10 +102,12 @@ class TestCreateKeyUseCase:
 
         # Assert
         assert isinstance(result, CreateKeyUseCaseSuccess)
-        key_repository.create_key.assert_awaited_once_with(user_id=1, name="my-key", expire=expire)
+        mock_key_repository.create_key.assert_awaited_once_with(user_id=1, name="my-key", expire=expire)
 
     @pytest.mark.asyncio
-    async def test_should_return_key_expiration_invalid_error_when_expiration_exceeds_max_days(self, use_case_with_max_expiration, key_repository):
+    async def test_should_return_key_expiration_invalid_error_when_expiration_exceeds_max_days(
+        self, use_case_with_max_expiration, mock_key_repository
+    ):
         # Arrange
         command = CreateKeyCommand(user_id=1, name="my-key", expire=datetime(2030, 2, 1, tzinfo=UTC))
         fixed_now = datetime(2030, 1, 1, tzinfo=UTC)
@@ -119,18 +120,17 @@ class TestCreateKeyUseCase:
         # Assert
         assert isinstance(result, KeyExpirationInvalidError)
         assert result.max_expiration_days == 10
-        key_repository.create_key.assert_not_awaited()
+        mock_key_repository.create_key.assert_not_awaited()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("name", [SYSTEM_PLAYGROUND_KEY_NAME, SYSTEM_SEARCH_TOOL_KEY_NAME])
-    async def test_should_return_key_name_reserved_error(self, use_case, key_repository, name):
+    async def test_should_return_key_name_reserved_error(self, use_case, mock_key_repository):
         # Arrange
-        command = CreateKeyCommand(user_id=1, name=name, expire=None)
+        command = CreateKeyCommand(user_id=1, name=SYSTEM_PLAYGROUND_KEY_NAME, expire=None)
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
         assert isinstance(result, KeyNameReservedError)
-        assert result.name == name
-        key_repository.create_key.assert_not_awaited()
+        assert result.name == SYSTEM_PLAYGROUND_KEY_NAME
+        mock_key_repository.create_key.assert_not_awaited()
