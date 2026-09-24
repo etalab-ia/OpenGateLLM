@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -9,7 +10,7 @@ from api.domain import ForwardablePayload
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository
 from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -72,8 +73,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
         provider_client: ProviderClient,
-        provider_load_balancer: ProviderLoadBalancer,
-        provider_metrics_logger: ProviderMetricsLogger,
+        provider_qos: ProviderQoS,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
@@ -83,8 +83,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
         self.provider_client = provider_client
-        self.provider_load_balancer = provider_load_balancer
-        self.provider_metrics_logger = provider_metrics_logger
+        self.provider_qos = provider_qos
         self.provider_repository = provider_repository
 
         self.router_rate_limiter = router_rate_limiter
@@ -214,11 +213,19 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         | StatusCodeModelError
         | ProviderAdapterValidationResponseError
         | UnsupportedProviderEndpointError
+        | NoAvailableProviderError
     ):
-        provider = await self._select_provider(router=router)
+        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=payload)
 
-        async with self._inflight(provider=provider):
+        async with self._admit_provider(router=router, providers=providers, request_id=request_id) as admission:
+            match admission:
+                case Provider() as provider:
+                    pass
+                case error:
+                    return error
+
+            self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
             result = await self.provider_client.forward(provider=provider, request=request)
             latency = self.usage_repository.compute_latency()
 
@@ -244,21 +251,32 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return provider_response
 
-    async def _select_provider(self, router: Router) -> Provider:
-        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
-        self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
-
-        return provider
-
     @asynccontextmanager
-    async def _inflight(self, provider: Provider) -> AsyncIterator[None]:
-        is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
-        try:
-            yield
-        finally:
-            if is_incremented:
-                await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
+    async def _admit_provider(
+        self,
+        router: Router,
+        providers: list[Provider],
+        request_id: str,
+    ) -> AsyncIterator[Provider | NoAvailableProviderError]:
+        retries = router.qos_retries_before_reject
+        attempts = 1 if retries is None else retries + 1
+
+        for attempt in range(attempts):
+            async with self.provider_qos.admit(
+                request_id=request_id,
+                providers=providers,
+                strategy=router.load_balancing_strategy,
+                enforce_limit=retries is not None,
+            ) as admission:
+                match admission:
+                    case Provider() as provider:
+                        yield provider
+                        return
+                    case ProviderAdmissionFull() as admission_full if attempt == attempts - 1:
+                        yield NoAvailableProviderError(router_id=router.id, retry_after=admission_full.retry_after(retries=retries))
+                        return
+
+            await asyncio.sleep(0.5)
 
     def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: float) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(

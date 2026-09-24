@@ -3,6 +3,16 @@ from api.domain.router.entities import RouterRateLimitState, TpdRateLimitState, 
 from api.tests.unit.use_case.factories import RouterFactory
 
 
+class TestRouterQoSRetriesBeforeReject:
+    def test_should_replace_qos_retries_before_reject(self):
+        router = RouterFactory(qos_retries_before_reject=None)
+
+        updated_router = router.with_qos_retries_before_reject(3)
+
+        assert updated_router.qos_retries_before_reject == 3
+        assert router.qos_retries_before_reject is None
+
+
 class TestRouterIsBillable:
     def test_is_not_billable_when_both_costs_are_zero(self):
         # Arrange

@@ -169,6 +169,7 @@ class Router(Base):
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[RouterType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
+    qos_retries_before_reject: Mapped[int | None]
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
@@ -200,8 +201,8 @@ class Provider(Base):
     type: Mapped[ProviderType]
     url: Mapped[str]
     key: Mapped[str | None]
-    basic_auth: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
+    qos_limit: Mapped[int | None]
     model_name: Mapped[str]
     model_hosting_zone: Mapped[HostingZone | None]
     model_total_params: Mapped[int] = mapped_column(default=0)

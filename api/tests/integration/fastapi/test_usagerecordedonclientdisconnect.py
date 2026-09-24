@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import AsyncGenerator
+from contextlib import AsyncExitStack
 from datetime import UTC, datetime
 import gc
 from unittest.mock import create_autospec
@@ -8,7 +9,7 @@ import pytest
 
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -49,8 +50,7 @@ def use_case() -> CreateChatCompletionsUseCase:
         model_environmental_impacts_computer=impacts,
         model_tokenizer=tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
-        provider_load_balancer=create_autospec(ProviderLoadBalancer, instance=True, spec_set=True),
-        provider_metrics_logger=create_autospec(ProviderMetricsLogger, instance=True, spec_set=True),
+        provider_qos=create_autospec(ProviderQoS, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
@@ -86,6 +86,7 @@ def _assemble(use_case, router, provider, outcome: list[str]) -> StreamingRespon
             use_case._format_stream(
                 router=router,
                 provider=provider,
+                reservation=AsyncExitStack(),
                 chunks=_provider_stream(),
                 prompt_tokens=1,
                 request_id="req-123",

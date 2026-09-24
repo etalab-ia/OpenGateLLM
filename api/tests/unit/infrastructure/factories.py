@@ -31,6 +31,7 @@ class ProviderRequestFactory(factory.Factory):
     id = factory.Faker("md5")
     endpoint = factory.Faker("random_element", elements=list(ProviderEndpoint))
     payload = None
+    id = factory.Faker("uuid4")
 
     class Params:
         embeddings = factory.Trait(
@@ -45,7 +46,6 @@ class ProviderRequestFactory(factory.Factory):
             ),
         )
         models = factory.Trait(endpoint=ProviderEndpoint.MODELS)
-        metrics = factory.Trait(endpoint=ProviderEndpoint.METRICS)
         rerank = factory.Trait(
             endpoint=ProviderEndpoint.RERANK,
             payload=factory.LazyAttribute(

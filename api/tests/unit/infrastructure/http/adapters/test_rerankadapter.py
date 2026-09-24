@@ -205,7 +205,7 @@ class TestRerankAdapter:
     )
     def test_to_provider_response_correctly_with_top_n(self, adapter, response_data):
         # Arrange
-        original_request = ProviderRequestFactory(rerank=True, id="req-123")
+        original_request = ProviderRequestFactory(rerank=True)
         original_request.payload.top_n = None
         original_response = HttpProviderResponse(data=response_data)
 
@@ -218,7 +218,8 @@ class TestRerankAdapter:
         assert len(result.data.results) == 3
         assert result.data.results[0].relevance_score == 1
         assert result.data.results[0].index == 0
-        assert result.data.id == "req-123"
+        assert result.id == original_request.id
+        assert result.data.id == original_request.id
         assert result.data.model == "openweight-rerank"
 
     @pytest.mark.parametrize(
@@ -231,7 +232,7 @@ class TestRerankAdapter:
     )
     def test_to_provider_response_correctly_without_top_n(self, adapter, response_data):
         # Arrange
-        original_request = ProviderRequestFactory(rerank=True, id="req-123")
+        original_request = ProviderRequestFactory(rerank=True)
         original_request.payload.top_n = 2
         original_response = HttpProviderResponse(data=response_data)
 
@@ -244,7 +245,8 @@ class TestRerankAdapter:
         assert len(result.data.results) == 2
         assert result.data.results[0].relevance_score == 1
         assert result.data.results[0].index == 0
-        assert result.data.id == "req-123"
+        assert result.id == original_request.id
+        assert result.data.id == original_request.id
         assert result.data.model == "openweight-rerank"
 
     @pytest.mark.parametrize(

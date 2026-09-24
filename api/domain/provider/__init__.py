@@ -5,8 +5,7 @@ from api.domain.provider._providerclient import (
     ProviderClientStream,
     ProviderClientStreamError,
 )
-from api.domain.provider._providerloadbalancer import ProviderLoadBalancer
-from api.domain.provider._providermetricslogger import ProviderMetricsLogger
+from api.domain.provider._providerqos import ProviderAdmissionFull, ProviderAdmissionResult, ProviderQoS
 from api.domain.provider._providerrepository import ProviderRepository
 
 __all__ = [
@@ -15,7 +14,8 @@ __all__ = [
     "ProviderClientResponse",
     "ProviderClientStream",
     "ProviderClientStreamError",
-    "ProviderLoadBalancer",
-    "ProviderMetricsLogger",
+    "ProviderAdmissionFull",
+    "ProviderAdmissionResult",
+    "ProviderQoS",
     "ProviderRepository",
 ]

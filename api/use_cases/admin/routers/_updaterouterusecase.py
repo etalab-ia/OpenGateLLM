@@ -14,6 +14,7 @@ class UpdateRouterCommand:
     load_balancing_strategy: RouterLoadBalancingStrategy
     cost_prompt_tokens: float
     cost_completion_tokens: float
+    qos_retries_before_reject: int | None
 
 
 @dataclass
@@ -45,6 +46,7 @@ class UpdateRouterUseCase:
             .with_load_balancing_strategy(command.load_balancing_strategy)
             .with_cost_prompt_tokens(command.cost_prompt_tokens)
             .with_cost_completion_tokens(command.cost_completion_tokens)
+            .with_qos_retries_before_reject(command.qos_retries_before_reject)
             .with_aliases(command.aliases)
         )
 

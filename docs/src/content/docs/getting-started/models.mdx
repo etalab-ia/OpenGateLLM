@@ -92,6 +92,10 @@ sequenceDiagram
 3. (Optional) Apply a rate limiting policy to the router.
    See [rate limiting](/features/usage/rate_limiting/).
 
+### Load support
+
+How the gateway measures provider load, applies `qos_limit`, and waits with `qos_retries_before_reject` is described in [Load support](/features/usage/load/).
+
 <Tabs>
   <TabItem value="playground" label="Playground UI" icon="lucide:laptop">
   <Steps>
@@ -102,6 +106,7 @@ sequenceDiagram
           <li><code>name</code>: model name shown to users.</li>
           <li><code>type</code>: model type (for example <code>text-generation</code>).</li>
           <li><code>load_balancing_strategy</code>: <code>shuffle</code> (default) or <code>least_busy</code>.</li>
+          <li><code>qos_retries_before_reject</code> (optional): <code>null</code>, <code>0</code>, or a positive retry count.</li>
           <li><code>aliases</code> (optional): additional names for the same router.</li>
         </ul>
       </li>
@@ -114,6 +119,7 @@ sequenceDiagram
           <li><code>url</code> (optional for some provider types): provider base URL (domain only, without <code>/v1</code>).</li>
           <li><code>key</code> (optional): API key.</li>
           <li><code>timeout</code> (optional): request timeout in seconds.</li>
+          <li><code>qos_limit</code> (optional): <code>null</code>, <code>0</code>, or a positive concurrent-request cap.</li>
         </ul>
       </li>
     </ol>

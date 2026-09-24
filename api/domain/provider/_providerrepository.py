@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from api.domain import SortOrder
-from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 
 
@@ -14,7 +14,6 @@ class ProviderRepository(ABC):
         provider_type: ProviderType,
         url: str,
         key: str | None,
-        basic_auth: BasicAuth | None,
         timeout: int,
         model_name: str,
         model_hosting_zone: HostingZone,
@@ -22,6 +21,7 @@ class ProviderRepository(ABC):
         model_active_params: int,
         vector_size: int,
         max_context_length: int,
+        qos_limit: int | None = None,
     ) -> Provider | ProviderAlreadyExistsError:
         pass
 

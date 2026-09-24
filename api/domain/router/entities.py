@@ -36,6 +36,7 @@ class Router(BaseModel):
     providers: int
     created: UtcDatetime
     updated: UtcDatetime
+    qos_retries_before_reject: int | None = None
 
     def with_name(self, name: str) -> "Router":
         return self.model_copy(update={"name": name})
@@ -54,6 +55,9 @@ class Router(BaseModel):
 
     def with_aliases(self, aliases: list[str]) -> "Router":
         return self.model_copy(update={"aliases": aliases})
+
+    def with_qos_retries_before_reject(self, qos_retries_before_reject: int | None) -> "Router":
+        return self.model_copy(update={"qos_retries_before_reject": qos_retries_before_reject})
 
     @property
     def has_no_providers(self) -> bool:
