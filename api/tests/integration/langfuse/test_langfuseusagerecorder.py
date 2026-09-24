@@ -57,6 +57,7 @@ class TestLangfuseUsageRecorder:
             name="chat-completions",
             model="chat-router",
             metadata=IDENTITY_METADATA,
+            completion_start_time=recorder.start_time,
         )
 
     def test_should_return_fallback_id_when_start_fails(self, recorder, mock_client):
