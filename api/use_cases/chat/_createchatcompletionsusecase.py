@@ -69,7 +69,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                         pass
                     case error:
                         self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
-                        self.usage_recorder.end_record()
+                        self.usage_repository.end_record()
                         return error
 
                 self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
@@ -78,7 +78,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                         pass
                     case error:
                         self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
-                        self.usage_recorder.end_record()
+                        self.usage_repository.end_record()
                         return error
 
                 # the reservation now belongs to the stream, released once it is consumed or closed
