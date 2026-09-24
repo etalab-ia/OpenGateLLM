@@ -63,7 +63,6 @@ def _request_context() -> RequestContext:
     now = datetime.now(tz=UTC)
 
     return RequestContext(
-        method="POST",
         endpoint="/v1/chat/completions",
         key=Key(id=7, name="my-key", user_id=USER_ID, value="sk-x", expires=None, created=now),
         user=AuthenticatedUserView(

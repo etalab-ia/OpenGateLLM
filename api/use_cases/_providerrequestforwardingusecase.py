@@ -1,7 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-import time
 from typing import ClassVar
 
 from pydantic import BaseModel
@@ -123,7 +122,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 case ProviderResponse() as provider_response:
                     pass
                 case error:
-                    self.usage_recorder.fail_record(message=type(error).__name__)
+                    self.usage_recorder.fail_record(message=type(error).__name__, status_code=getattr(error, "status_code", 500))
                     return error
 
             return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
@@ -220,9 +219,8 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=payload)
 
         async with self._inflight(provider=provider):
-            start_time = time.perf_counter()
             result = await self.provider_client.forward(provider=provider, request=request)
-            latency = self._elapsed(start_time=start_time)
+            latency = self.usage_recorder.compute_latency()
 
         match result:
             case ProviderResponse() as provider_response:
@@ -261,10 +259,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         finally:
             if is_incremented:
                 await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
-
-    @staticmethod
-    def _elapsed(start_time: float) -> float:
-        return time.perf_counter() - start_time
 
     def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: float) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(

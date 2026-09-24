@@ -20,7 +20,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
             model_total_params=7,
             model_zone=HostingZone.WOR,
             completion_tokens=1000,
-            request_latency=12,
+            request_latency=12000,
         )
 
         # Assert
@@ -33,7 +33,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
             model_total_params=0,
             model_zone=HostingZone.WOR,
             completion_tokens=1000,
-            request_latency=12,
+            request_latency=12000,
         )
 
         # Assert
@@ -46,7 +46,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
             model_total_params=7,
             model_zone=HostingZone.WOR,
             completion_tokens=0,
-            request_latency=12,
+            request_latency=12000,
         )
 
         # Assert
@@ -59,7 +59,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
             model_total_params=7,
             model_zone=HostingZone.WOR,
             completion_tokens=1000,
-            request_latency=12,
+            request_latency=12000,
         )
 
         # Assert
@@ -73,14 +73,14 @@ class TestEcologitModelEnvironmentalImpactsComputer:
             model_total_params=7,
             model_zone=HostingZone.WOR,
             completion_tokens=1000,
-            request_latency=12,
+            request_latency=12000,
         )
         result_fra = computer.compute(
             model_active_params=7,
             model_total_params=7,
             model_zone=HostingZone.FRA,
             completion_tokens=1000,
-            request_latency=12,
+            request_latency=12000,
         )
 
         # Assert
@@ -93,14 +93,14 @@ class TestEcologitModelEnvironmentalImpactsComputer:
             model_total_params=7,
             model_zone=HostingZone.WOR,
             completion_tokens=100,
-            request_latency=12,
+            request_latency=12000,
         )
         result_high = computer.compute(
             model_active_params=7,
             model_total_params=7,
             model_zone=HostingZone.WOR,
             completion_tokens=1000,
-            request_latency=12,
+            request_latency=12000,
         )
 
         # Assert
@@ -124,7 +124,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
             model_total_params=7,
             model_zone=HostingZone.WOR,
             completion_tokens=1000,
-            request_latency=12,
+            request_latency=12000,
         )
 
         # Assert

@@ -57,6 +57,7 @@ class TestLangfuseUsageRecorder:
             name="chat-completions",
             model="chat-router",
             metadata=IDENTITY_METADATA,
+            completion_start_time=recorder.start_time,
         )
 
     def test_should_return_fallback_id_when_start_fails(self, recorder, mock_client):
@@ -129,7 +130,7 @@ class TestLangfuseUsageRecorder:
         _start_record(recorder)
 
         # Act
-        recorder.fail_record(message="TooBusyModelError")
+        recorder.fail_record(message="TooBusyModelError", status_code=503)
 
         # Assert
         mock_observation.update.assert_called_once_with(level="ERROR", status_message="TooBusyModelError")
@@ -140,7 +141,7 @@ class TestLangfuseUsageRecorder:
         _start_record(recorder)
 
         # Act / Assert
-        recorder.fail_record(message="TooBusyModelError")
+        recorder.fail_record(message="TooBusyModelError", status_code=503)
 
     def test_should_end_observation(self, recorder, mock_observation):
         # Arrange

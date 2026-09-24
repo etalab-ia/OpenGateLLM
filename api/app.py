@@ -56,7 +56,7 @@ def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
 
     @app.middleware("http")
     async def set_request_context(request: Request, call_next):
-        request_context.set(RequestContext(method=request.method, endpoint=request.url.path))
+        request_context.set(RequestContext(endpoint=request.url.path))
         return await call_next(request)
 
 

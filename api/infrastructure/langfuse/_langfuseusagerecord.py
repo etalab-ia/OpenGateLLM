@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 from uuid import uuid4
 
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 class LangfuseUsageRecorder(UsageRecorder):
     def __init__(self, client: Langfuse) -> None:
         self.client = client
+        self.start_time: datetime | None = None
         self._observation = None
         self._metadata: dict = {}
 
@@ -28,6 +29,7 @@ class LangfuseUsageRecorder(UsageRecorder):
         key_id: int,
         key_name: str,
     ) -> str:
+        self.start_time = datetime.now(tz=UTC)
         self._metadata = {"router_id": router_id, "router_name": router_name, "user_email": user_email, "key_id": key_id, "key_name": key_name}
         try:
             with propagate_attributes(user_id=str(user_id)):
@@ -36,6 +38,7 @@ class LangfuseUsageRecorder(UsageRecorder):
                     name=endpoint.strip("/").replace("/", "-"),
                     model=model,
                     metadata=self._metadata,
+                    completion_start_time=self.start_time,
                 )
             return self._observation.trace_id
         except Exception:
@@ -68,7 +71,7 @@ class LangfuseUsageRecorder(UsageRecorder):
         except Exception:
             logger.exception("Failed to update Langfuse observation")
 
-    def fail_record(self, message: str) -> None:
+    def fail_record(self, message: str, status_code: int) -> None:
         if self._observation is None:
             return
 
@@ -76,6 +79,12 @@ class LangfuseUsageRecorder(UsageRecorder):
             self._observation.update(level="ERROR", status_message=message)
         except Exception:
             logger.exception("Failed to mark Langfuse observation as error")
+
+    def compute_latency(self, end_time: datetime | None = None) -> int:
+        if self.start_time is None:
+            return 0
+
+        return round(((end_time or datetime.now(tz=UTC)) - self.start_time).total_seconds() * 1000)
 
     def end_record(self) -> None:
         if self._observation is None:

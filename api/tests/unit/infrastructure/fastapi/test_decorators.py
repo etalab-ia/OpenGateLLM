@@ -33,7 +33,6 @@ def _authenticated_user(permissions: list[PermissionType] | None = None, limits:
 def _set_request_context(**overrides) -> None:
     now = datetime.now(tz=UTC)
     context = RequestContext(
-        method="POST",
         endpoint="/v1/ocr",
         key=Key(id=7, name="my-key", user_id=42, value="sk-...", expires=None, created=now),
         user=_authenticated_user(),
