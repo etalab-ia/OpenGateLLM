@@ -8,7 +8,7 @@ from langfuse import Langfuse, propagate_attributes
 
 from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, Usage, UsageBucket, UsageBucketPage
-from api.utils.variables import EndpointRoute
+from api.infrastructure.fastapi.routes import EndpointRoute
 
 logger = logging.getLogger(__name__)
 

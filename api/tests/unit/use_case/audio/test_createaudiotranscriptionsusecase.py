@@ -9,7 +9,7 @@ from api.domain.audio.entities import (
     CreateAudioTranscriptionsForm,
 )
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
-from api.domain.provider.entities import ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.usage import UsageContext, UsageRepository
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, RouterFactory
@@ -19,7 +19,6 @@ from api.use_cases.audio import (
     CreateAudioTranscriptionsTextUseCaseSuccess,
     CreateAudioTranscriptionsUseCase,
 )
-from api.utils.variables import EndpointRoute
 
 TRACE_ID = "a" * 32
 
@@ -114,7 +113,7 @@ class TestCreateAudioTranscriptionsUseCase:
         assert CreateAudioTranscriptionsUseCase.ROUTER_TYPE == RouterType.AUTOMATIC_SPEECH_RECOGNITION
 
     def test_should_use_audio_transcriptions_endpoint(self):
-        assert CreateAudioTranscriptionsUseCase.ENDPOINT == EndpointRoute.AUDIO_TRANSCRIPTIONS
+        assert CreateAudioTranscriptionsUseCase.ENDPOINT == ProviderEndpoint.AUDIO_TRANSCRIPTIONS
 
 
 class TestCreateAudioTranscriptionsUseCaseExecute:

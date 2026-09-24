@@ -37,6 +37,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UserHasRoutersHTTPException,
     UserNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody, UserResponse, UsersResponse, UserUpdateRequest
 from api.use_cases.admin.users import (
     CreateUserCommand,
@@ -55,7 +56,6 @@ from api.use_cases.admin.users import (
     UpdateUserUseCase,
     UpdateUserUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 

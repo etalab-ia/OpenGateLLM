@@ -3,7 +3,7 @@ from http import HTTPMethod
 from pydantic import BaseModel
 import pytest
 
-from api.domain.provider.entities import ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank
 from api.infrastructure.http import HttpProviderRequest, HttpProviderResponse
@@ -13,7 +13,6 @@ from api.tests.integration.factories.tei import TeiRerankResponseFactory
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
-from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
@@ -309,4 +308,4 @@ class TestRerankAdapter:
     )
     def test_source_endpoint_is_rerank(self, adapter):
         # Assert
-        assert adapter.SOURCE_ENDPOINT == EndpointRoute.RERANK
+        assert adapter.SOURCE_ENDPOINT == ProviderEndpoint.RERANK

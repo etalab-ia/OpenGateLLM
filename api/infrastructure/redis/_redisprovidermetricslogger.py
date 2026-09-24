@@ -6,7 +6,8 @@ from redis.asyncio import Redis as AsyncRedis
 from redis.exceptions import ConnectionError, RedisError, TimeoutError
 
 from api.domain.provider import ProviderMetricsLogger
-from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
+
+from ._keys import PREFIX__REDIS_METRIC_GAUGE
 
 logger = logging.getLogger(__name__)
 

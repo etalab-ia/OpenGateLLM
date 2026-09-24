@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+from fastapi import BackgroundTasks
 import pytest
 
 from api.domain import EntitiesPage
@@ -16,7 +17,7 @@ THIRD_DAY = datetime(2026, 8, 3, tzinfo=UTC)
 
 @pytest.fixture
 def repository(db_session):
-    return PostgresUsageRepository(postgres_session=db_session)
+    return PostgresUsageRepository(postgres_session=db_session, background_tasks=BackgroundTasks())
 
 
 def _window():

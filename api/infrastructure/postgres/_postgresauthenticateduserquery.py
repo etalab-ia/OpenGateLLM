@@ -6,9 +6,9 @@ from api.domain.role.entities import LimitType
 from api.domain.user import AuthenticatedUserQuery
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
-from api.sql.models import Limit as LimitTable
-from api.sql.models import Permission as PermissionTable
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import Limit as LimitTable
+from api.infrastructure.postgres.models import Permission as PermissionTable
+from api.infrastructure.postgres.models import User as UserTable
 
 
 class PostgresAuthenticatedUserQuery(AuthenticatedUserQuery):

@@ -3,10 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from api.domain.key.entities import Key
+from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME, Key
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
 from api.use_cases.auth import AuthLoginCommand, AuthLoginUseCase, AuthLoginUseCaseSuccess
-from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME
 
 
 @pytest.fixture

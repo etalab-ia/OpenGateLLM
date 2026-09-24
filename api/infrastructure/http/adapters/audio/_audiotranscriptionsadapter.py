@@ -3,16 +3,15 @@ from http import HTTPMethod
 from pydantic import ValidationError
 
 from api.domain.audio.entities import AudioTranscriptions
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters import HttpProviderAdapter
-from api.utils.variables import EndpointRoute
 
 
 class AudioTranscriptionsAdapter(HttpProviderAdapter):
-    SOURCE_ENDPOINT = EndpointRoute.AUDIO_TRANSCRIPTIONS
+    SOURCE_ENDPOINT = ProviderEndpoint.AUDIO_TRANSCRIPTIONS
     TARGET_ENDPOINT_ROUTE = "/v1/audio/transcriptions"
     TARGET_ENDPOINT_METHOD = HTTPMethod.POST
     RESPONSE_TYPE = AudioTranscriptions

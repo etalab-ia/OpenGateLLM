@@ -2,13 +2,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from api.domain.organization.entities import DEFAULT_ORGANIZATION_NAME
 from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
 from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 from api.tests.unit.use_case.factories import OrganizationFactory, RoleFactory, UserFactory
 from api.use_cases.admin import BootstrapAdminCommand, BootstrapAdminUseCase, BootstrapAdminUseCaseSkipped, BootstrapAdminUseCaseSuccess
-from api.utils.variables import DEFAULT_ORGANIZATION_NAME
 
 
 @pytest.fixture

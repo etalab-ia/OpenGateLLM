@@ -13,8 +13,8 @@ from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.user.entities import User
 from api.domain.user.views import AuthenticatedUserView
-from api.schemas.core.configuration import Model as ModelConfiguration
-from api.schemas.core.configuration import ModelProvider as ModelProviderConfiguration
+from api.infrastructure.configuration import Model as ModelConfiguration
+from api.infrastructure.configuration import ModelProvider as ModelProviderConfiguration
 
 
 # Entity factories

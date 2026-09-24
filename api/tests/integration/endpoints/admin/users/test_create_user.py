@@ -10,10 +10,10 @@ from api.dependencies import create_user_use_case_factory
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError
-from api.sql.models import User as UserTable
+from api.infrastructure.fastapi.routes import EndpointRoute
+from api.infrastructure.postgres.models import User as UserTable
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_USERS}"
 

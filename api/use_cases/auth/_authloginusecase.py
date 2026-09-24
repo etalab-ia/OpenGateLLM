@@ -3,10 +3,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from api.domain.key import KeyRepository
-from api.domain.key.entities import Key
+from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME, Key
 from api.domain.user import UserPasswordEncoder, UserRepository
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
-from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME
 
 
 @dataclass

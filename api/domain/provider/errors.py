@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
-from api.domain.provider.entities import ProviderType
-from api.utils.variables import EndpointRoute
+from api.domain.provider.entities import ProviderEndpoint, ProviderType
 
 
 @dataclass
@@ -54,5 +53,5 @@ class ProviderAdapterValidationResponseError:
 
 @dataclass
 class UnsupportedProviderEndpointError:
-    endpoint: EndpointRoute
+    endpoint: ProviderEndpoint
     provider_type: ProviderType | None = None

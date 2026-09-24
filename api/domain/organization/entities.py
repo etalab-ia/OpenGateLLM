@@ -2,6 +2,8 @@ from enum import StrEnum
 
 from api.domain import BaseModel, EntitiesPage, UtcDatetime
 
+DEFAULT_ORGANIZATION_NAME: str = "default"
+
 
 class OrganizationSortField(StrEnum):
     ID = "id"

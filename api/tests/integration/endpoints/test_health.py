@@ -4,11 +4,11 @@ import pytest_asyncio
 import respx
 
 from api.domain.provider.entities import ProviderType
-from api.schemas.models import ModelType
+from api.domain.router.entities import RouterType
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_metrics_responses
 from api.tests.integration.factories.sql import LimitSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 HEALTH_URL = EndpointRoute.HEALTH
 HEALTH_MODELS_URL = EndpointRoute.HEALTH_MODELS
@@ -44,7 +44,7 @@ class TestGetHealthModels:
         router = RouterSQLFactory(
             user=self.router_owner,
             name="router_1",
-            type=ModelType.TEXT_GENERATION,
+            type=RouterType.TEXT_GENERATION,
         )
         ProviderSQLFactory(
             router=router,
@@ -56,7 +56,7 @@ class TestGetHealthModels:
         RouterSQLFactory(
             user=self.router_owner,
             name="router_no_access",
-            type=ModelType.TEXT_GENERATION,
+            type=RouterType.TEXT_GENERATION,
             providers=1,
         )
         LimitSQLFactory(role=self.user.role, router=router)

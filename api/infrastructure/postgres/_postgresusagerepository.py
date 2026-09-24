@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, Usage, UsageBucket, UsageBucketPage
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres._pagination import fetch_page_with_total
-from api.sql.models import Usage as UsageTable
-from api.utils.variables import EndpointRoute
+from api.infrastructure.postgres.models import Usage as UsageTable
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,6 @@ class PostgresUsageRepository(UsageRepository):
             .limit(limit)
         )
         count_query = select(func.count()).select_from(select(utc_day_start).where(*filters).group_by(utc_day_start).subquery())
-
         rows, total = await fetch_page_with_total(self.postgres_session, buckets_query, count_query)
 
         return UsageBucketPage(total=total, data=[self._row_to_usage_bucket(row) for row in rows])

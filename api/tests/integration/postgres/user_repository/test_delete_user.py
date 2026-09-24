@@ -4,7 +4,7 @@ from sqlalchemy import select
 from api.domain.user.entities import User
 from api.domain.user.errors import UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.infrastructure.postgres import PostgresUserRepository
-from api.sql.models import User as UserTable
+from api.infrastructure.postgres.models import User as UserTable
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 
 

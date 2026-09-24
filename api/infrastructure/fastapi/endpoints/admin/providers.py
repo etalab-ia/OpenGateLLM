@@ -38,6 +38,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     ProviderNotReachableHTTPException,
     RouterNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.providers import (
     CreateProviderBody,
     CreateProviderResponse,
@@ -62,7 +63,6 @@ from api.use_cases.admin.providers import (
     UpdateProviderUseCase,
     UpdateProviderUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 

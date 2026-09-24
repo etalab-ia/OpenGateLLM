@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 from api.domain.usage.entities import Usage, UsageBucketPage
-from api.utils.variables import EndpointRoute
+from api.infrastructure.fastapi.routes import EndpointRoute
 
 
 class UsageRepository(ABC):

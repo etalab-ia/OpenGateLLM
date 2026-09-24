@@ -6,13 +6,14 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import _key_encoder, _user_password_encoder, auth_login_use_case_factory, get_postgres_session
+from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME
 from api.domain.user import UserPasswordEncoder
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresUserRepository
 from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory
 from api.use_cases.auth import AuthLoginUseCase
-from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME, EndpointRoute
 
 URL = f"/v1{EndpointRoute.AUTH_LOGIN}"
 

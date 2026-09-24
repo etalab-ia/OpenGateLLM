@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from api.utils.variables import RouterName
+from api.infrastructure.fastapi.routes import RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 

@@ -9,14 +9,15 @@ import respx
 
 from api.dependencies import _key_encoder, auth_sso_login_use_case_factory, get_postgres_session
 from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError, SsoProviderNotAvailableError
+from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.http import HttpAuthSsoSessionValidator
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresOrganizationRepository, PostgresRolesRepository, PostgresUserRepository
 from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory, UserSQLFactory
 from api.use_cases.auth import AuthSsoLoginUseCase
-from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME, EndpointRoute
 
 URL = f"/v1{EndpointRoute.AUTH_SSO_LOGIN}"
 

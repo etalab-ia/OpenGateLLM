@@ -7,8 +7,8 @@ from langfuse import Langfuse
 import pytest
 
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.langfuse import LangfuseUsageRepository
-from api.utils.variables import EndpointRoute
 
 IDENTITY_METADATA = {
     "router_id": 3,

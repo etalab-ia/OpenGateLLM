@@ -8,9 +8,9 @@ from api.domain.router.entities import Router, RouterLoadBalancingStrategy, Rout
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
-from api.sql.models import Provider as ProviderTable
-from api.sql.models import Router as RouterTable
-from api.sql.models import RouterAlias as RouterAliasTable
+from api.infrastructure.postgres.models import Provider as ProviderTable
+from api.infrastructure.postgres.models import Router as RouterTable
+from api.infrastructure.postgres.models import RouterAlias as RouterAliasTable
 
 
 class PostgresRouterRepository(RouterRepository):

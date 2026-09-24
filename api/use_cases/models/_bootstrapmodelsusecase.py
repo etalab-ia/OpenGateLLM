@@ -7,7 +7,7 @@ from api.domain.provider import ProviderRepository
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNameAlreadyExistsError
-from api.schemas.core.configuration import Model as ModelConfiguration
+from api.infrastructure.configuration import Model as ModelConfiguration
 from api.use_cases.services import ProviderCapabilitiesProbe
 
 logger = logging.getLogger(__name__)

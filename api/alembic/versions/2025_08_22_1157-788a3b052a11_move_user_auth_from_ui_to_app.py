@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from sqlalchemy import MetaData, Table, create_engine
 from sqlalchemy import select as sa_select
 
-from api.utils.configuration import configuration
+from api.infrastructure.configuration import configuration
 
 logger = logging.getLogger(__name__)
 

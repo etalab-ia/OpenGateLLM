@@ -20,7 +20,7 @@ from api.infrastructure.fastapi._streamingresponsewithstatuscode import Streamin
 from api.infrastructure.fastapi.decorators import _wrap_streaming_response, set_usage_from_context
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.endpoints.chat import _as_stream_chunks
-from api.sql.models import Usage as UsageRow
+from api.infrastructure.postgres.models import Usage as UsageRow
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
 from api.use_cases.chat import CreateChatCompletionsUseCase
 

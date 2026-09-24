@@ -1,0 +1,184 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from langfuse import Langfuse
+import redis.asyncio as redis
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+import tiktoken
+from tiktoken.core import Encoding
+
+from api.dependencies import get_postgres_session
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.router.errors import RouterNameAlreadyExistsError
+from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
+from api.infrastructure.context import global_context
+from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.logging import init_logger
+from api.infrastructure.postgres import (
+    AutocommitSession,
+    PostgresLimitRepository,
+    PostgresOrganizationRepository,
+    PostgresPermissionRepository,
+    PostgresProviderRepository,
+    PostgresRolesRepository,
+    PostgresRouterRepository,
+    PostgresUserRepository,
+)
+from api.use_cases.admin import (
+    BootstrapAdminCommand,
+    BootstrapAdminUseCase,
+    BootstrapAdminUseCaseSkipped,
+    BootstrapAdminUseCaseSuccess,
+)
+from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
+from api.use_cases.services import ProviderCapabilitiesProbe
+
+logger = init_logger(name=__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    configuration = get_configuration()
+
+    global_context.redis_pool = await create_redis_pool(configuration)
+    global_context.postgres_engine = create_postgres_engine(configuration)
+    global_context.postgres_session_factory = create_postgres_session_factory(engine=global_context.postgres_engine)
+    global_context.autocommit_postgres_session_factory = create_autocommit_postgres_session_factory(engine=global_context.postgres_engine)
+
+    async for postgres_session in get_postgres_session():
+        bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
+        if bootstrap_admin_user_id is not None:
+            await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
+
+    global_context.langfuse = create_langfuse(configuration=configuration)
+    global_context.tokenizer = initialize_tokenizer(configuration=configuration)
+
+    yield
+
+    if global_context.redis_pool:
+        await global_context.redis_pool.aclose()
+
+    if global_context.postgres_engine:
+        await global_context.postgres_engine.dispose()
+
+
+async def create_redis_pool(configuration: Configuration) -> redis.ConnectionPool:
+    pool = redis.ConnectionPool.from_url(**configuration.dependencies.redis.model_dump())
+    pool.url = configuration.dependencies.redis.url
+    client = redis.Redis(connection_pool=pool)
+    if not await client.ping():
+        raise RuntimeError("Redis database is not reachable.")
+    await client.aclose()
+    return pool
+
+
+def create_postgres_engine(configuration: Configuration) -> AsyncEngine:
+    return create_async_engine(**configuration.dependencies.postgres.model_dump())
+
+
+def create_postgres_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+def create_autocommit_postgres_session_factory(engine: AsyncEngine) -> async_sessionmaker[AutocommitSession]:
+    return async_sessionmaker(engine, class_=AutocommitSession, expire_on_commit=False)
+
+
+async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_session: AsyncSession) -> int | None:
+    user_repository = PostgresUserRepository(postgres_session=postgres_session)
+    role_repository = PostgresRolesRepository(postgres_session=postgres_session)
+    limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
+    permission_repository = PostgresPermissionRepository(postgres_session=postgres_session)
+    organization_repository = PostgresOrganizationRepository(postgres_session=postgres_session)
+
+    result = await BootstrapAdminUseCase(
+        user_repository=user_repository,
+        role_repository=role_repository,
+        limit_repository=limit_repository,
+        permission_repository=permission_repository,
+        organization_repository=organization_repository,
+        user_password_encoder=BcryptUserPasswordEncoder(),
+    ).execute(
+        BootstrapAdminCommand(email=configuration.settings.auth_bootsrap_admin_username, password=configuration.settings.auth_bootsrap_admin_password)
+    )
+
+    match result:
+        case BootstrapAdminUseCaseSuccess() as success:
+            logger.info(f"Admin user not found, bootstrap admin created ({success.email}):")
+            logger.info(f"user ID: {success.user_id}")
+            logger.info(f"role ID: {success.role_id}")
+            return success.user_id
+        case BootstrapAdminUseCaseSkipped(user_id=None):
+            logger.info("Admin bootstrap already handled by another worker, skipping.")
+            if postgres_session.in_transaction():
+                await postgres_session.rollback()
+            return None
+        case BootstrapAdminUseCaseSkipped() as skipped:
+            logger.info(f"Admin user already exists, use first admin user as bootstrap admin user ({skipped.email}):")
+            logger.info(f"user ID: {skipped.user_id}")
+            logger.info(f"role ID: {skipped.role_id}")
+            return skipped.user_id
+
+
+async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
+    router_repository = PostgresRouterRepository(postgres_session=postgres_session)
+    provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
+    provider_capabilities_probe = ProviderCapabilitiesProbe(provider_client=HttpProviderClient(adapter_builder=HttpProviderAdapterBuilder()))
+
+    result = await BootstrapModelsUseCase(
+        router_repository=router_repository,
+        provider_repository=provider_repository,
+        provider_capabilities_probe=provider_capabilities_probe,
+    ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
+
+    match result:
+        case BootstrapModelsUseCaseSuccess() as success:
+            logger.info(f"{success.number_of_routers} routers successfully created during bootstrap.")
+            return success.number_of_routers
+        case BootstrapModelsUseCaseSkipped() as skipped:
+            logger.info(f"{skipped.number_of_routers} routers already exist, skipping bootstrap creation.")
+            return skipped.number_of_routers
+        case RouterNameAlreadyExistsError() as error:
+            raise RuntimeError(f"Router name or alias is already taken ({error.name}) by another router.")
+        case ModelNotFoundError() as error:
+            raise RuntimeError(f"Provider {error.name} are not found.")
+        case ProviderAlreadyExistsError() as error:
+            raise RuntimeError(f"Provider {error.model_name} already exists ({error.url}) for the same router ({error.router_id}).")
+        case ProviderNotReachableError() as error:
+            raise RuntimeError(f"Provider {error.model_name} not reachable ({error.status_code}): {error.detail}")
+        case ProviderInvalidResponseError() as error:
+            raise RuntimeError(f"Provider {error.model_name} returned an invalid response: {error.detail}")
+        case InconsistentModelVectorSizeError() as error:
+            raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
+        case InconsistentModelMaxContextLengthError() as error:
+            raise RuntimeError(f"Inconsistent model max context length ({error.router_name}).")
+
+
+def initialize_tokenizer(configuration: Configuration) -> Encoding:
+    match configuration.settings.usage_tokenizer:
+        case Tokenizer.TIKTOKEN_O200K_BASE:
+            return tiktoken.get_encoding("o200k_base")
+        case Tokenizer.TIKTOKEN_P50K_BASE:
+            return tiktoken.get_encoding("p50k_base")
+        case Tokenizer.TIKTOKEN_R50K_BASE:
+            return tiktoken.get_encoding("r50k_base")
+        case Tokenizer.TIKTOKEN_P50K_EDIT:
+            return tiktoken.get_encoding("p50k_edit")
+        case Tokenizer.TIKTOKEN_CL100K_BASE:
+            return tiktoken.get_encoding("cl100k_base")
+        case Tokenizer.TIKTOKEN_GPT2:
+            return tiktoken.get_encoding("gpt2")
+
+
+def create_langfuse(configuration: Configuration) -> Langfuse | None:
+    if configuration.dependencies.langfuse is None:
+        return None
+
+    langfuse = Langfuse(**configuration.dependencies.langfuse.model_dump())
+    if not langfuse.auth_check():
+        logger.warning("Cannot connect to Langfuse. Check your langfuse dependency configuration (public_key, secret_key, url).")
+        return None
+
+    return langfuse

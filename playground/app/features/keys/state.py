@@ -81,7 +81,7 @@ class KeysState(EntityState):
                 self.entities = []
 
                 for key in data.get("data", []):
-                    if key["name"] not in ["_system_playground_key", "_system_search_tool"]:
+                    if key["name"] not in ["_system_playground_key"]:
                         self.entities.append(self._format_key(key))
 
             self.total = data.get("total", 0)

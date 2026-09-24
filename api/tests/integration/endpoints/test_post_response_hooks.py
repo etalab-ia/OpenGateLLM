@@ -8,15 +8,15 @@ import respx
 
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import Limit, LimitType
+from api.domain.router.entities import RouterType
+from api.infrastructure.configuration import LimitingStrategy
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.redis import RedisRouterRateLimiter
-from api.schemas.core.configuration import LimitingStrategy
-from api.schemas.models import ModelType
 from api.tests.helpers import create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.OCR}"
 
@@ -39,7 +39,7 @@ class TestPostResponseHooks:
         self.router = RouterSQLFactory(
             user=UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True),
             name=ROUTER_NAME,
-            type=ModelType.IMAGE_TO_TEXT,
+            type=RouterType.IMAGE_TO_TEXT,
             free=True,  # disables the update_budget db write
             providers=1,
             providers__type=ProviderType.MISTRAL,
@@ -53,7 +53,7 @@ class TestPostResponseHooks:
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.side_effect = lambda text: [0] * COMPLETION_TOKENS if text else []
-        with override_global_context(redis_pool=test_redis_pool, _tokenizer=mock_tokenizer):
+        with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
             yield
 
     @respx.mock

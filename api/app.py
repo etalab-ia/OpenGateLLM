@@ -5,15 +5,12 @@ from fastapi import FastAPI, Request
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
-from api.endpoints.monitoring import setup_prometheus
+from api.infrastructure.configuration import Configuration, get_configuration
 from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi.dependencies import request_context
-from api.schemas.core.context import RequestContext as LegacyRequestContext
-from api.schemas.usage import Usage
-from api.utils.configuration import Configuration, get_configuration
-from api.utils.context import request_context as legacy_request_context
-from api.utils.lifespan import lifespan
-from api.utils.variables import RouterName
+from api.infrastructure.fastapi.monitoring import setup_prometheus
+from api.infrastructure.fastapi.routes import RouterName
+from api.lifespan import lifespan
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +56,6 @@ def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
 
     @app.middleware("http")
     async def set_request_context(request: Request, call_next):
-        legacy_request_context.set(LegacyRequestContext(method=request.method, endpoint=request.url.path, usage=Usage()))
         request_context.set(RequestContext(method=request.method, endpoint=request.url.path))
         return await call_next(request)
 

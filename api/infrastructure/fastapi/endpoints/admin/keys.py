@@ -5,7 +5,7 @@ from fastapi import Body, Depends, Path, Query, Security
 from api.dependencies import create_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
 from api.domain import SortField, SortOrder
 from api.domain.key.entities import KeyStatus
-from api.domain.key.errors import KeyExpirationInvalidError, KeyNotFoundError
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -15,10 +15,12 @@ from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
     KeyExpirationInvalidHTTPException,
+    KeyNameReservedHTTPException,
     KeyNotFoundHTTPException,
     NotAdminUserHTTPException,
     UserNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.keys import CreateKeyBody, KeyResponse, KeysResponse
 from api.use_cases.admin.keys import (
     CreateKeyCommand,
@@ -34,7 +36,6 @@ from api.use_cases.admin.keys import (
     GetOneKeyUseCase,
     GetOneKeyUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,8 @@ async def create_key(
             return KeyResponse.model_validate(key, from_attributes=True)
         case KeyExpirationInvalidError(max_expiration_days=max_expiration_days):
             raise KeyExpirationInvalidHTTPException(max_expiration_days)
+        case KeyNameReservedError(name=name):
+            raise KeyNameReservedHTTPException(name)
         case UserNotFoundError(id=user_id):
             raise UserNotFoundHTTPException(user_id)
 

@@ -1,6 +1,6 @@
 import pytest
 
-from api.domain.provider.entities import ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderType
 from api.domain.provider.errors import UnsupportedProviderEndpointError
 from api.infrastructure.http import HttpProviderAdapterBuilder
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
@@ -20,7 +20,6 @@ from api.infrastructure.http.adapters.rerank import RerankAdapter
 from api.infrastructure.http.adapters.rerank.tei import TeiRerankAdapter
 from api.infrastructure.http.adapters.rerank.vllm import VllmRerankAdapter
 from api.tests.unit.use_case.factories import ProviderFactory
-from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
@@ -34,7 +33,7 @@ class TestHttpProviderAdapterBuilder:
         provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test")
 
         # Act
-        result = http_provider_adapter_builder.build(endpoint=EndpointRoute.RERANK, provider=provider)
+        result = http_provider_adapter_builder.build(endpoint=ProviderEndpoint.RERANK, provider=provider)
 
         # Assert
         assert isinstance(result, VllmRerankAdapter)
@@ -46,7 +45,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
+            endpoint=ProviderEndpoint.AUDIO_TRANSCRIPTIONS,
             provider=provider,
         )
 
@@ -59,7 +58,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.CHAT_COMPLETIONS,
+            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
             provider=provider,
         )
 
@@ -72,7 +71,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.EMBEDDINGS,
+            endpoint=ProviderEndpoint.EMBEDDINGS,
             provider=provider,
         )
 
@@ -85,7 +84,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.MODELS,
+            endpoint=ProviderEndpoint.MODELS,
             provider=provider,
         )
 
@@ -98,7 +97,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.OCR,
+            endpoint=ProviderEndpoint.OCR,
             provider=provider,
         )
 
@@ -111,7 +110,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.RERANK,
+            endpoint=ProviderEndpoint.RERANK,
             provider=provider,
         )
 
@@ -124,7 +123,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
+            endpoint=ProviderEndpoint.AUDIO_TRANSCRIPTIONS,
             provider=provider,
         )
 
@@ -137,7 +136,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.CHAT_COMPLETIONS,
+            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
             provider=provider,
         )
 
@@ -150,7 +149,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.MODELS,
+            endpoint=ProviderEndpoint.MODELS,
             provider=provider,
         )
 
@@ -163,7 +162,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.METRICS,
+            endpoint=ProviderEndpoint.METRICS,
             provider=provider,
         )
 
@@ -177,7 +176,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.EMBEDDINGS,
+            endpoint=ProviderEndpoint.EMBEDDINGS,
             provider=provider,
         )
 
@@ -190,7 +189,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.OCR,
+            endpoint=ProviderEndpoint.OCR,
             provider=provider,
         )
 
@@ -203,7 +202,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
+            endpoint=ProviderEndpoint.AUDIO_TRANSCRIPTIONS,
             provider=provider,
         )
 
@@ -216,7 +215,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.CHAT_COMPLETIONS,
+            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
             provider=provider,
         )
 
@@ -229,7 +228,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.EMBEDDINGS,
+            endpoint=ProviderEndpoint.EMBEDDINGS,
             provider=provider,
         )
 
@@ -242,7 +241,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.MODELS,
+            endpoint=ProviderEndpoint.MODELS,
             provider=provider,
         )
 
@@ -255,7 +254,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.MODELS,
+            endpoint=ProviderEndpoint.MODELS,
             provider=provider,
         )
 
@@ -268,7 +267,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.RERANK,
+            endpoint=ProviderEndpoint.RERANK,
             provider=provider,
         )
 
@@ -281,7 +280,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.EMBEDDINGS,
+            endpoint=ProviderEndpoint.EMBEDDINGS,
             provider=provider,
         )
 
@@ -294,7 +293,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.MODELS,
+            endpoint=ProviderEndpoint.MODELS,
             provider=provider,
         )
 
@@ -307,7 +306,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.METRICS,
+            endpoint=ProviderEndpoint.METRICS,
             provider=provider,
         )
 
@@ -321,7 +320,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.RERANK,
+            endpoint=ProviderEndpoint.RERANK,
             provider=provider,
         )
 
@@ -334,7 +333,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.CHAT_COMPLETIONS,
+            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
             provider=provider,
         )
 
@@ -347,7 +346,7 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            endpoint=EndpointRoute.EMBEDDINGS,
+            endpoint=ProviderEndpoint.EMBEDDINGS,
             provider=provider,
         )
 
@@ -357,23 +356,23 @@ class TestHttpProviderAdapterBuilder:
     @pytest.mark.parametrize(
         "provider_type,endpoint",
         [
-            (ProviderType.ALBERT, EndpointRoute.METRICS),
-            (ProviderType.MISTRAL, EndpointRoute.RERANK),
-            (ProviderType.OPENAI, EndpointRoute.METRICS),
-            (ProviderType.OPENAI, EndpointRoute.OCR),
-            (ProviderType.OPENAI, EndpointRoute.RERANK),
-            (ProviderType.TEI, EndpointRoute.AUDIO_TRANSCRIPTIONS),
-            (ProviderType.TEI, EndpointRoute.CHAT_COMPLETIONS),
-            (ProviderType.TEI, EndpointRoute.METRICS),
-            (ProviderType.TEI, EndpointRoute.OCR),
-            (ProviderType.VLLM, EndpointRoute.OCR),
+            (ProviderType.ALBERT, ProviderEndpoint.METRICS),
+            (ProviderType.MISTRAL, ProviderEndpoint.RERANK),
+            (ProviderType.OPENAI, ProviderEndpoint.METRICS),
+            (ProviderType.OPENAI, ProviderEndpoint.OCR),
+            (ProviderType.OPENAI, ProviderEndpoint.RERANK),
+            (ProviderType.TEI, ProviderEndpoint.AUDIO_TRANSCRIPTIONS),
+            (ProviderType.TEI, ProviderEndpoint.CHAT_COMPLETIONS),
+            (ProviderType.TEI, ProviderEndpoint.METRICS),
+            (ProviderType.TEI, ProviderEndpoint.OCR),
+            (ProviderType.VLLM, ProviderEndpoint.OCR),
         ],
     )
     def test_should_return_unsupported_provider_endpoint_error_when_adapter_is_not_found(
         self,
         http_provider_adapter_builder: HttpProviderAdapterBuilder,
         provider_type: ProviderType,
-        endpoint: EndpointRoute,
+        endpoint: ProviderEndpoint,
     ):
         # Arrange
         provider = ProviderFactory(type=provider_type, url="https://provider.test")

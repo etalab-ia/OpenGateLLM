@@ -8,7 +8,7 @@ from api.domain.provider.entities import BasicAuth, HostingZone, Provider, Provi
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
-from api.sql.models import Provider as ProviderTable
+from api.infrastructure.postgres.models import Provider as ProviderTable
 
 
 class PostgresProviderRepository(ProviderRepository):

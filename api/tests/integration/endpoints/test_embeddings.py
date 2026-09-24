@@ -8,7 +8,7 @@ import respx
 
 from api.dependencies import create_embeddings_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider.entities import ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderType
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -19,13 +19,12 @@ from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.schemas.models import ModelType
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
-from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.EMBEDDINGS}"
 
@@ -53,7 +52,7 @@ class TestCreateEmbeddings:
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.return_value = [0] * 10
-        with override_global_context(redis_pool=test_redis_pool, _tokenizer=mock_tokenizer):
+        with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
             yield
 
     @respx.mock
@@ -62,7 +61,7 @@ class TestCreateEmbeddings:
         router = RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
+            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
             providers=1,
             providers__type=ProviderType.TEI,
             providers__url=DEFAULT_PROVIDER_URL,
@@ -96,7 +95,7 @@ class TestCreateEmbeddings:
         RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
+            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
             providers=1,
             providers__type=ProviderType.TEI,
             providers__url=DEFAULT_PROVIDER_URL,
@@ -175,7 +174,7 @@ class TestCreateEmbeddings:
                 "upstream failure",
             ),
             (
-                UnsupportedProviderEndpointError(endpoint=EndpointRoute.EMBEDDINGS, provider_type=ProviderType.TEI),
+                UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.EMBEDDINGS, provider_type=ProviderType.TEI),
                 500,
                 "Model provider type tei does not support the /embeddings endpoint.",
             ),

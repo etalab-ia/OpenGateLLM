@@ -14,7 +14,7 @@ from api.domain.router import RouterRateLimiter
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.dependencies import request_context
-from api.sql.models import Usage, User
+from api.infrastructure.postgres.models import Usage, User
 
 logger = logging.getLogger(__name__)
 PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession | Any, Any]]

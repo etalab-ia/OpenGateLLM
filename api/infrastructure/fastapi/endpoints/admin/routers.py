@@ -23,6 +23,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.routers import CreateRouterBody, RouterResponse, RoutersResponse, UpdateRouterBody
 from api.use_cases.admin.routers import (
     CreateRouterCommand,
@@ -41,7 +42,6 @@ from api.use_cases.admin.routers import (
     UpdateRouterUseCase,
     UpdateRouterUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 

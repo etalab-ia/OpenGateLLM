@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 
 from api.domain.organization import OrganizationRepository
-from api.domain.organization.entities import Organization
+from api.domain.organization.entities import DEFAULT_ORGANIZATION_NAME, Organization
 from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import PermissionType, Role
@@ -10,7 +10,6 @@ from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.user import UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
-from api.utils.variables import DEFAULT_ORGANIZATION_NAME
 
 logger = logging.getLogger(__name__)
 

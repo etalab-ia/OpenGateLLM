@@ -9,7 +9,7 @@ from api.domain.key.entities import Key, KeyPage, KeyStatus
 from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
-from api.sql.models import Token as KeyTable
+from api.infrastructure.postgres.models import Token as KeyTable
 
 
 class PostgresKeyRepository(KeyRepository):

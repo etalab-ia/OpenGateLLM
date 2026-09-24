@@ -4,12 +4,11 @@ import pytest
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus, Models
 from api.domain.model.errors import StatusCodeModelError
-from api.domain.provider.entities import ProviderMetrics, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderMetrics, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.role.entities import Limit, LimitType
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
-from api.utils.variables import EndpointRoute
 
 METRICS_TEXT = 'vllm:num_requests_running{model_name="my-model"} 0\nvllm:num_requests_waiting{model_name="my-model"} 0\n'
 
@@ -72,7 +71,7 @@ def configure_metrics(
 
 def configure_models_fallback(provider_client, *, models_response):
     provider_client.forward.side_effect = [
-        UnsupportedProviderEndpointError(endpoint=EndpointRoute.METRICS, provider_type=ProviderType.TEI),
+        UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.METRICS, provider_type=ProviderType.TEI),
         models_response,
     ]
 
@@ -167,7 +166,7 @@ class TestGetHealthModelsUseCase:
         assert len(result.models) == 1
         assert result.models[0].status == HealthStatus.GREEN
         provider_client.forward.assert_awaited_once()
-        assert provider_client.forward.await_args.kwargs["request"].endpoint == EndpointRoute.METRICS
+        assert provider_client.forward.await_args.kwargs["request"].endpoint == ProviderEndpoint.METRICS
         assert provider_client.forward.await_args.kwargs["provider"] == provider
 
     @pytest.mark.asyncio
@@ -358,8 +357,8 @@ class TestGetHealthModelsUseCase:
         assert isinstance(result, GetHealthModelsUseCaseSuccess)
         assert result.models[0].status == HealthStatus.GREEN
         assert [call.kwargs["request"].endpoint for call in provider_client.forward.await_args_list] == [
-            EndpointRoute.METRICS,
-            EndpointRoute.MODELS,
+            ProviderEndpoint.METRICS,
+            ProviderEndpoint.MODELS,
         ]
 
     @pytest.mark.asyncio

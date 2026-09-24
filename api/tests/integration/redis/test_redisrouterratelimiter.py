@@ -4,8 +4,8 @@ import pytest
 from redis.asyncio import Redis as AsyncRedis
 
 from api.domain.role.entities import Limit, LimitType
+from api.infrastructure.configuration import LimitingStrategy
 from api.infrastructure.redis import RedisRouterRateLimiter
-from api.schemas.core.configuration import LimitingStrategy
 
 
 def limits_factory(router_id: int, rpm: int | None = None, rpd: int | None = None, tpm: int | None = None, tpd: int | None = None) -> list[Limit]:

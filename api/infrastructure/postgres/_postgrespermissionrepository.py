@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role import PermissionRepository
 from api.domain.role.entities import PermissionType
-from api.sql.models import Permission as PermissionTable
+from api.infrastructure.postgres.models import Permission as PermissionTable
 
 
 class PostgresPermissionRepository(PermissionRepository):

@@ -11,7 +11,7 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.key.entities import KeyStatus
-from api.domain.key.errors import KeyExpirationInvalidError, KeyNotFoundError
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -20,9 +20,11 @@ from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
     KeyExpirationInvalidHTTPException,
+    KeyNameReservedHTTPException,
     KeyNotFoundHTTPException,
     UserNotFoundHTTPException,
 )
+from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.admin.keys import KeyResponse, KeysResponse
 from api.infrastructure.fastapi.schemas.keys import CreateKeyBody, UpdateKeyBody
 from api.use_cases.admin.keys import (
@@ -42,7 +44,6 @@ from api.use_cases.admin.keys import (
     UpdateKeyUseCase,
     UpdateKeyUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +54,14 @@ router = APIRouter(prefix="/v1", tags=[RouterName.KEYS.title()])
     path="/me/keys",
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]),
     deprecated=True,
 )
 @router.post(
     path=EndpointRoute.KEYS,
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses([KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]),
 )
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
@@ -90,6 +91,8 @@ async def create_key(
             return KeyResponse.model_validate(key, from_attributes=True)
         case KeyExpirationInvalidError(max_expiration_days=max_expiration_days):
             raise KeyExpirationInvalidHTTPException(max_expiration_days)
+        case KeyNameReservedError(name=name):
+            raise KeyNameReservedHTTPException(name)
         case UserNotFoundError(id=user_id):
             raise UserNotFoundHTTPException(user_id)
 
