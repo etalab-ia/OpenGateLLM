@@ -59,6 +59,7 @@ class LangfuseUsageRepository(UsageRepository):
 
     def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
         if self._observation is None:
+            logger.warning("Cannot update Langfuse observation: no active observation (start_observation likely failed)")
             return
 
         try:
@@ -82,7 +83,7 @@ class LangfuseUsageRepository(UsageRepository):
         except Exception:
             logger.exception("Failed to update Langfuse observation")
 
-    def fail_record(self, message: str) -> None:
+    def fail_record(self, message: str, status: int) -> None:
         if self._observation is None:
             return
 
@@ -93,6 +94,7 @@ class LangfuseUsageRepository(UsageRepository):
 
     def end_record(self) -> None:
         if self._observation is None:
+            logger.warning("Cannot end Langfuse observation: no active observation (start_observation likely failed)")
             return
 
         try:

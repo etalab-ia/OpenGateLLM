@@ -70,8 +70,10 @@ class PostgresUsageRepository(UsageRepository):
     def _elapsed_ms(start_time: datetime, end_time: datetime) -> int:
         return round((end_time - start_time).total_seconds() * 1000)
 
-    def fail_record(self, message: str) -> None:
-        return
+    def fail_record(self, message: str, status: int) -> None:
+        if self._row is None:
+            return
+        self._row.status = status
 
     def end_record(self) -> None:
         row = self._row

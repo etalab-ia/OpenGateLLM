@@ -139,7 +139,17 @@ class TestPostgresUsageRepositoryRecording:
 
     def test_should_not_fail_when_start_was_not_called(self, recorder):
         # Act / Assert
-        recorder.fail_record(message="TooBusyModelError")
+        recorder.fail_record(message="TooBusyModelError", status=503)
+
+    def test_should_record_error_status_on_fail(self, recorder):
+        # Arrange
+        _start_record(recorder)
+
+        # Act
+        recorder.fail_record(message="TooBusyModelError", status=503)
+
+        # Assert
+        assert recorder._row.status == 503
 
     def test_should_schedule_persist_on_end_record(self, recorder, background_tasks):
         # Arrange

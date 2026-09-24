@@ -67,7 +67,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case AsyncGenerator() as chunks:
                     pass
                 case error:
-                    self.usage_recorder.fail_record(message=type(error).__name__)
+                    self.usage_recorder.fail_record(message=type(error).__name__, status=getattr(error, "status_code", 500))
                     self.usage_recorder.end_record()
                     return error
 
@@ -82,7 +82,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case ProviderResponse() as provider_response:
                     pass
                 case error:
-                    self.usage_recorder.fail_record(message=type(error).__name__)
+                    self.usage_recorder.fail_record(message=type(error).__name__, status=getattr(error, "status_code", 500))
                     return error
 
             return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
@@ -105,7 +105,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             async with self._inflight(provider=provider):
                 async for chunk in chunks:
                     if chunk.status_code // 100 != 2:
-                        self.usage_recorder.fail_record(message=StatusCodeModelError.__name__)
+                        self.usage_recorder.fail_record(message=StatusCodeModelError.__name__, status=chunk.status_code)
                         yield chunk
                         return
 

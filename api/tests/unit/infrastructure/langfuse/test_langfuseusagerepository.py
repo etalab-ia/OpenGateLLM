@@ -133,7 +133,7 @@ class TestLangfuseUsageRepositoryRecording:
         _start_record(recorder)
 
         # Act
-        recorder.fail_record(message="TooBusyModelError")
+        recorder.fail_record(message="TooBusyModelError", status=503)
 
         # Assert
         mock_observation.update.assert_called_once_with(level="ERROR", status_message="TooBusyModelError")
@@ -144,7 +144,7 @@ class TestLangfuseUsageRepositoryRecording:
         _start_record(recorder)
 
         # Act / Assert
-        recorder.fail_record(message="TooBusyModelError")
+        recorder.fail_record(message="TooBusyModelError", status=503)
 
     def test_should_end_observation(self, recorder, mock_observation):
         # Arrange

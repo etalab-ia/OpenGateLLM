@@ -639,7 +639,7 @@ class TestExecute:
             key_id=command.authenticated_key.id,
             key_name=command.authenticated_key.name,
         )
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError")
+        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError", status=503)
         use_case.usage_recorder.end_record.assert_called_once()
 
     @pytest.mark.asyncio
