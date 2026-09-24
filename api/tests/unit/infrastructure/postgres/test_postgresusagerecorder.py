@@ -73,6 +73,7 @@ class TestPostgresUsageRecorder:
 
         # Assert
         assert len(request_id) == 32
+        assert recorder._row.request_id == request_id
 
     def test_should_store_identity_on_the_row(self, recorder):
         # Act
@@ -80,6 +81,8 @@ class TestPostgresUsageRecorder:
 
         # Assert
         row = recorder._row
+        assert row.request_id is not None
+        assert len(row.request_id) == 32
         assert row.endpoint == "/v1/chat/completions"
         assert row.user_id == 42
         assert row.user_email == "alice@example.com"

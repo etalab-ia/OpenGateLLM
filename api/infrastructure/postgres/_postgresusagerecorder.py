@@ -35,8 +35,10 @@ class PostgresUsageRecorder(UsageRecorder):
         key_name: str,
     ) -> str:
         self.start_time = datetime.now(tz=UTC)
+        request_id = uuid4().hex
         self._row = UsageTable(
             created=self.start_time,
+            request_id=request_id,
             endpoint=f"/v1{endpoint}",
             user_id=user_id,
             user_email=user_email,
@@ -45,7 +47,7 @@ class PostgresUsageRecorder(UsageRecorder):
             router_id=router_id,
             router_name=router_name,
         )
-        return uuid4().hex
+        return request_id
 
     def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
         if self._row is None or self.start_time is None:

@@ -40,6 +40,7 @@ class Usage(Base):
     provider_model_name: Mapped[str | None]
 
     # request
+    request_id: Mapped[str | None] = mapped_column(index=True)
     endpoint: Mapped[str]
 
     # metrics
