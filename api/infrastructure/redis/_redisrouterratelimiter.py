@@ -1,5 +1,6 @@
 import logging
 
+from fastapi import BackgroundTasks
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
 from limits.util import WindowStats
@@ -16,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class RedisRouterRateLimiter(RouterRateLimiter):
-    def __init__(self, redis_pool: ConnectionPool, strategy: LimitingStrategy):
+    def __init__(self, background_tasks: BackgroundTasks, redis_pool: ConnectionPool, strategy: LimitingStrategy):
+        self.background_tasks = background_tasks
         self.redis_pool = redis_pool
         self.redis_storage = storage.RedisStorage(uri=self.redis_pool.url, connection_pool=self.redis_pool, implementation="redispy")
         self.redis_client = Redis(connection_pool=redis_pool)
@@ -68,9 +70,17 @@ class RedisRouterRateLimiter(RouterRateLimiter):
 
         return state
 
-    async def update_rate_limit_state(
-        self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int
-    ) -> None:
+    def update_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int) -> None:
+        self.background_tasks.add_task(
+            self._charge,
+            user_id=user_id,
+            router_limits=router_limits,
+            router_id=router_id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+        )
+
+    async def _charge(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int) -> None:
         rpm = next((limit.value for limit in router_limits if limit.type == LimitType.RPM), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPM, value=rpm)
 
