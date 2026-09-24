@@ -1,6 +1,5 @@
 from datetime import datetime
 import logging
-from uuid import uuid4
 
 from langfuse import Langfuse, propagate_attributes
 
@@ -19,6 +18,7 @@ class LangfuseUsageRecorder(UsageRecorder):
 
     def start_record(
         self,
+        request_id: str,
         endpoint: ProviderEndpoint,
         model: str,
         user_id: int,
@@ -27,7 +27,7 @@ class LangfuseUsageRecorder(UsageRecorder):
         user_email: str,
         key_id: int,
         key_name: str,
-    ) -> str:
+    ) -> None:
         self._metadata = {"router_id": router_id, "router_name": router_name, "user_email": user_email, "key_id": key_id, "key_name": key_name}
         try:
             with propagate_attributes(user_id=str(user_id)):
@@ -36,13 +36,12 @@ class LangfuseUsageRecorder(UsageRecorder):
                     name=endpoint.strip("/").replace("/", "-"),
                     model=model,
                     metadata=self._metadata,
+                    trace_context={"trace_id": request_id},
                 )
-            return self._observation.trace_id
         except Exception:
             logger.exception("Failed to start Langfuse observation")
             self._observation = None
             self._metadata = {}
-            return uuid4().hex
 
     def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
         if self._observation is None:

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from langfuse import Langfuse
@@ -15,7 +16,7 @@ from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.logging import init_logger
+from api.infrastructure.logging import configure_logging
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -35,11 +36,12 @@ from api.use_cases.admin import (
 from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
 from api.use_cases.services import ProviderCapabilitiesProbe
 
-logger = init_logger(name=__name__)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    configure_logging()
     configuration = get_configuration()
 
     global_context.redis_pool = await create_redis_pool(configuration)

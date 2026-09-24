@@ -3,7 +3,6 @@ from datetime import UTC, datetime
 from http import HTTPMethod
 import logging
 from typing import Any
-from uuid import uuid4
 
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +25,7 @@ class PostgresUsageRecorder(UsageRecorder):
 
     def start_record(
         self,
+        request_id: str,
         endpoint: ProviderEndpoint,
         model: str,
         user_id: int,
@@ -34,7 +34,7 @@ class PostgresUsageRecorder(UsageRecorder):
         user_email: str,
         key_id: int,
         key_name: str,
-    ) -> str:
+    ) -> None:
         self._start_time = datetime.now(tz=UTC)
         self._row = UsageTable(
             created=self._start_time,
@@ -47,7 +47,6 @@ class PostgresUsageRecorder(UsageRecorder):
             router_id=router_id,
             router_name=router_name,
         )
-        return uuid4().hex
 
     def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
         if self._row is None or self._start_time is None:

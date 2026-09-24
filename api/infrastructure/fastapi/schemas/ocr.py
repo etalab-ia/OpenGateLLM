@@ -1,14 +1,16 @@
 from typing import Annotated, Any, Literal
 
-from pydantic import Field, StringConstraints
+from pydantic import ConfigDict, Field, StringConstraints
 
 from api.domain import BaseModel
 from api.domain.usage.entities import Usage
 
 
 class JsonSchema(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True, serialize_by_alias=True)
+
     name: Annotated[str, Field(default=..., description="The name of the JSON schema.")]
-    schema: Annotated[dict[str, Any], Field(default=..., description="The JSON schema definition.")]
+    json_schema_def: Annotated[dict[str, Any], Field(alias="schema", default=..., description="The JSON schema definition.")]
     strict: Annotated[bool, Field(default=False, description="Whether to use strict mode.")]
     description: Annotated[str | None, Field(default=None, description="Optional description of the schema.")]
 

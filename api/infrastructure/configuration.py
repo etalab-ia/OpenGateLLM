@@ -251,7 +251,8 @@ class Settings(ConfigBaseModel):
 
     # logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO", description="Logging level of the API.")  # fmt: off
-    log_format: str = Field(default="[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s", description="Logging format of the API.")  # fmt: off
+    log_format: str = Field(default='{"timestamp": "%(asctime)s", "level": "%(levelname)s", "client_ip": "%(client_ip)s", "request_id": "%(request_id)s", "message": "%(message)s"}', description="Logging format of the API. Available extras: %(client_ip)s, %(request_id)s.")  # fmt: off
+    access_log_format: str = Field(default='{"timestamp": "%(asctime)s", "process": "%(process)d", "name": "%(name)s", "level": "%(levelname)s", "request_id": "%(request_id)s", "client_ip": "%(client_ip)s", "request_line": "%(request_line)s", "status_code": "%(status_code)s"}', description="Uvicorn access log format. Available extras: %(request_id)s.")  # fmt: off
 
     # swagger
     swagger_summary: str = Field(default="OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API description."])  # fmt: off

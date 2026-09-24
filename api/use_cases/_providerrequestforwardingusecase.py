@@ -190,7 +190,9 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         return rate_limit_state
 
     def _start_record_usage(self, command: TCommand, router: Router) -> str:
-        return self.usage_recorder.start_record(
+        request_id = self.usage_context.request_id
+        self.usage_recorder.start_record(
+            request_id=request_id,
             endpoint=self.ENDPOINT,
             model=router.name,
             user_id=command.authenticated_user.id,
@@ -200,6 +202,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             key_id=command.authenticated_key.id,
             key_name=command.authenticated_key.name,
         )
+        return request_id
 
     async def _send_request(
         self,
@@ -241,7 +244,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        self.usage_context.record_usage(request_id=request_id, usage=usage)
+        self.usage_context.record_usage(usage=usage)
         self.usage_recorder.update_record(usage=usage, provider_id=provider.id, provider_model_name=provider.model_name)
 
         return provider_response
