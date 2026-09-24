@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock, call, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
 
 from langfuse import Langfuse
 import pytest
@@ -216,10 +216,10 @@ class TestLangfuseUsageRepositoryReading:
             rows = impacts_rows if view == "scores-numeric" else usage_rows
             return SimpleNamespace(data=rows)
 
-        mock_client.api.metrics.metrics.side_effect = _dispatch
+        mock_client.async_api.metrics.metrics = AsyncMock(side_effect=_dispatch)
 
     def _query_for_view(self, mock_client, view: str) -> dict:
-        for call_args in mock_client.api.metrics.metrics.call_args_list:
+        for call_args in mock_client.async_api.metrics.metrics.call_args_list:
             query = json.loads(call_args.kwargs["query"])
             if query["view"] == view:
                 return query
@@ -399,7 +399,7 @@ class TestLangfuseUsageRepositoryReading:
 
     async def test_should_propagate_metrics_api_errors(self, repository, mock_client):
         # Arrange
-        mock_client.api.metrics.metrics.side_effect = RuntimeError("langfuse metrics 500")
+        mock_client.async_api.metrics.metrics = AsyncMock(side_effect=RuntimeError("langfuse metrics 500"))
 
         # Act / Assert
         with pytest.raises(RuntimeError, match="langfuse metrics 500"):
