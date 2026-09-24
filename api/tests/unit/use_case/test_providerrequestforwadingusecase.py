@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, Mock, create_autospec, patch
+from uuid import uuid4
 
 import pytest
 
@@ -25,7 +26,7 @@ from api.use_cases._providerrequestforwardingusecase import (
     ProviderRequestForwardingUseCaseSuccess,
 )
 
-TRACE_ID = "a" * 32
+REQUEST_ID = uuid4().hex
 
 
 class ForwardingTestPayload(ForwardablePayload):
@@ -102,14 +103,14 @@ def router_repository():
 
 @pytest.fixture
 def usage_recorder():
-    return create_autospec(UsageContext, instance=True, spec_set=True)
+    context = create_autospec(UsageContext, instance=True, spec_set=True)
+    context.request_id = REQUEST_ID
+    return context
 
 
 @pytest.fixture
 def trace_recorder():
-    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
-    recorder.start_record.return_value = TRACE_ID
-    return recorder
+    return create_autospec(UsageRecorder, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -409,7 +410,7 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
 
         # Assert
         assert result == validation_error
@@ -429,7 +430,7 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = provider_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
 
         # Assert
         assert result == provider_error
@@ -443,7 +444,7 @@ class TestSendRequest:
 
         # Act
         with pytest.raises(TypeError):
-            await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+            await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
 
         # Assert
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
@@ -456,7 +457,7 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
 
         # Assert
         assert result == validation_error
@@ -471,7 +472,7 @@ class TestSendRequest:
         with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
             with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
                 # Act
-                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -491,7 +492,7 @@ class TestSendRequest:
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
-        assert forwarded_request.id == TRACE_ID
+        assert forwarded_request.id == REQUEST_ID
 
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         model_tokenizer.compute_tokens.assert_called_once_with(texts=["world"])
@@ -509,7 +510,6 @@ class TestSendRequest:
             cost_completion_tokens=router.cost_completion_tokens,
         )
         use_case.usage_context.record_usage.assert_called_once_with(
-            request_id=TRACE_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -538,13 +538,12 @@ class TestSendRequest:
         # Act
         with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
             with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
-                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+                result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
 
         # Assert
         assert isinstance(result, ProviderResponse)
         assert result.data is None
         use_case.usage_context.record_usage.assert_called_once_with(
-            request_id=TRACE_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -628,8 +627,9 @@ class TestExecute:
 
         # Assert
         assert result is error
-        use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload, request_id=TRACE_ID)
+        use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID)
         use_case.usage_recorder.start_record.assert_called_once_with(
+            request_id=REQUEST_ID,
             endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
             model=router.name,
             user_id=command.authenticated_user.id,

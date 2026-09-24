@@ -1,6 +1,6 @@
 from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from api.domain import BaseModel, ForwardablePayload
 from api.domain.model.entities import ProviderJsonResponse
@@ -8,8 +8,10 @@ from api.domain.usage.entities import Usage
 
 
 class OCRJsonSchema(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True, serialize_by_alias=True)
+
     name: str
-    schema: dict[str, Any]
+    json_schema_def: dict[str, Any] = Field(alias="schema")
     strict: bool = False
     description: str | None = None
 

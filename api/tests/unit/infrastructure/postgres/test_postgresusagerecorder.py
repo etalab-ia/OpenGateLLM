@@ -11,6 +11,7 @@ from api.infrastructure.postgres import PostgresUsageRecorder
 from api.infrastructure.postgres.models import Usage as UsageTable
 
 IDENTITY = {
+    "request_id": "a" * 32,
     "router_id": 3,
     "router_name": "chat-router",
     "user_email": "alice@example.com",
@@ -20,7 +21,7 @@ IDENTITY = {
 
 
 def _start_record(recorder, **overrides):
-    return recorder.start_record(
+    recorder.start_record(
         endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
         model="chat-router",
         user_id=42,
@@ -68,13 +69,6 @@ def recorder(background_tasks, postgres_session_provider):
 
 
 class TestPostgresUsageRecorder:
-    def test_should_return_a_request_id(self, recorder):
-        # Act
-        request_id = _start_record(recorder)
-
-        # Assert
-        assert len(request_id) == 32
-
     def test_should_store_identity_on_the_row(self, recorder):
         # Act
         _start_record(recorder)

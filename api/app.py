@@ -1,5 +1,6 @@
 from importlib import import_module
 import logging
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
 import sentry_sdk
@@ -10,6 +11,7 @@ from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.monitoring import setup_prometheus
 from api.infrastructure.fastapi.routes import RouterName
+from api.infrastructure.logging import configure_logging
 from api.lifespan import lifespan
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,7 @@ def create_app(
     if configuration is None:
         configuration = get_configuration()
 
+    configure_logging()
     _setup_sentry(configuration)
 
     app = FastAPI(
@@ -56,7 +59,7 @@ def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
 
     @app.middleware("http")
     async def set_request_context(request: Request, call_next):
-        request_context.set(RequestContext(method=request.method, endpoint=request.url.path))
+        request_context.set(RequestContext(id=uuid4().hex, method=request.method, endpoint=request.url.path))
         return await call_next(request)
 
 

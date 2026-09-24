@@ -8,6 +8,8 @@ from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 from api.infrastructure.langfuse import LangfuseUsageRecorder
 
+REQUEST_ID = "a" * 32
+
 IDENTITY_METADATA = {
     "router_id": 3,
     "router_name": "chat-router",
@@ -18,7 +20,8 @@ IDENTITY_METADATA = {
 
 
 def _start_record(recorder, **overrides):
-    return recorder.start_record(
+    recorder.start_record(
+        request_id=REQUEST_ID,
         endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
         model="chat-router",
         user_id=42,
@@ -34,9 +37,7 @@ def mock_client():
 
 @pytest.fixture
 def mock_observation():
-    observation = MagicMock()
-    observation.trace_id = "b" * 32
-    return observation
+    return MagicMock()
 
 
 @pytest.fixture
@@ -46,28 +47,28 @@ def recorder(mock_client, mock_observation):
 
 
 class TestLangfuseUsageRecorder:
-    def test_should_return_observation_trace_id(self, recorder, mock_client, mock_observation):
+    def test_should_start_observation_with_request_id_as_trace_id(self, recorder, mock_client):
         # Act
-        request_id = _start_record(recorder)
+        _start_record(recorder)
 
         # Assert
-        assert request_id == mock_observation.trace_id
         mock_client.start_observation.assert_called_once_with(
             as_type="generation",
             name="chat-completions",
             model="chat-router",
             metadata=IDENTITY_METADATA,
+            trace_context={"trace_id": REQUEST_ID},
         )
 
-    def test_should_return_fallback_id_when_start_fails(self, recorder, mock_client):
+    def test_should_leave_observation_unset_when_start_fails(self, recorder, mock_client):
         # Arrange
         mock_client.start_observation.side_effect = RuntimeError("langfuse down")
 
         # Act
-        request_id = _start_record(recorder)
+        _start_record(recorder)
 
         # Assert
-        assert len(request_id) == 32
+        assert recorder._observation is None
 
     def test_should_update_observation_with_usage(self, recorder, mock_observation):
         # Arrange

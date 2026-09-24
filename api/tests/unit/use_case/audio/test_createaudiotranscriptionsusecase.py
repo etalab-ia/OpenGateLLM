@@ -32,14 +32,14 @@ def model_tokenizer():
 
 @pytest.fixture
 def usage_recorder():
-    return create_autospec(UsageContext, instance=True, spec_set=True)
+    context = create_autospec(UsageContext, instance=True, spec_set=True)
+    context.request_id = TRACE_ID
+    return context
 
 
 @pytest.fixture
 def trace_recorder():
-    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
-    recorder.start_record.return_value = TRACE_ID
-    return recorder
+    return create_autospec(UsageRecorder, instance=True, spec_set=True)
 
 
 @pytest.fixture

@@ -4,6 +4,11 @@ from api.domain.usage.entities import Usage
 
 
 class UsageContext(ABC):
+    @property
+    @abstractmethod
+    def request_id(self) -> str:
+        pass
+
     @abstractmethod
     def record_router(self, router_id: int, router_name: str) -> None:
         pass
@@ -13,5 +18,5 @@ class UsageContext(ABC):
         pass
 
     @abstractmethod
-    def record_usage(self, request_id: str | None, usage: Usage) -> None:
+    def record_usage(self, usage: Usage) -> None:
         pass

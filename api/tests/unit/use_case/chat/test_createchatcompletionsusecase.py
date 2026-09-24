@@ -39,14 +39,14 @@ def mock_model_tokenizer():
 
 @pytest.fixture
 def mock_usage_recorder():
-    return create_autospec(UsageContext, instance=True, spec_set=True)
+    context = create_autospec(UsageContext, instance=True, spec_set=True)
+    context.request_id = TRACE_ID
+    return context
 
 
 @pytest.fixture
 def mock_trace_recorder():
-    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
-    recorder.start_record.return_value = TRACE_ID
-    return recorder
+    return create_autospec(UsageRecorder, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -196,7 +196,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         usage_chunk = json.loads(chunks[1].content.removeprefix("data: "))
         assert relayed["id"] == request_id
         assert usage_chunk["id"] == request_id
-        assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == request_id
+        mock_usage_recorder.record_usage.assert_called_once()
         use_case.usage_recorder.end_record.assert_called_once()
 
     @pytest.mark.asyncio
@@ -283,7 +283,6 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert usage_chunk["usage"]["completion_tokens"] == 1
         assert chunks[2].content == "data: [DONE]\n\n"
         mock_usage_recorder.record_usage.assert_called_once()
-        assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == REQUEST_ID
         use_case.usage_recorder.update_record.assert_called_once()
         use_case.usage_recorder.end_record.assert_called_once()
 
