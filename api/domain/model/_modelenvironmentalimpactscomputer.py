@@ -12,7 +12,7 @@ class ModelEnvironmentalImpactsComputer(ABC):
         model_total_params: int,
         model_zone: HostingZone,
         completion_tokens: int,
-        request_latency: float,
+        request_latency: int,
     ) -> EnvironmentalImpacts:
         """Calculate carbon impact of a model inference using direct parameters.
 
@@ -21,7 +21,7 @@ class ModelEnvironmentalImpactsComputer(ABC):
             model_total_params(int): Total number of parameters (in millions or billions, must match compute_llm_impacts expectations)
             model_zone(CountryCodes): Electricity mix zone (Alpha-3 of the country code)
             completion_tokens(int): Number of output tokens
-            request_latency(float): Latency of the inference (in milliseconds)
+            request_latency(int): Latency of the inference (in milliseconds)
 
         Returns:
             CarbonFootprintUsage: Computed carbon footprint

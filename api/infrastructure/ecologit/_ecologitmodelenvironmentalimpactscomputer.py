@@ -13,7 +13,7 @@ class EcologitModelEnvironmentalImpactsComputer(ModelEnvironmentalImpactsCompute
         model_total_params: int,
         model_zone: HostingZone,
         completion_tokens: int,
-        request_latency: float,
+        request_latency: int,
     ) -> EnvironmentalImpacts:
         electricity_mix: ElectricityMix = electricity_mixes.find_electricity_mix(zone=model_zone.value)
 

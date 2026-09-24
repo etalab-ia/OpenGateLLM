@@ -38,6 +38,7 @@ class LangfuseUsageRecorder(UsageRecorder):
                     name=endpoint.strip("/").replace("/", "-"),
                     model=model,
                     metadata=self._metadata,
+                    completion_start_time=self.start_time,
                 )
             return self._observation.trace_id
         except Exception:
