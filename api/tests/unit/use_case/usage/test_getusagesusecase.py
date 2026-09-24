@@ -44,7 +44,7 @@ class TestGetUsagesUseCase:
             start_time=1_700_000_000,
             end_time=1_800_000_000,
             endpoint="/v1/chat/completions",
-            models=["model-a", "model-b"],
+            model="model-a",
             key_id=7,
         )
 
@@ -62,6 +62,6 @@ class TestGetUsagesUseCase:
             offset=0,
             limit=10,
             endpoint="/v1/chat/completions",
-            models=["model-a", "model-b"],
+            model="model-a",
             key_id=7,
         )

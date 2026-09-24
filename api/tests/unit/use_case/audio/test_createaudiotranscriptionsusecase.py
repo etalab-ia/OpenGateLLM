@@ -11,7 +11,7 @@ from api.domain.audio.entities import (
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
-from api.domain.usage import UsageContext, UsageRecorder
+from api.domain.usage import UsageContext, UsageRepository
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, RouterFactory
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
@@ -31,13 +31,13 @@ def model_tokenizer():
 
 
 @pytest.fixture
-def usage_recorder():
+def usage_repository():
     return create_autospec(UsageContext, instance=True, spec_set=True)
 
 
 @pytest.fixture
 def trace_recorder():
-    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
+    recorder = create_autospec(UsageRepository, instance=True, spec_set=True)
     recorder.start_record.return_value = TRACE_ID
     return recorder
 
@@ -92,7 +92,7 @@ def make_command():
 
 
 @pytest.fixture
-def use_case(model_tokenizer, usage_recorder, trace_recorder) -> CreateAudioTranscriptionsUseCase:
+def use_case(model_tokenizer, usage_repository, trace_recorder) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=MagicMock(),
         model_tokenizer=model_tokenizer,
@@ -102,8 +102,8 @@ def use_case(model_tokenizer, usage_recorder, trace_recorder) -> CreateAudioTran
         provider_repository=AsyncMock(),
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
-        usage_context=usage_recorder,
-        usage_recorder=trace_recorder,
+        usage_context=usage_repository,
+        usage_repository=trace_recorder,
         audio_file_size_limit=None,
     )
 
@@ -139,7 +139,7 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
         use_case.model_tokenizer.compute_tokens.assert_not_called()
         use_case._check_rate_limits.assert_not_awaited()
         use_case._send_request.assert_not_awaited()
-        use_case.usage_recorder.start_record.assert_not_called()
+        use_case.usage_repository.start_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_call_parent_methods_and_return_json_success_when_formatted_response_has_data(

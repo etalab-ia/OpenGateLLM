@@ -19,6 +19,7 @@ from api.dependencies import get_autocommit_postgres_session, get_postgres_sessi
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.router.entities import RouterType
 from api.infrastructure.fastapi.routes import EndpointRoute
+from api.infrastructure.postgres import AutocommitSession, TransactionRequiredError
 from api.infrastructure.postgres.models import Base
 from api.lifespan import create_autocommit_postgres_session_factory
 from api.tests.helpers import create_key
@@ -161,6 +162,34 @@ async def seed_forward_auth(probe_engine, scenario):
             token = key.token
             await seed_session.commit()
     return token
+
+
+class TestAutocommitSession:
+    def test_should_refuse_begin_nested_because_a_savepoint_needs_a_transaction(self):
+        # Arrange
+        session = AutocommitSession()
+
+        # Act / Assert
+        with pytest.raises(TransactionRequiredError):
+            session.begin_nested()
+
+    def test_should_refuse_begin_because_it_spans_several_statements(self):
+        # Arrange
+        session = AutocommitSession()
+
+        # Act / Assert
+        with pytest.raises(TransactionRequiredError):
+            session.begin()
+
+    @pytest.mark.asyncio(loop_scope="session")
+    @pytest.mark.parametrize("entry_point", ["stream", "stream_scalars", "connection"])
+    async def test_should_refuse_the_entry_points_that_inherently_hold_the_connection(self, entry_point):
+        # Arrange
+        session = AutocommitSession()
+
+        # Act / Assert
+        with pytest.raises(TransactionRequiredError):
+            await getattr(session, entry_point)()
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -15,7 +15,7 @@ from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContext, UsageRecorder
+from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases.chat import (
@@ -44,7 +44,7 @@ def mock_usage_recorder():
 
 @pytest.fixture
 def mock_trace_recorder():
-    recorder = create_autospec(UsageRecorder, instance=True, spec_set=True)
+    recorder = create_autospec(UsageRepository, instance=True, spec_set=True)
     recorder.start_record.return_value = TRACE_ID
     return recorder
 
@@ -104,7 +104,7 @@ def use_case(mock_model_tokenizer, mock_usage_recorder, mock_trace_recorder) -> 
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
         usage_context=mock_usage_recorder,
-        usage_recorder=mock_trace_recorder,
+        usage_repository=mock_trace_recorder,
     )
 
 
@@ -157,8 +157,8 @@ class TestCreateChatCompletionsUseCaseExecute:
         assert isinstance(result, CreateChatCompletionsUseCaseSuccess)
         assert result.data is sample_completion
         assert result.headers == rate_limit_state.build_limit_headers
-        use_case.usage_recorder.end_record.assert_called_once()
-        use_case.usage_recorder.fail_record.assert_not_called()
+        use_case.usage_repository.end_record.assert_called_once()
+        use_case.usage_repository.fail_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_stream_success_without_consuming_the_stream_when_stream_is_requested(self, use_case, make_command):
@@ -174,7 +174,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()  # the generator is returned unconsumed
         forwarded_request = use_case.provider_client.forward_stream.call_args.kwargs["request"]
         assert forwarded_request.id == TRACE_ID
-        use_case.usage_recorder.end_record.assert_not_called()
+        use_case.usage_repository.end_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_stamp_streamed_chunks_with_the_generated_request_id(self, use_case, make_command, mock_usage_recorder):
@@ -197,7 +197,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         assert relayed["id"] == request_id
         assert usage_chunk["id"] == request_id
         assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == request_id
-        use_case.usage_recorder.end_record.assert_called_once()
+        use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_router_cannot_be_resolved(self, use_case, make_command):
@@ -210,7 +210,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert result == RouterNotFoundError(name=MODEL_NAME)
         use_case._check_rate_limits.assert_not_awaited()
-        use_case.usage_recorder.start_record.assert_not_called()
+        use_case.usage_repository.start_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_rate_limit_is_exceeded(self, use_case, make_command):
@@ -236,8 +236,8 @@ class TestCreateChatCompletionsUseCaseExecute:
 
         # Assert
         assert result is error
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="TooBusyModelError", status_code=503)
-        use_case.usage_recorder.end_record.assert_called_once()
+        use_case.usage_repository.fail_record.assert_called_once_with(message="TooBusyModelError", status_code=503)
+        use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_provider_client_refuses_to_open_the_stream(self, use_case, make_command):
@@ -251,8 +251,8 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert result is error
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=500)
-        use_case.usage_recorder.end_record.assert_called_once()
+        use_case.usage_repository.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=500)
+        use_case.usage_repository.end_record.assert_called_once()
 
 
 class TestCreateChatCompletionsUseCaseFormatStream:
@@ -284,8 +284,8 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert chunks[2].content == "data: [DONE]\n\n"
         mock_usage_recorder.record_usage.assert_called_once()
         assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == REQUEST_ID
-        use_case.usage_recorder.update_record.assert_called_once()
-        use_case.usage_recorder.end_record.assert_called_once()
+        use_case.usage_repository.update_record.assert_called_once()
+        use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_record_first_token_at_on_the_first_content_chunk(self, use_case, router, provider):
@@ -304,8 +304,8 @@ class TestCreateChatCompletionsUseCaseFormatStream:
             await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
-        use_case.usage_recorder.update_record.assert_called_once()
-        assert use_case.usage_recorder.update_record.call_args.kwargs["first_token_at"] == first_token_at
+        use_case.usage_repository.update_record.assert_called_once()
+        assert use_case.usage_repository.update_record.call_args.kwargs["first_token_at"] == first_token_at
         mock_datetime.now.assert_called_once_with(tz=UTC)
 
     @pytest.mark.asyncio
@@ -349,9 +349,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert len(chunks) == 1
         assert chunks[0].status_code == 503
         use_case.usage_context.record_usage.assert_not_called()
-        use_case.usage_recorder.update_record.assert_not_called()
-        use_case.usage_recorder.fail_record.assert_called_once_with(message="StatusCodeModelError", status_code=503)
-        use_case.usage_recorder.end_record.assert_called_once()
+        use_case.usage_repository.update_record.assert_not_called()
+        use_case.usage_repository.fail_record.assert_called_once_with(message="StatusCodeModelError", status_code=503)
+        use_case.usage_repository.end_record.assert_called_once()
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
 
     @pytest.mark.asyncio
@@ -408,7 +408,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
 
         # Assert
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
-        use_case.usage_recorder.end_record.assert_called_once()
+        use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_release_the_inflight_counter_when_the_stream_completes(self, use_case, router, provider):

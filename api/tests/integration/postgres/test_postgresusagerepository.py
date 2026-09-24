@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+from fastapi import BackgroundTasks
 import pytest
 
 from api.domain import EntitiesPage
@@ -16,7 +17,7 @@ THIRD_DAY = datetime(2026, 8, 3, tzinfo=UTC)
 
 @pytest.fixture
 def repository(db_session):
-    return PostgresUsageRepository(postgres_session=db_session)
+    return PostgresUsageRepository(postgres_session=db_session, background_tasks=BackgroundTasks())
 
 
 def _window():
@@ -133,11 +134,10 @@ class TestGetUsageBucketsPage:
         assert result.total == 1
         assert result.data[0].prompt_tokens == 3
 
-    async def test_filters_by_models(self, repository, db_session):
+    async def test_filters_by_model(self, repository, db_session):
         user = UserSQLFactory()
         UsageSQLFactory(user=user, created=DAY.replace(hour=12), router_name="model-a", prompt_tokens=10, total_tokens=10)
         UsageSQLFactory(user=user, created=DAY.replace(hour=13), router_name="model-b", prompt_tokens=4, total_tokens=4)
-        UsageSQLFactory(user=user, created=DAY.replace(hour=14), router_name="model-c", prompt_tokens=7, total_tokens=7)
         await db_session.flush()
 
         start_time, end_time = _window()
@@ -147,11 +147,11 @@ class TestGetUsageBucketsPage:
             end_time=end_time,
             offset=0,
             limit=10,
-            models=["model-a", "model-c"],
+            model="model-a",
         )
 
         assert result.total == 1
-        assert result.data[0].prompt_tokens == 17
+        assert result.data[0].prompt_tokens == 10
 
     async def test_filters_by_key_id(self, repository, db_session):
         user = UserSQLFactory()

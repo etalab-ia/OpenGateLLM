@@ -9,9 +9,11 @@ import { Aside, LinkButton } from '@astrojs/starlight/components';
 Langfuse is an **optional dependency** for OpenGateLLM. The application works without it.
 </Aside>
 
-OpenGateLLM supports [Langfuse](https://langfuse.com/) for LLM observability. When it is configured, inference usage is sent to Langfuse as generation traces **instead of** being written to the PostgreSQL `usage` table.
+OpenGateLLM supports [Langfuse](https://langfuse.com/) for LLM observability. It doubles as an alternative usage backend: as soon as this dependency is configured, inference usage is recorded in **and read from** Langfuse as generation observations, instead of the PostgreSQL `usage` table.
 
-PostgreSQL remains required for application data (users, keys, routers, providers). Only the usage log backend changes.
+When this dependency is not configured, usage stays on the PostgreSQL `usage` table.
+
+PostgreSQL remains required for application data (users, keys, routers, providers) and for budget deduction, which always stays on PostgreSQL. Only the usage backend changes.
 
 ## What is recorded
 
@@ -19,10 +21,10 @@ Each model-forward request (chat completions, embeddings, OCR, rerank, audio tra
 
 | Field | Content |
 | --- | --- |
-| Name | Endpoint path, for example `chat-completions` or `embeddings` |
+| Name | Endpoint slug, for example `chat-completions` or `embeddings` |
 | Model | Router name |
-| User | Authenticated user ID |
-| Metadata | Router ID and name, user email, key ID and name, provider ID and model name |
+| User | Authenticated numeric user ID |
+| Metadata | Full endpoint path, router ID and name, user email, key ID and name, provider ID and model name, HTTP status |
 | Usage | Prompt tokens, completion tokens, cached prompt tokens |
 | Cost | Request cost |
 | Scores | `kWh` and `kgCO2eq` environmental impacts |
@@ -31,13 +33,15 @@ Each model-forward request (chat completions, embeddings, OCR, rerank, audio tra
 
 Prompts and completions are not sent to Langfuse.
 
-## Alternative to PostgreSQL usage logging
+## Langfuse as the usage source
 
-If `dependencies.langfuse` is omitted, usage is stored in PostgreSQL (see [inference monitoring](/features/usage/inference_monitoring/)).
+Once this dependency is configured, Langfuse becomes the usage backend automatically. OpenGateLLM then records usage as generation observations and serves `GET /v1/usage` (and the Playground *Usage* page) by querying Langfuse — successful requests only, aggregated into daily buckets, with the same filters as PostgreSQL (user, time range, endpoint, models, key).
 
-When Langfuse is connected, new requests are **not** inserted into the `usage` table. The Playground *Usage* page and `GET /v1/usage` therefore stay empty for those requests; inspect them in the Langfuse UI.
+Requests are never dual-written: only the selected backend receives usage. When the Langfuse dependency is not configured, nothing is written to Langfuse and usage stays on PostgreSQL.
 
-At startup, OpenGateLLM authenticates against the Langfuse server. If authentication fails, a warning is logged and usage logging falls back to PostgreSQL for that process.
+Environmental impacts (`kWh`, `kgCO2eq`) are stored as numeric scores and aggregated into the daily buckets through a second query against Langfuse's numeric-scores metrics, so usage reports keep the same shape as with PostgreSQL.
+
+At startup, OpenGateLLM authenticates against the Langfuse server. If authentication fails, a warning is logged; usage reads and writes still target Langfuse when the dependency is configured.
 
 ## Configuration
 

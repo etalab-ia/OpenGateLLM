@@ -7,7 +7,7 @@ from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMe
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
-from api.domain.usage import UsageContext, UsageRecorder
+from api.domain.usage import UsageContext, UsageRepository
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 
 
@@ -57,7 +57,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_context: UsageContext,
-        usage_recorder: UsageRecorder,
+        usage_repository: UsageRepository,
         audio_file_size_limit: int | None = None,
     ) -> None:
         super().__init__(
@@ -70,7 +70,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
             router_rate_limiter=router_rate_limiter,
             router_repository=router_repository,
             usage_context=usage_context,
-            usage_recorder=usage_recorder,
+            usage_repository=usage_repository,
         )
         self.audio_file_size_limit = audio_file_size_limit
 

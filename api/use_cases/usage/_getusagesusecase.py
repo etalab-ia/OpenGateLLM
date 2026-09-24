@@ -13,7 +13,7 @@ class GetUsagesCommand:
     start_time: int
     end_time: int
     endpoint: str | None
-    models: list[str] | None
+    model: str | None
     key_id: int | None
 
 
@@ -40,7 +40,7 @@ class GetUsagesUseCase:
             offset=command.offset,
             limit=command.limit,
             endpoint=command.endpoint,
-            models=command.models,
+            model=command.model,
             key_id=command.key_id,
         )
 

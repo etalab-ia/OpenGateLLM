@@ -116,7 +116,7 @@ class UsageState(EntityState):
                     if self.filter_endpoint_value != ALL_ENDPOINTS:
                         params["endpoint"] = self.filter_endpoint_value
                     if self.filter_model_value != ALL_MODELS:
-                        params["models"] = self.filter_model_value
+                        params["model"] = self.filter_model_value
                     if self.filter_key_value != ALL_KEYS:
                         params["key_id"] = self.key_ids_by_name[self.filter_key_value]
 
