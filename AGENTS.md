@@ -445,9 +445,9 @@ Rules:
 - The generator is **lazy**: returning the success runs no provider call, which is what lets `execute()` stay awaitable and testable.
 - The generator yields `ProviderChunkResponse(content, status_code)` — raw provider lines plus the status. Transport concerns (SSE framing, network errors → a 503 chunk) stay in `api/infrastructure/http/_httpproviderclient.py`; parsing, token counting and usage stay in the use case. `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, which is what lets a transport failure on the very first read still surface as a real status.
 - A non-2xx chunk ends the stream immediately and is forwarded as-is.
-- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage` and `usage_recorder.update_record` there — that is the only point where a stream's usage is known.
-- `usage_recorder.end_record()` runs in the stream generator's `finally`, so a client disconnect still closes the record. `PostgresUsageRecorder` schedules the `usage` row on FastAPI `BackgroundTasks` from that call.
-- Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommit_releases_connection_during_model_forward.py`.
+- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage` and `usage_repository.update_record` there — that is the only point where a stream's usage is known.
+- `usage_repository.end_record()` runs in the stream generator's `finally`, so a client disconnect still closes the record. `PostgresUsageRecorder` schedules the `usage` row on FastAPI `BackgroundTasks` from that call.
+- Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommitsession.py`.
 
 ### Usage recording
 
@@ -498,7 +498,7 @@ Do **not**:
 - Use `AutocommitSession` with `@with_lock` — advisory locks are transaction-scoped; the decorator raises `TransactionRequiredError` rather than silently dropping the lock
 - Call `begin()`, `begin_nested()`, `stream()`, `stream_scalars()`, or `connection()` on `AutocommitSession` (same error)
 
-When adding a model-forward use case, also add a `ForwardScenario` in `api/tests/integration/postgres/test_autocommit_releases_connection_during_model_forward.py`.
+When adding a model-forward use case, also add a `ForwardScenario` in `api/tests/integration/postgres/test_autocommitsession.py`.
 
 ---
 
@@ -603,9 +603,10 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Unit domain | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | Entity methods (`need_to_update`) | Use-case orchestration |
 | Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
 | Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
-| Model-forward pool | `api/tests/integration/postgres/test_autocommit_releases_connection_during_model_forward.py` | Connection released during provider call | Use-case branches |
+| Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
 | Post-response hooks | `api/tests/integration/endpoints/test_post_response_hooks.py` | Router limits charged after a response | Usage logging (`PostgresUsageRecorder`) and budget hooks (their session cannot be overridden) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
+| Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and API queries (real SDK), round trips against a real Langfuse | Use-case policy |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).
 
@@ -698,7 +699,16 @@ Do **not**:
 
 ### Model-forward autocommit
 
-When adding a use case that calls a provider (OCR, embeddings, rerank, audio, chat, …), add a `ForwardScenario` to `test_autocommit_releases_connection_during_model_forward.py`. That test probes `pg_stat_activity` **during** the mocked provider call: autocommit wiring must show `checkedout == 0` and no `idle in transaction`.
+When adding a use case that calls a provider (OCR, embeddings, rerank, audio, chat, …), add a `ForwardScenario` to `test_autocommitsession.py`. That test probes `pg_stat_activity` **during** the mocked provider call: autocommit wiring must show `checkedout == 0` and no `idle in transaction`.
+
+### Langfuse adapter
+
+Never mock the Langfuse SDK objects: a bare mock accepts any call, and a hand-written metrics response accepts any query. Two tiers:
+
+- `test_langfuseusagerepository.py` runs the real SDK: `Langfuse(span_exporter=InMemorySpanExporter())` captures the exported spans, `respx` answers `/api/public/ingestion` (scores) and `/api/public/v2/metrics` with the shape a real Langfuse returns.
+- `test_langfuseusagerepository_roundtrip.py` (`@pytest.mark.langfuse`) writes through `record_langfuse_usage` (`api/tests/integration/factories/langfuse.py`) and polls the real API until ingested. It is the only check that Langfuse accepts a filter column. ClickHouse has no transaction to roll back: each test isolates itself with a fresh `user_id`. Skipped when Langfuse is not reachable — start it with `docker compose --file compose.example.yml --profile langfuse up --detach --wait`.
+
+The SDK caches its resources per public key: a second `Langfuse(...)` with the same key silently reuses the first one's exporter.
 
 ### HTTP adapters
 

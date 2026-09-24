@@ -60,9 +60,6 @@ settings:
 
   # rate_limiting_strategy: fixed_window
 
-  # monitoring_sentry_enabled: True
-  # monitoring_prometheus_enabled: True
-
   playground_opengatellm_url: ${OPENGATELLM_URL:-http://api:8000}
   # playground_opengatellm_timeout: 60
   # playground_disabled_pages: []

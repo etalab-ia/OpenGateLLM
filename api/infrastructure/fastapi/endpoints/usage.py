@@ -36,7 +36,7 @@ async def get_usages(
     start_time: int = Query(description="Start time as Unix timestamp."),
     end_time: int = Query(description="End time as Unix timestamp."),
     endpoint: EndpointUsage | None = Query(default=None, description="The endpoint to get usage for."),
-    models: list[str] | None = Query(default=None, description="Router names to filter usage by."),
+    model: str | None = Query(default=None, description="Router name to filter usage by."),
     key_id: int | None = Query(default=None, description="Key ID to filter usage by."),
     get_usages_use_case: GetUsagesUseCase = Depends(get_usages_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
@@ -52,7 +52,7 @@ async def get_usages(
         start_time=start_time,
         end_time=end_time,
         endpoint=endpoint.value if endpoint is not None else None,
-        models=models,
+        model=model,
         key_id=key_id,
     )
     try:
@@ -67,7 +67,7 @@ async def get_usages(
                 "start_time": command.start_time,
                 "end_time": command.end_time,
                 "endpoint": command.endpoint,
-                "models": command.models,
+                "model": command.model,
                 "key_id": command.key_id,
                 "error_type": type(e).__name__,
             },

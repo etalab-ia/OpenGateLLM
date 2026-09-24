@@ -5,7 +5,7 @@ from fastapi import Body, Depends, Path, Query, Security
 from api.dependencies import create_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
 from api.domain import SortField, SortOrder
 from api.domain.key.entities import KeyStatus
-from api.domain.key.errors import KeyExpirationInvalidError, KeyNotFoundError, KeyNameReservedError
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
