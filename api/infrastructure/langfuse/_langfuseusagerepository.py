@@ -51,7 +51,7 @@ class LangfuseUsageRepository(UsageRepository):
             "provider_model_name": None,
         }
         try:
-            with propagate_attributes(user_id=str(user_id)):
+            with propagate_attributes(user_id=str(user_id), tags=[self._key_tag(key_id)]):
                 self._observation = self.client.start_observation(
                     as_type="generation",
                     name=f"/v1{endpoint}",
@@ -75,8 +75,9 @@ class LangfuseUsageRepository(UsageRepository):
             self._metadata["provider_model_name"] = provider_model_name
             self._metadata["provider_id"] = provider_id
             update = {
+                # Langfuse sums every "input*" key into inputTokens, so "input" must exclude the cached tokens.
                 "usage_details": {
-                    "input": usage.prompt_tokens,
+                    "input": usage.prompt_tokens - usage.prompt_tokens_details.cached_tokens,
                     "output": usage.completion_tokens,
                     "input_cached_tokens": usage.prompt_tokens_details.cached_tokens,
                 },
@@ -124,9 +125,11 @@ class LangfuseUsageRepository(UsageRepository):
         model: str | None = None,
         key_id: int | None = None,
     ) -> UsageBucketPage:
-        context_filters = self._context_filters(user_id=user_id, endpoint=endpoint, model=model, key_id=key_id)
-        usage_query = self._build_usage_query(context_filters, start_time=start_time, end_time=end_time)
-        impacts_query = self._build_impacts_query(context_filters, start_time=start_time, end_time=end_time)
+        context_filters = self._context_filters(user_id=user_id, endpoint=endpoint, key_id=key_id)
+        usage_filters = [*context_filters, *self._model_filter("providedModelName", model)]
+        impacts_filters = [*context_filters, *self._model_filter("observationModelName", model)]
+        usage_query = self._build_usage_query(usage_filters, start_time=start_time, end_time=end_time)
+        impacts_query = self._build_impacts_query(impacts_filters, start_time=start_time, end_time=end_time)
 
         usage_response, impacts_response = await asyncio.gather(
             self.client.async_api.metrics.metrics(query=json.dumps(usage_query)),
@@ -143,16 +146,28 @@ class LangfuseUsageRepository(UsageRepository):
         return UsageBucketPage(total=len(buckets), data=buckets[offset : offset + limit])
 
     @staticmethod
-    def _context_filters(user_id: int, endpoint: ProviderEndpoint | None, model: str | None, key_id: int | None) -> list[dict]:
-        """Filters shared by the usage and impacts queries so both aggregate the same requests."""
+    def _key_tag(key_id: int) -> str:
+        return f"key_id:{key_id}"
+
+    @classmethod
+    def _context_filters(cls, user_id: int, endpoint: ProviderEndpoint | None, key_id: int | None) -> list[dict]:
+        """Filters valid on both the observations and scores-numeric views, so both queries aggregate the same requests.
+
+        The scores views cannot filter on metadata, so the key is matched through the trace tag set in start_record.
+        """
         filters: list[dict] = [{"column": "userId", "operator": "=", "value": str(user_id), "type": "string"}]
         if endpoint is not None:
             filters.append({"column": "traceName", "operator": "=", "value": f"/v1{endpoint}", "type": "string"})
-        if model is not None:
-            filters.append({"column": "model", "operator": "=", "value": model, "type": "string"})
         if key_id is not None:
-            filters.append({"column": "metadata", "operator": "=", "value": str(key_id), "type": "stringObject", "key": "key_id"})
+            filters.append({"column": "tags", "operator": "any of", "value": [cls._key_tag(key_id)], "type": "arrayOptions"})
         return filters
+
+    @staticmethod
+    def _model_filter(column: str, model: str | None) -> list[dict]:
+        """The model column is named differently on each view: providedModelName vs observationModelName."""
+        if model is None:
+            return []
+        return [{"column": column, "operator": "=", "value": model, "type": "string"}]
 
     @classmethod
     def _build_usage_query(cls, context_filters: list[dict], start_time: datetime, end_time: datetime) -> dict:

@@ -30,7 +30,7 @@ class UsageRepository(ABC):
         pass
 
     @abstractmethod
-    def fail_record(self, message: str, status: int) -> None:
+    def fail_record(self, message: str, status_code: int) -> None:
         pass
 
     @abstractmethod

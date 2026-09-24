@@ -251,7 +251,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert result is error
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()
-        use_case.usage_repository.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=500)
+        use_case.usage_repository.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=503)
         use_case.usage_repository.end_record.assert_called_once()
 
 

@@ -606,6 +606,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
 | Post-response hooks | `api/tests/integration/endpoints/test_post_response_hooks.py` | Router limits charged after a response | Usage logging (`PostgresUsageRecorder`) and budget hooks (their session cannot be overridden) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
+| Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and API queries (real SDK), round trips against a real Langfuse | Use-case policy |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).
 
@@ -699,6 +700,15 @@ Do **not**:
 ### Model-forward autocommit
 
 When adding a use case that calls a provider (OCR, embeddings, rerank, audio, chat, …), add a `ForwardScenario` to `test_autocommitsession.py`. That test probes `pg_stat_activity` **during** the mocked provider call: autocommit wiring must show `checkedout == 0` and no `idle in transaction`.
+
+### Langfuse adapter
+
+Never mock the Langfuse SDK objects: a bare mock accepts any call, and a hand-written metrics response accepts any query. Two tiers:
+
+- `test_langfuseusagerepository.py` runs the real SDK: `Langfuse(span_exporter=InMemorySpanExporter())` captures the exported spans, `respx` answers `/api/public/ingestion` (scores) and `/api/public/v2/metrics` with the shape a real Langfuse returns.
+- `test_langfuseusagerepository_roundtrip.py` (`@pytest.mark.langfuse`) writes through `record_langfuse_usage` (`api/tests/integration/factories/langfuse.py`) and polls the real API until ingested. It is the only check that Langfuse accepts a filter column. ClickHouse has no transaction to roll back: each test isolates itself with a fresh `user_id`. Skipped when Langfuse is not reachable — start it with `docker compose --file compose.example.yml --profile langfuse up --detach --wait`.
+
+The SDK caches its resources per public key: a second `Langfuse(...)` with the same key silently reuses the first one's exporter.
 
 ### HTTP adapters
 
