@@ -119,8 +119,8 @@ class LangfuseUsageRepository(UsageRepository):
         impacts_query = self._build_impacts_query(context_filters, start_time=start_time, end_time=end_time)
 
         usage_response, impacts_response = await asyncio.gather(
-            asyncio.to_thread(self.client.api.metrics.metrics, query=json.dumps(usage_query)),
-            asyncio.to_thread(self.client.api.metrics.metrics, query=json.dumps(impacts_query)),
+            self.client.async_api.metrics.metrics(query=json.dumps(usage_query)),
+            self.client.async_api.metrics.metrics(query=json.dumps(impacts_query)),
         )
         impacts_by_day = self._impacts_by_day(list(getattr(impacts_response, "data", None) or []))
         usage_rows = list(getattr(usage_response, "data", None) or [])
