@@ -152,7 +152,7 @@ def _user_password_encoder() -> UserPasswordEncoder:
     return BcryptUserPasswordEncoder()
 
 
-def get_router_rate_limiter(background_tasks: BackgroundTasks) -> RouterRateLimiter:
+def _router_rate_limiter(background_tasks: BackgroundTasks) -> RouterRateLimiter:
     return RedisRouterRateLimiter(
         background_tasks=background_tasks, redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy
     )
@@ -215,7 +215,7 @@ def _usage_repository(
 def create_audio_transcriptions_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
-    router_rate_limiter: RouterRateLimiter = Depends(get_router_rate_limiter),
+    router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
@@ -240,7 +240,7 @@ def create_audio_transcriptions_use_case_factory(
 def create_chat_completions_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
-    router_rate_limiter: RouterRateLimiter = Depends(get_router_rate_limiter),
+    router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
@@ -308,7 +308,7 @@ def get_health_models_use_case_factory(
 def create_embeddings_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
-    router_rate_limiter: RouterRateLimiter = Depends(get_router_rate_limiter),
+    router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
@@ -386,7 +386,7 @@ def get_one_model_use_case_factory(postgres_session: AsyncSession = Depends(get_
 def create_ocr_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
-    router_rate_limiter: RouterRateLimiter = Depends(get_router_rate_limiter),
+    router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
@@ -452,7 +452,7 @@ def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
 def create_rerank_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
-    router_rate_limiter: RouterRateLimiter = Depends(get_router_rate_limiter),
+    router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),

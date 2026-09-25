@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from api.dependencies import create_audio_transcriptions_use_case_factory, get_postgres_session, get_router_rate_limiter
+from api.dependencies import create_audio_transcriptions_use_case_factory, get_postgres_session
 from api.domain.audio.entities import CreateAudioTranscriptionsFile
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.key.entities import Key
@@ -62,7 +62,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
     ),
     response_model=AudioTranscriptionsResponse,
 )
-@hooks(postgres_session_provider=get_postgres_session, router_rate_limiter_provider=get_router_rate_limiter)
+@hooks(postgres_session_provider=get_postgres_session)
 async def create_audio_transcription(
     data: Annotated[CreateAudioTranscriptionsForm, Depends(CreateAudioTranscriptionsForm.as_form)],
     create_audio_transcriptions_use_case: CreateAudioTranscriptionsUseCase = Depends(create_audio_transcriptions_use_case_factory),
