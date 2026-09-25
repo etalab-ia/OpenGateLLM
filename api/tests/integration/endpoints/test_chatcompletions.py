@@ -133,12 +133,12 @@ class TestCreateChatCompletions:
         await db_session.flush()
         return router
 
-    async def _get_rate_limit_state(self, test_redis_pool, router_id: int, limits: dict[LimitType, int]) -> RouterRateLimitState:
+    async def _get_rate_limit_state(self, test_redis_pool, router_id: int, user_id: int, limits: dict[LimitType, int]) -> RouterRateLimitState:
         rate_limiter = RedisRouterRateLimiter(
             background_tasks=BackgroundTasks(), redis_pool=test_redis_pool, strategy=configuration.settings.rate_limiting_strategy
         )
         return await rate_limiter.get_rate_limit_state(
-            user_id=self.user.id,
+            user_id=user_id,
             router_limits=[Limit(router_id=router_id, type=limit_type, value=value) for limit_type, value in limits.items()],
             router_id=router_id,
         )
@@ -154,7 +154,7 @@ class TestCreateChatCompletions:
         assert response.status_code == 200, response.text
         events = [line for line in response.text.split("\n\n") if line.strip()]
         total_tokens = json.loads(events[-2].removeprefix("data: "))["usage"]["total_tokens"]  # the usage chunk
-        state = await self._get_rate_limit_state(test_redis_pool, router_id=router.id, limits=limits)
+        state = await self._get_rate_limit_state(test_redis_pool, router_id=router.id, user_id=self.user.id, limits=limits)
         assert state.rpm.remaining == limits[LimitType.RPM] - 1
         assert state.rpd.remaining == limits[LimitType.RPD] - 1
         assert state.tpm.remaining == limits[LimitType.TPM] - total_tokens
@@ -164,6 +164,8 @@ class TestCreateChatCompletions:
     async def test_rate_limited_streamed_request_does_not_charge_the_router_limits(self, client: AsyncClient, db_session, test_redis_pool):
         limits = {LimitType.RPM: 1, LimitType.RPD: 200}
         router = await self._create_router_with_limits(db_session, limits=limits)
+        router_id = router.id
+        user_id = self.user.id
         mock_chat_completions_stream(respx_mock=respx, provider_type=ProviderType.VLLM, lines=STREAM_LINES)
         first_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
         assert first_response.status_code == 200, first_response.text
@@ -171,7 +173,7 @@ class TestCreateChatCompletions:
         response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
 
         assert response.status_code == 429, response.text
-        state = await self._get_rate_limit_state(test_redis_pool, router_id=router.id, limits=limits)
+        state = await self._get_rate_limit_state(test_redis_pool, router_id=router_id, user_id=user_id, limits=limits)
         assert state.rpd.remaining == limits[LimitType.RPD] - 1
 
     @respx.mock
