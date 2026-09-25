@@ -37,6 +37,9 @@ class TestCreateChatCompletionsBody:
 
         assert body.get_prompts() == ["because"]
 
+    def test_should_default_parallel_tool_calls_to_none(self):
+        assert _body().parallel_tool_calls is None
+
 
 class TestChatCompletion:
     def test_should_return_content_and_reasoning_as_completions(self):
