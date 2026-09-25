@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
+from fastapi import BackgroundTasks
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
@@ -14,16 +15,18 @@ from api.domain.provider.errors import (
     ProviderAdapterValidationResponseError,
     UnsupportedProviderEndpointError,
 )
-from api.domain.role.entities import LimitType
-from api.domain.router.entities import RouterType
+from api.domain.role.entities import Limit, LimitType
+from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.infrastructure.configuration import configuration
 from api.infrastructure.fastapi.routes import EndpointRoute
+from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
-from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
 
 URL = f"/v1{EndpointRoute.OCR}"
 
@@ -90,6 +93,82 @@ class TestCreateOCR:
         assert all("markdown" in page and "index" in page for page in data["pages"])
         assert data["usage"]["prompt_tokens"] == 0
         assert data["usage"]["completion_tokens"] == 10  # tokens of the extracted markdown (mock tokenizer: 10 per non-empty text)
+
+    async def _create_router_with_limits(self, db_session, limits: dict[LimitType, int]):
+        router = RouterSQLFactory(
+            user=self.router_owner,
+            name=DEFAULT_MODEL_NAME,
+            type=RouterType.IMAGE_TO_TEXT,
+            free=True,  # keeps update_budget out of the request
+            providers=1,
+            providers__type=ProviderType.MISTRAL,
+            providers__url=DEFAULT_PROVIDER_URL,
+            providers__model_hosting_zone=HostingZone.FRA,
+        )
+        for limit_type, value in limits.items():
+            LimitSQLFactory(role=self.user.role, router=router, type=limit_type, value=value)
+        await db_session.flush()
+        return router
+
+    async def _get_rate_limit_state(self, test_redis_pool, router_id: int, limits: dict[LimitType, int]) -> RouterRateLimitState:
+        rate_limiter = RedisRouterRateLimiter(
+            background_tasks=BackgroundTasks(), redis_pool=test_redis_pool, strategy=configuration.settings.rate_limiting_strategy
+        )
+        return await rate_limiter.get_rate_limit_state(
+            user_id=self.user.id,
+            router_limits=[Limit(router_id=router_id, type=limit_type, value=value) for limit_type, value in limits.items()],
+            router_id=router_id,
+        )
+
+    @respx.mock
+    async def test_charges_the_router_limits(self, client: AsyncClient, db_session, test_redis_pool):
+        # Arrange
+        limits = {LimitType.RPM: 100, LimitType.RPD: 200, LimitType.TPM: 1000, LimitType.TPD: 2000}
+        router = await self._create_router_with_limits(db_session, limits=limits)
+        mock_ocr_responses(
+            respx_mock=respx,
+            provider_type=ProviderType.MISTRAL,
+            body=MistralOcrResponseFactory(page_count=1),
+            status_code=MistralOcrResponseFactory._status_code,
+        )
+
+        # Act
+        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+
+        # Assert
+        assert response.status_code == 200, response.text
+        total_tokens = response.json()["usage"]["total_tokens"]
+        state = await self._get_rate_limit_state(test_redis_pool, router_id=router.id, limits=limits)
+        assert state.rpm.remaining == limits[LimitType.RPM] - 1
+        assert state.rpd.remaining == limits[LimitType.RPD] - 1
+        assert state.tpm.remaining == limits[LimitType.TPM] - total_tokens
+        assert state.tpd.remaining == limits[LimitType.TPD] - total_tokens
+
+    @respx.mock
+    async def test_rate_limited_request_does_not_charge_the_router_limits(self, client: AsyncClient, db_session, test_redis_pool):
+        # Arrange: RPM=1, so the first request passes and the second is rejected
+        limits = {LimitType.RPM: 1, LimitType.RPD: 200, LimitType.TPM: 1000, LimitType.TPD: 2000}
+        router = await self._create_router_with_limits(db_session, limits=limits)
+        mock_ocr_responses(
+            respx_mock=respx,
+            provider_type=ProviderType.MISTRAL,
+            body=MistralOcrResponseFactory(page_count=1),
+            status_code=MistralOcrResponseFactory._status_code,
+        )
+        first_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+        assert first_response.status_code == 200, first_response.text
+        total_tokens = first_response.json()["usage"]["total_tokens"]
+
+        # Act
+        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+
+        # Assert: only the first request is counted
+        assert response.status_code == 429, response.text
+        state = await self._get_rate_limit_state(test_redis_pool, router_id=router.id, limits=limits)
+        assert state.rpm.remaining == 0
+        assert state.rpd.remaining == limits[LimitType.RPD] - 1
+        assert state.tpm.remaining == limits[LimitType.TPM] - total_tokens
+        assert state.tpd.remaining == limits[LimitType.TPD] - total_tokens
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
