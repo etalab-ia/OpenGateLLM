@@ -488,8 +488,8 @@ class TestSendRequest:
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
             # Act
             result = await use_case._send_request(
-                    authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
-                )
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -565,8 +565,8 @@ class TestSendRequest:
         # Act
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
             result = await use_case._send_request(
-                    authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
-                )
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -585,7 +585,7 @@ class TestSendRequest:
     @pytest.mark.asyncio
     async def test_should_not_charge_rate_limits_when_user_is_admin(self, use_case, router, payload, admin_user):
         # Act
-        result = await use_case._send_request(authenticated_user=admin_user, router=router, prompt_tokens=1, payload=payload, request_id=TRACE_ID)
+        result = await use_case._send_request(authenticated_user=admin_user, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
 
         # Assert
         assert isinstance(result, ProviderResponse)
