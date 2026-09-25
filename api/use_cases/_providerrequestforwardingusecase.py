@@ -117,7 +117,13 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         request_id = self._start_record_usage(command=command, router=router)
         try:
-            result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload, request_id=request_id)
+            result = await self._send_request(
+                authenticated_user=authenticated_user,
+                router=router,
+                prompt_tokens=prompt_tokens,
+                payload=command.payload,
+                request_id=request_id,
+            )
             match result:
                 case ProviderResponse() as provider_response:
                     pass
@@ -202,6 +208,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
     async def _send_request(
         self,
+        authenticated_user: AuthenticatedUserView,
         router: Router,
         prompt_tokens: int,
         payload: ForwardablePayload,
@@ -241,6 +248,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         self.usage_context.record_usage(request_id=request_id, usage=usage)
         self.usage_repository.update_record(usage=usage, provider_id=provider.id, provider_model_name=provider.model_name)
+        self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return provider_response
 
@@ -281,6 +289,18 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             total_tokens=prompt_tokens + completion_tokens,
             cost=cost,
             impacts=environmental_impacts,
+        )
+
+    def _charge_rate_limits(self, authenticated_user: AuthenticatedUserView, router: Router, usage: Usage) -> None:
+        if authenticated_user.is_admin:
+            return
+
+        self.router_rate_limiter.update_rate_limit_state(
+            user_id=authenticated_user.id,
+            router_limits=[limit for limit in authenticated_user.limits if limit.router_id == router.id],
+            router_id=router.id,
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
         )
 
     def _build_success(self, command: TCommand, response: ProviderResponse, headers: dict[str, str]) -> TResult:
