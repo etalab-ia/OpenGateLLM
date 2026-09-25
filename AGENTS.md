@@ -356,6 +356,7 @@ execute                    the flow
   _send_request
     _select_provider           one level below _send_request, its caller
     _build_usage
+    _charge_rate_limits
   _build_success
 ```
 
@@ -445,7 +446,7 @@ Rules:
 - The generator is **lazy**: returning the success runs no provider call, which is what lets `execute()` stay awaitable and testable.
 - The generator yields `ProviderChunkResponse(content, status_code)` — raw provider lines plus the status. Transport concerns (SSE framing, network errors → a 503 chunk) stay in `api/infrastructure/http/_httpproviderclient.py`; parsing, token counting and usage stay in the use case. `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, which is what lets a transport failure on the very first read still surface as a real status.
 - A non-2xx chunk ends the stream immediately and is forwarded as-is.
-- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage` and `usage_repository.update_record` there — that is the only point where a stream's usage is known.
+- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage`, `usage_repository.update_record` and `_charge_rate_limits` there — that is the only point where a stream's usage is known.
 - `usage_repository.end_record()` runs in the stream generator's `finally`, so a client disconnect still closes the record. `PostgresUsageRecorder` schedules the `usage` row on FastAPI `BackgroundTasks` from that call.
 - Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommitsession.py`.
 
@@ -458,7 +459,13 @@ Model-forward use cases call `UsageRecorder` (`start_record` / `update_record` /
 | `dependencies.langfuse` is configured | `LangfuseUsageRecorder` |
 | otherwise (default) | `PostgresUsageRecorder` — writes the `usage` table via FastAPI `BackgroundTasks` after `end_record` |
 
-Do not persist usage rows from `@hooks`. Hooks only charge router limits and update budget.
+Do not persist usage rows or charge router limits from `@hooks`. Hooks only update budget.
+
+### Rate-limit charging
+
+Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `usage_recorder.update_record`: in `_send_request`, and in chat's `_build_usage_event` for streams. Only successful requests are charged (never a 429); admins are skipped.
+
+`RedisRouterRateLimiter.update_rate_limit_state` queues the Redis write on FastAPI `BackgroundTasks`, like `PostgresUsageRecorder`. FastAPI drops those tasks when the endpoint raises an `HTTPException`: anything queued on a failed request never runs.
 
 ---
 
@@ -604,7 +611,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
 | Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
 | Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
-| Post-response hooks | `api/tests/integration/endpoints/test_post_response_hooks.py` | Router limits charged after a response | Usage logging (`PostgresUsageRecorder`) and budget hooks (their session cannot be overridden) |
+| Rate-limit charging | `api/tests/integration/endpoints/test_ocr.py`, `api/tests/integration/endpoints/test_chatcompletions.py` (`*charge*_the_router_limits`) | Redis counters after a real request; a 429 is not charged | The other model-forward endpoints (same non-streaming path) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
 | Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and API queries (real SDK), round trips against a real Langfuse | Use-case policy |
 
