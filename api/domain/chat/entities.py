@@ -48,7 +48,7 @@ class CreateChatCompletionsBody(ForwardablePayload):
     top_p: float | None = None
     tools: list[dict] | None = None
     tool_choice: Any = "none"
-    parallel_tool_calls: bool | None = False
+    parallel_tool_calls: bool | None = None
     user: str | None = None
 
     def get_prompts(self) -> list[str]:
