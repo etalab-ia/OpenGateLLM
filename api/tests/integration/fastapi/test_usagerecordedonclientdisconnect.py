@@ -84,6 +84,7 @@ def _assemble(use_case, router, provider, outcome: list[str]) -> StreamingRespon
     inner = StreamingResponseWithStatusCode(
         content=_as_stream_chunks(
             use_case._format_stream(
+                authenticated_user=_request_context().user,
                 router=router,
                 provider=provider,
                 chunks=_provider_stream(),
