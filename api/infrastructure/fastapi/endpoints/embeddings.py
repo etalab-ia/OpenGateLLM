@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from api.dependencies import create_embeddings_use_case_factory, get_postgres_session, get_router_rate_limiter
+from api.dependencies import create_embeddings_use_case_factory, get_postgres_session
 from api.domain.key.entities import Key
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
@@ -53,7 +53,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.EMBEDDINGS.title()])
     ),
     response_model=EmbeddingsResponse,
 )
-@hooks(postgres_session_provider=get_postgres_session, router_rate_limiter_provider=get_router_rate_limiter)
+@hooks(postgres_session_provider=get_postgres_session)
 async def create_embeddings(
     body: CreateEmbeddingsBody = Body(description="The embeddings creation request."),
     create_embeddings_use_case: CreateEmbeddingsUseCase = Depends(create_embeddings_use_case_factory),

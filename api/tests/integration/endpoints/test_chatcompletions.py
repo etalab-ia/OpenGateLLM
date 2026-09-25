@@ -1,6 +1,7 @@
 import json
 from unittest.mock import AsyncMock, MagicMock
 
+from fastapi import BackgroundTasks
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
@@ -10,15 +11,17 @@ from api.dependencies import create_chat_completions_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
-from api.domain.role.entities import LimitType
-from api.domain.router.entities import RouterType
+from api.domain.role.entities import Limit, LimitType
+from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.infrastructure.configuration import configuration
 from api.infrastructure.fastapi.routes import EndpointRoute
+from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_chat_completions_responses, mock_chat_completions_stream
-from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.vllm import VllmChatCompletionsResponseFactory
 
 URL = f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
@@ -55,7 +58,7 @@ class TestCreateChatCompletions:
         with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
             yield
 
-    async def _create_router(self, db_session):
+    async def _create_router(self, db_session, **overrides):
         router = RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
@@ -64,6 +67,7 @@ class TestCreateChatCompletions:
             providers__type=ProviderType.VLLM,
             providers__url=DEFAULT_PROVIDER_URL,
             providers__model_hosting_zone=HostingZone.FRA,  # pin to an ecologits-resolvable zone (chat always has completion tokens)
+            **overrides,
         )
         await db_session.flush()
         return router
@@ -121,6 +125,56 @@ class TestCreateChatCompletions:
         assert usage_chunk["choices"] == []
         assert usage_chunk["model"] == DEFAULT_MODEL_NAME
         assert usage_chunk["usage"]["completion_tokens"] > 0
+
+    async def _create_router_with_limits(self, db_session, limits: dict[LimitType, int]):
+        router = await self._create_router(db_session, free=True)  # free keeps update_budget out of the request
+        for limit_type, value in limits.items():
+            LimitSQLFactory(role=self.user.role, router=router, type=limit_type, value=value)
+        await db_session.flush()
+        return router
+
+    async def _get_rate_limit_state(self, test_redis_pool, router_id: int, user_id: int, limits: dict[LimitType, int]) -> RouterRateLimitState:
+        rate_limiter = RedisRouterRateLimiter(
+            background_tasks=BackgroundTasks(), redis_pool=test_redis_pool, strategy=configuration.settings.rate_limiting_strategy
+        )
+        return await rate_limiter.get_rate_limit_state(
+            user_id=user_id,
+            router_limits=[Limit(router_id=router_id, type=limit_type, value=value) for limit_type, value in limits.items()],
+            router_id=router_id,
+        )
+
+    @respx.mock
+    async def test_streamed_request_charges_the_router_limits(self, client: AsyncClient, db_session, test_redis_pool):
+        limits = {LimitType.RPM: 100, LimitType.RPD: 200, LimitType.TPM: 1000, LimitType.TPD: 2000}
+        router = await self._create_router_with_limits(db_session, limits=limits)
+        mock_chat_completions_stream(respx_mock=respx, provider_type=ProviderType.VLLM, lines=STREAM_LINES)
+
+        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
+
+        assert response.status_code == 200, response.text
+        events = [line for line in response.text.split("\n\n") if line.strip()]
+        total_tokens = json.loads(events[-2].removeprefix("data: "))["usage"]["total_tokens"]  # the usage chunk
+        state = await self._get_rate_limit_state(test_redis_pool, router_id=router.id, user_id=self.user.id, limits=limits)
+        assert state.rpm.remaining == limits[LimitType.RPM] - 1
+        assert state.rpd.remaining == limits[LimitType.RPD] - 1
+        assert state.tpm.remaining == limits[LimitType.TPM] - total_tokens
+        assert state.tpd.remaining == limits[LimitType.TPD] - total_tokens
+
+    @respx.mock
+    async def test_rate_limited_streamed_request_does_not_charge_the_router_limits(self, client: AsyncClient, db_session, test_redis_pool):
+        limits = {LimitType.RPM: 1, LimitType.RPD: 200}
+        router = await self._create_router_with_limits(db_session, limits=limits)
+        router_id = router.id
+        user_id = self.user.id
+        mock_chat_completions_stream(respx_mock=respx, provider_type=ProviderType.VLLM, lines=STREAM_LINES)
+        first_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
+        assert first_response.status_code == 200, first_response.text
+
+        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
+
+        assert response.status_code == 429, response.text
+        state = await self._get_rate_limit_state(test_redis_pool, router_id=router_id, user_id=user_id, limits=limits)
+        assert state.rpd.remaining == limits[LimitType.RPD] - 1
 
     @respx.mock
     async def test_streamed_provider_error_is_forwarded_with_its_status(self, client: AsyncClient, db_session):

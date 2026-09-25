@@ -115,6 +115,7 @@ async def _chunk_stream(*contents: str, status_code: int = 200) -> AsyncGenerato
 
 def _format_stream(use_case, router, provider, chunks, prompt_tokens=1):
     return use_case._format_stream(
+        authenticated_user=AuthenticatedUserFactory(without_permission=True),
         router=router,
         provider=provider,
         chunks=chunks,
@@ -285,6 +286,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         mock_usage_recorder.record_usage.assert_called_once()
         assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == REQUEST_ID
         use_case.usage_repository.update_record.assert_called_once()
+        use_case.router_rate_limiter.update_rate_limit_state.assert_called_once()
         use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
@@ -350,6 +352,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert chunks[0].status_code == 503
         use_case.usage_context.record_usage.assert_not_called()
         use_case.usage_repository.update_record.assert_not_called()
+        use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
         use_case.usage_repository.fail_record.assert_called_once_with(message="StatusCodeModelError", status_code=503)
         use_case.usage_repository.end_record.assert_called_once()
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
