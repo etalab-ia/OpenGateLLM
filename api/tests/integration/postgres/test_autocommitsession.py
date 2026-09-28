@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from unittest.mock import MagicMock
@@ -248,10 +247,6 @@ class TestModelForwardReleasesConnection:
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(url=scenario.url, headers={"Authorization": f"Bearer {token}"}, json=scenario.request_body)
-
-            hooks_tasks = [task for task in asyncio.all_tasks() if task.get_name().startswith("hooks-")]
-            if hooks_tasks:
-                await asyncio.gather(*hooks_tasks, return_exceptions=True)
 
         return response, captured
 
