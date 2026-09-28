@@ -2,6 +2,10 @@ from prometheus_client import multiprocess
 from redis import Redis as SyncRedis
 
 from api.infrastructure.configuration import get_configuration
+from api.infrastructure.logging import JsonGunicornLogger
+
+if get_configuration().settings.log_json:
+    logger_class = JsonGunicornLogger
 
 
 def on_starting(server):

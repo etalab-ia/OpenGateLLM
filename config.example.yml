@@ -35,6 +35,7 @@ settings:
 
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
+  # log_json: false
 
   swagger_version: 0.8.0
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
