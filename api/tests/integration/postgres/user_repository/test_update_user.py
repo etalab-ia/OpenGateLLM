@@ -40,7 +40,6 @@ class TestUpdateUser:
                 update={
                     "email": "updated@test.com",
                     "name": "Updated Name",
-                    "budget": 50.5,
                     "priority": 3,
                     "password": SecretStr("encoded:new-secret"),
                     "role_id": new_role.id,
@@ -55,7 +54,6 @@ class TestUpdateUser:
         assert result.id == user.id
         assert result.email == "updated@test.com"
         assert result.name == "Updated Name"
-        assert result.budget == 50.5
         assert result.priority == 3
         assert result.role_id == new_role.id
         assert result.organization_id == new_organization.id
