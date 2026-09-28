@@ -99,7 +99,6 @@ class TestCreateOCR:
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
             type=RouterType.IMAGE_TO_TEXT,
-            free=True,  # keeps update_budget out of the request
             providers=1,
             providers__type=ProviderType.MISTRAL,
             providers__url=DEFAULT_PROVIDER_URL,

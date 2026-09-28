@@ -127,7 +127,7 @@ class TestCreateChatCompletions:
         assert usage_chunk["usage"]["completion_tokens"] > 0
 
     async def _create_router_with_limits(self, db_session, limits: dict[LimitType, int]):
-        router = await self._create_router(db_session, free=True)  # free keeps update_budget out of the request
+        router = await self._create_router(db_session)  # free keeps update_budget out of the request
         for limit_type, value in limits.items():
             LimitSQLFactory(role=self.user.role, router=router, type=limit_type, value=value)
         await db_session.flush()
