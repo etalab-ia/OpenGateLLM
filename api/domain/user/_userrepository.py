@@ -21,7 +21,6 @@ class UserRepository(ABC):
         sub: str | None = None,
         iss: str | None = None,
         claims: dict[str, Any] | None = None,
-        budget: float | None = None,
         expires: datetime | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:

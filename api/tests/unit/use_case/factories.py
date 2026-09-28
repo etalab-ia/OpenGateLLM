@@ -132,7 +132,6 @@ class UserFactory(factory.Factory):
     claims = None
     role_id = factory.Faker("random_int", min=1, max=100)
     organization_id = factory.Faker("random_int", min=1, max=10000)
-    budget = factory.Faker("pyfloat", left_digits=5, right_digits=2, positive=True)
     expires = None
     priority = 0
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
@@ -147,13 +146,11 @@ class AuthenticatedUserFactory(factory.Factory):
     email = factory.Faker("email")
     name = factory.Faker("name")
     organization_id = factory.Faker("random_int", min=1, max=1000)
-    budget = factory.Faker("pyfloat", left_digits=5, right_digits=2, positive=True)
     permissions = factory.LazyFunction(lambda: random.sample(list(PermissionType), k=random.randint(1, len(PermissionType))))
     limits = factory.LazyFunction(lambda: [LimitFactory() for _ in range(random.randint(1, 3))])
     expires = factory.LazyFunction(lambda: datetime.now(tz=UTC) + timedelta(days=365))
 
     class Params:
-        unlimited_budget = factory.Trait(budget=None)
         no_expiration = factory.Trait(expires=None)
         admin = factory.Trait(permissions=[PermissionType.ADMIN])
         without_permission = factory.Trait(permissions=[])
