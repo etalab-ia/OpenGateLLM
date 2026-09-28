@@ -31,7 +31,7 @@ def use_case(user_repository, user_password_encoder):
 
 @pytest.fixture
 def sample_user():
-    return UserFactory(id=42, organization_id=7, budget=100.0, expires=None, priority=1)
+    return UserFactory(id=42, organization_id=7, expires=None, priority=1)
 
 
 def full_command(user, **overrides) -> UpdateUserCommand:
@@ -42,7 +42,6 @@ def full_command(user, **overrides) -> UpdateUserCommand:
         name=user.name,
         role_id=user.role_id,
         organization_id=user.organization_id,
-        budget=user.budget,
         expires=user.expires,
         priority=user.priority,
     )
@@ -75,12 +74,11 @@ class TestUpdateUserUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(full_command(sample_user, name=None, budget=None, expires=None))
+        result = await use_case.execute(full_command(sample_user, name=None, expires=None))
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
         assert result.user.name is None
-        assert result.user.budget is None
         assert result.user.expires is None
         # The other persisted fields keep the values sent by the command.
         assert result.user.email == sample_user.email
@@ -103,7 +101,6 @@ class TestUpdateUserUseCase:
                 name="New Name",
                 role_id=3,
                 organization_id=8,
-                budget=42.0,
                 expires=datetime(2030, 1, 1, tzinfo=UTC),
                 priority=5,
             )
@@ -115,7 +112,6 @@ class TestUpdateUserUseCase:
         assert result.user.name == "New Name"
         assert result.user.role_id == 3
         assert result.user.organization_id == 8
-        assert result.user.budget == 42.0
         assert result.user.expires == datetime(2030, 1, 1, tzinfo=UTC)
         assert result.user.priority == 5
 

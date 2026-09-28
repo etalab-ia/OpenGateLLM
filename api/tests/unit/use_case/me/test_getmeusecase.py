@@ -17,7 +17,6 @@ def authenticated_user():
         email="alice@example.com",
         name="Alice",
         organization_id=7,
-        budget=10.0,
         permissions=[PermissionType.READ_METRIC],
         limits=[],
         expires=None,

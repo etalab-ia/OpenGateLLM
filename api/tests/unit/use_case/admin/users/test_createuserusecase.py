@@ -46,7 +46,6 @@ class TestCreateUserUseCase:
             role_id=10,
             name="New User",
             organization_id=5,
-            budget=100.0,
             priority=2,
         )
         user = UserFactory(
@@ -55,7 +54,6 @@ class TestCreateUserUseCase:
             name="New User",
             role_id=10,
             organization_id=5,
-            budget=100.0,
             priority=2,
         )
         user_repository.create_user.return_value = user
@@ -77,7 +75,6 @@ class TestCreateUserUseCase:
             "expires": None,
             "organization_id": 5,
             "password": "encoded:s3cr3t",
-            "budget": 100.0,
             "priority": 2,
         }
 

@@ -15,7 +15,6 @@ class CreateUserCommand:
     organization_id: int
     password: str
     name: str | None = None
-    budget: float | None = None
     expires: UtcDatetime | None = None
     priority: int = 0
 
@@ -41,7 +40,6 @@ class CreateUserUseCase:
             role_id=command.role_id,
             name=command.name,
             organization_id=command.organization_id,
-            budget=command.budget,
             expires=command.expires,
             priority=command.priority,
         )

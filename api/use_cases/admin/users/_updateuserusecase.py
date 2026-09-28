@@ -17,7 +17,6 @@ class UpdateUserCommand:
     name: str | None
     role_id: int
     organization_id: int
-    budget: float | None
     expires: UtcDatetime | None
     priority: int
     current_password: str | None = None
@@ -67,7 +66,6 @@ class UpdateUserUseCase:
                 "priority": command.priority,
                 "name": command.name,
                 "organization_id": command.organization_id,
-                "budget": command.budget,
                 "expires": command.expires,
                 "password": password,
             }
