@@ -46,14 +46,6 @@ def user_settings_form_fields() -> rx.Component:
             placeholder="Select organization",
         ),
         entity_form_input_field(
-            label="Budget",
-            value=UsersState.entity.budget,
-            on_change=lambda value: UsersState.set_edit_entity_attribut("budget", value),
-            disabled=UsersState.edit_entity_loading,
-            tooltip="If budget is empty, the user will have unlimited usage.",
-            placeholder="Unlimited",
-        ),
-        entity_form_input_field(
             label="Expires at",
             value=UsersState.entity.expires,
             on_change=lambda value: UsersState.set_edit_entity_attribut("expires", value),
@@ -112,12 +104,6 @@ def user_create_form_fields() -> rx.Component:
             value=UsersState.entity_to_create.organization,
             on_change=lambda value: UsersState.set_new_entity_attribut("organization", value),
             placeholder="Select organization",
-        ),
-        entity_form_input_field(
-            label="Budget",
-            value=UsersState.entity_to_create.budget,
-            on_change=lambda value: UsersState.set_new_entity_attribut("budget", value),
-            placeholder="Unlimited",
         ),
         entity_form_input_field(
             label="Expires at",

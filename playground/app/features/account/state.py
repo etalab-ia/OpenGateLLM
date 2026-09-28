@@ -22,13 +22,6 @@ class AccountState(AuthState):
     password_change_loading: bool = False
 
     @rx.var
-    def user_budget_formatted(self) -> str:
-        """Format budget, showing 'Unlimited' if None."""
-        if self.user_budget is None:
-            return "Unlimited"
-        return str(self.user_budget)
-
-    @rx.var
     def user_expires_formatted(self) -> str:
         """Format the account expiration date in the local timezone, showing 'Never' if None."""
         return format_datetime(self.user_expires, default="Never")

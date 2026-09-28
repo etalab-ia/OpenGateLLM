@@ -25,7 +25,6 @@ class AuthState(rx.State):
     api_key_id: int | None = None
 
     user_organization_id: int | None = None
-    user_budget: float | None = None
     user_expires: int | None = None
     user_permissions: list[str] = []
     user_limits: list[dict] = []
@@ -79,7 +78,6 @@ class AuthState(rx.State):
         self.api_key = api_key
         self.api_key_id = api_key_id
         self.user_organization_id = user_data.get("organization_id")
-        self.user_budget = user_data.get("budget")
         self.user_expires = user_data.get("expires")
         self.user_permissions = user_data.get("permissions", [])
         self.user_limits = user_data.get("limits", [])
@@ -293,7 +291,6 @@ class AuthState(rx.State):
         self.api_key = None
         self.api_key_id = None
         self.user_organization_id = None
-        self.user_budget = None
         self.user_expires = None
         self.user_permissions = []
         self.user_limits = []

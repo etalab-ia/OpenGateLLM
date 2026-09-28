@@ -40,16 +40,6 @@ def account_info_card() -> rx.Component:
                     width="100%",
                 ),
                 rx.vstack(
-                    rx.text("Budget", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        value=AccountState.user_budget_formatted,
-                        read_only=True,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
                     rx.text("Account expires", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
                         value=AccountState.user_expires_formatted,
