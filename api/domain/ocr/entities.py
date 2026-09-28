@@ -1,22 +1,10 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
-
-
-class OCRJsonSchema(BaseModel):
-    name: str
-    schema: dict[str, Any]
-    strict: bool = False
-    description: str | None = None
-
-
-class OCRResponseFormat(BaseModel):
-    type: Literal["text", "json_object", "json_schema"] = "text"
-    json_schema: OCRJsonSchema | None = None
 
 
 class OCRDocumentURLChunk(BaseModel):
@@ -36,18 +24,9 @@ class OCRImageURLChunk(BaseModel):
 
 
 class CreateOCRBody(ForwardablePayload):
-    bbox_annotation_format: OCRResponseFormat | None = None
     document: OCRDocumentURLChunk | OCRImageURLChunk
-    document_annotation_format: OCRResponseFormat | None = None
     document_annotation_prompt: str | None = None
-    extract_footer: bool = False
-    extract_header: bool = False
-    image_limit: int | None = None
-    image_min_size: int | None = None
-    include_image_base64: bool | None = None
-    model: str | None = None
-    pages: list[int] | None = None
-    table_format: Literal["markdown", "html"] | None = None
+    model: str
 
     def get_prompts(self) -> list[str]:
         return [self.document_annotation_prompt] if self.document_annotation_prompt else []

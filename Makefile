@@ -21,16 +21,7 @@ test-unit:
 TEST_INTEG_ARG := $(word 2,$(MAKECMDGOALS))
 TEST_INTEG_SUFFIX := $(if $(TEST_INTEG_ARG),/$(TEST_INTEG_ARG),)
 
-test-integ:
-	@if [ -z "$${ALBERT_API_KEY}" ]; then \
-		echo "ALBERT_API_KEY is not set. Export it first, see .github/.env.ci.example"; \
-		exit 1; \
-	fi; \
-	export CONFIG_FILE=./api/tests/integ/config.test.yml; \
-	docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis; \
-	PYTHONPATH=. pytest api/tests/integ$(TEST_INTEG_SUFFIX) --config-file=pyproject.toml --cov=./api --cov-report=xml;
-
 semgrep: 
 	@semgrep semgrep ci --config auto --verbose
 	
-.PHONY: help quickstart dev lint test-unit test-integ create-api-key semgrep
+.PHONY: help quickstart dev lint test-unit create-api-key semgrep

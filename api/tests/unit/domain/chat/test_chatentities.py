@@ -37,8 +37,8 @@ class TestCreateChatCompletionsBody:
 
         assert body.get_prompts() == ["because"]
 
-    def test_should_default_parallel_tool_calls_to_none(self):
-        assert _body().parallel_tool_calls is None
+    def test_should_default_parallel_tool_calls_is_undefined(self):
+        assert not hasattr(_body(), "parallel_tool_calls")
 
 
 class TestChatCompletion:
