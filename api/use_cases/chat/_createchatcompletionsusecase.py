@@ -7,6 +7,7 @@ from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, Create
 from api.domain.model.errors import StatusCodeModelError
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
+from api.domain.user.views import AuthenticatedUserView
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 
 
@@ -71,12 +72,25 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     return error
 
             return CreateChatCompletionsStreamUseCaseSuccess(
-                chunks=self._format_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=prompt_tokens, request_id=request_id),
+                chunks=self._format_stream(
+                    authenticated_user=authenticated_user,
+                    router=router,
+                    provider=provider,
+                    chunks=chunks,
+                    prompt_tokens=prompt_tokens,
+                    request_id=request_id,
+                ),
                 headers=rate_limit_state.build_limit_headers,
             )
 
         try:
-            result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload, request_id=request_id)
+            result = await self._send_request(
+                authenticated_user=authenticated_user,
+                router=router,
+                prompt_tokens=prompt_tokens,
+                payload=command.payload,
+                request_id=request_id,
+            )
             match result:
                 case ProviderResponse() as provider_response:
                     pass
@@ -90,6 +104,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
 
     async def _format_stream(
         self,
+        authenticated_user: AuthenticatedUserView,
         router: Router,
         provider: Provider,
         chunks: AsyncGenerator[ProviderChunkResponse],
@@ -126,6 +141,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 latency = self.usage_repository.compute_latency()
                 yield ProviderChunkResponse(
                     content=self._build_usage_event(
+                        authenticated_user=authenticated_user,
                         router=router,
                         provider=provider,
                         buffer=buffer,
@@ -142,6 +158,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
 
     def _build_usage_event(
         self,
+        authenticated_user: AuthenticatedUserView,
         router: Router,
         provider: Provider,
         buffer: list[dict],
@@ -160,6 +177,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             provider_model_name=provider.model_name,
             first_token_at=first_token_at,
         )
+        self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         usage_chunk = ChatCompletionChunk.build_usage_chunk(
             last_chunk=buffer[-1] if buffer else {},

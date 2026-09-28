@@ -157,7 +157,9 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
         use_case._resolve_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="audio-router")
         use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["transcribe this"])
         use_case._check_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, prompt_tokens=1)
-        use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload, request_id=TRACE_ID)
+        use_case._send_request.assert_awaited_once_with(
+            authenticated_user=admin_user, router=router, prompt_tokens=1, payload=command.payload, request_id=TRACE_ID
+        )
         assert isinstance(result, CreateAudioTranscriptionsJsonUseCaseSuccess)
         assert result.data is sample_transcriptions
         assert result.headers == rate_limit_state.build_limit_headers

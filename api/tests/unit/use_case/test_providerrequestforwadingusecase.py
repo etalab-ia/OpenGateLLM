@@ -404,13 +404,17 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = ProviderResponse(data=sample_data)
 
     @pytest.mark.asyncio
-    async def test_should_return_request_validation_error_when_provider_call_rejects_request(self, use_case, router, provider, payload):
+    async def test_should_return_request_validation_error_when_provider_call_rejects_request(
+        self, use_case, router, provider, payload, user_with_router_access
+    ):
         # Arrange
         validation_error = ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+        result = await use_case._send_request(
+            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == validation_error
@@ -422,15 +426,20 @@ class TestSendRequest:
         use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
         use_case.usage_context.record_usage.assert_not_called()
         use_case.usage_repository.update_record.assert_not_called()
+        use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_forward_error_and_decrement_inflight_when_provider_call_fails(self, use_case, router, provider, payload):
+    async def test_should_return_forward_error_and_decrement_inflight_when_provider_call_fails(
+        self, use_case, router, provider, payload, user_with_router_access
+    ):
         # Arrange
         provider_error = TooBusyModelError(status_code=503, detail="busy")
         use_case.provider_client.forward.return_value = provider_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+        result = await use_case._send_request(
+            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == provider_error
@@ -438,26 +447,32 @@ class TestSendRequest:
         use_case.usage_context.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_decrement_inflight_when_the_provider_call_raises(self, use_case, router, provider, payload):
+    async def test_should_decrement_inflight_when_the_provider_call_raises(self, use_case, router, provider, payload, user_with_router_access):
         # Arrange
         use_case.provider_client.forward.side_effect = TypeError("adapter blew up while converting the response")
 
         # Act
         with pytest.raises(TypeError):
-            await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+            await use_case._send_request(
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
 
         # Assert
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
 
     @pytest.mark.asyncio
-    async def test_should_return_response_validation_error_without_decrementing_when_inflight_was_not_incremented(self, use_case, router, payload):
+    async def test_should_return_response_validation_error_without_decrementing_when_inflight_was_not_incremented(
+        self, use_case, router, payload, user_with_router_access
+    ):
         # Arrange
         use_case.provider_metrics_logger.increment_inflight.return_value = False
         validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+        result = await use_case._send_request(
+            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == validation_error
@@ -466,13 +481,15 @@ class TestSendRequest:
 
     @pytest.mark.asyncio
     async def test_should_enrich_usage_when_formatted_response_has_data(
-        self, use_case, router, provider, sample_data, payload, model_tokenizer, model_environmental_impacts_computer
+        self, use_case, router, provider, sample_data, payload, model_tokenizer, model_environmental_impacts_computer, user_with_router_access
     ):
         # Arrange
         use_case.usage_repository.compute_latency.return_value = 12000
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
             # Act
-            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -530,15 +547,26 @@ class TestSendRequest:
             provider_id=provider.id,
             provider_model_name=provider.model_name,
         )
+        use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
+            user_id=user_with_router_access.id,
+            router_limits=[Limit(router_id=router.id, type=LimitType.RPM, value=100)],
+            router_id=router.id,
+            prompt_tokens=1,
+            completion_tokens=1,
+        )
 
     @pytest.mark.asyncio
-    async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(self, use_case, router, provider, payload):
+    async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(
+        self, use_case, router, provider, payload, user_with_router_access
+    ):
         # Arrange
         use_case.provider_client.forward.return_value = ProviderResponse(text="hello world")
         use_case.usage_repository.compute_latency.return_value = 12000
         # Act
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
-            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -553,6 +581,15 @@ class TestSendRequest:
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
         )
+
+    @pytest.mark.asyncio
+    async def test_should_not_charge_rate_limits_when_user_is_admin(self, use_case, router, payload, admin_user):
+        # Act
+        result = await use_case._send_request(authenticated_user=admin_user, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+
+        # Assert
+        assert isinstance(result, ProviderResponse)
+        use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
 
 
 class TestExecute:
@@ -628,7 +665,9 @@ class TestExecute:
 
         # Assert
         assert result is error
-        use_case._send_request.assert_awaited_once_with(router=router, prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID)
+        use_case._send_request.assert_awaited_once_with(
+            authenticated_user=command.authenticated_user, router=router, prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID
+        )
         use_case.usage_repository.start_record.assert_called_once_with(
             endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
             model=router.name,
