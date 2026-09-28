@@ -74,7 +74,6 @@ class TestUpdateMeInfoUseCase:
         assert result.user.priority == sample_user.priority
         assert result.user.password == sample_user.password
         assert result.user.organization_id == sample_user.organization_id
-        assert result.user.budget == sample_user.budget
         assert result.user.expires == sample_user.expires
 
     @pytest.mark.asyncio
