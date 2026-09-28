@@ -13,7 +13,6 @@ class MeResponse(BaseModel):
     email: Annotated[str, Field(description="The user email.")]
     name: Annotated[str | None, Field(default=None, description="The user name.")]
     organization_id: Annotated[int, Field(description="The user organization ID.")]
-    budget: Annotated[float | None, Field(default=None, description="The user budget. If None, the user has unlimited budget.")]
     permissions: Annotated[list[PermissionType], Field(description="The user permissions.")]
     limits: Annotated[list[Limit], Field(description="The user rate limits.")]
     expires: Annotated[UnixTimestamp | None, Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")]

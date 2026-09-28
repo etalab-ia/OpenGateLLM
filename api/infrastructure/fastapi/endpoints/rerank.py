@@ -14,13 +14,12 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InsufficientBudgetHTTPException,
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
@@ -44,7 +43,6 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
             ModelNotFoundHTTPException,
             RateLimitExceededHTTPException,
             WrongModelTypeHTTPException,
-            InsufficientBudgetHTTPException,
         ]
     ),
     response_model=RerankResponse,
@@ -79,8 +77,6 @@ async def create_rerank(
             raise WrongModelTypeHTTPException(expected_type=expected_type, actual_type=actual_type)
         case UserHasNoAccessToRouterError():
             raise ModelNotFoundHTTPException(name=body.model)
-        case UserHasInsufficientBudgetError():
-            raise InsufficientBudgetHTTPException()
         case TooBusyModelError(detail=detail):
             raise ModelIsTooBusyExceptionHTTPException()
         case StatusCodeModelError(status_code=status_code, detail=detail):

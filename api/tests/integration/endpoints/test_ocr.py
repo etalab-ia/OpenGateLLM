@@ -18,7 +18,7 @@ from api.domain.provider.errors import (
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.configuration import configuration
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.redis import RedisRouterRateLimiter
@@ -188,11 +188,6 @@ class TestCreateOCR:
                 UserHasNoAccessToRouterError(id=1),
                 404,
                 f"Model {DEFAULT_MODEL_NAME} not found.",
-            ),
-            (
-                UserHasInsufficientBudgetError(),
-                400,
-                "Insufficient budget.",
             ),
             (
                 RouterHasWrongTypeError(id=1, actual_type=RouterType.TEXT_GENERATION, expected_type=RouterType.IMAGE_TO_TEXT),

@@ -14,7 +14,7 @@ from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapter
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.configuration import configuration
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.redis import RedisRouterRateLimiter
@@ -127,7 +127,7 @@ class TestCreateChatCompletions:
         assert usage_chunk["usage"]["completion_tokens"] > 0
 
     async def _create_router_with_limits(self, db_session, limits: dict[LimitType, int]):
-        router = await self._create_router(db_session)  # free keeps update_budget out of the request
+        router = await self._create_router(db_session)
         for limit_type, value in limits.items():
             LimitSQLFactory(role=self.user.role, router=router, type=limit_type, value=value)
         await db_session.flush()
@@ -223,7 +223,6 @@ class TestCreateChatCompletions:
             (RouterNotFoundError(name=DEFAULT_MODEL_NAME), 404, f"Model {DEFAULT_MODEL_NAME} not found."),
             (RouterHasNoProvidersError(id=1), 404, f"Model {DEFAULT_MODEL_NAME} not found."),
             (UserHasNoAccessToRouterError(id=1), 404, f"Model {DEFAULT_MODEL_NAME} not found."),
-            (UserHasInsufficientBudgetError(), 400, "Insufficient budget."),
             (
                 RouterHasWrongTypeError(id=1, actual_type=RouterType.TEXT_EMBEDDINGS_INFERENCE, expected_type=RouterType.TEXT_GENERATION),
                 422,
