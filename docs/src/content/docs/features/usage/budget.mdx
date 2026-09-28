@@ -1,35 +1,34 @@
 ---
-title: User budget
+title: Model pricing
 sidebar:
-  label: "[lucide:piggy-bank] User budget"
+  label: "[lucide:piggy-bank] Model pricing"
 ---
 import { Aside, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
 
 OpenGateLLM allows you to define the costs for each model router. For more information about model routers, see [setup your models documentation](/getting-started/models/).
-Then it attach a budget to each user to limit the usage of amount of requests made by the user.
-The compute cost is calculated based on the number of tokens used and the budget defined for the model based on the following formula:
+The compute cost of a request is calculated from the number of tokens used and the costs defined for the model router, with the following formula:
 
 ```python
 cost = round((prompt_tokens / 1000000 * router.costs.prompt_tokens) + (completion_tokens / 1000000 * router.costs.completion_tokens), ndigits=6)
 ```
 
-The compute cost returned in the response, in the `usage.cost` field. After the request is processed, the budget amount of the user is updated by the [hooks decorator](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/utils/hooks_decorator.py) attached to each endpoint. The request cost is stored in the *usage* table, see [usage monitoring documentation](/features/usage/inference_monitoring/) for more information. 
+The compute cost is returned in the response, in the `usage.cost` field, and recorded with the request usage, see [usage monitoring documentation](/features/usage/inference_monitoring/) for more information.
 
 ## Configuration
 
-There are three ways to configure model pricing used for budget computation: Playground UI, API, or configuration file.
+There are three ways to configure model pricing: Playground UI, API, or configuration file.
 
 <Tabs>
   <TabItem value="playground" label="Playground UI" icon="lucide:laptop">
   
-  To define pricing in the Playground, go to the *Provider* page and create or edit a provider with:
-  - **`Prompt token cost`**: Cost per million input tokens.
-  - **`Completion token cost`**: Cost per million output tokens.
+  To define pricing in the Playground, go to the *Routers* page and create or edit a router with:
+  - **`Prompt tokens cost`**: Cost per million input tokens.
+  - **`Completion tokens cost`**: Cost per million output tokens.
   </TabItem>
 
   <TabItem value="config" label="API" icon="lucide:code">
 
-  See POST and PUT /v1/admin/routers endpoints for defining `model_cost_prompt_tokens` and `model_cost_completion_tokens` of a router in API reference.
+  See `POST /v1/admin/routers` and `PATCH /v1/admin/routers/{router_id}` endpoints for defining `cost_prompt_tokens` and `cost_completion_tokens` of a router in API reference.
   Prompt and completion token costs are expressed per million tokens.
   
   <LinkButton href="/reference/" icon="external">API Reference</LinkButton>
@@ -42,9 +41,9 @@ There are three ways to configure model pricing used for budget computation: Pla
   The model section of the configuration is ignored if any models are already registered in the database.
   </Aside>
 
-  To define model pricing in the configuration file, set the following fields for each provider:
-  - **`model_cost_prompt_tokens`**: Cost per million prompt/input tokens.
-  - **`model_cost_completion_tokens`**: Cost per million completion/output tokens.
+  To define model pricing in the configuration file, set the following fields for each model:
+  - **`cost_prompt_tokens`**: Cost per million prompt/input tokens.
+  - **`cost_completion_tokens`**: Cost per million completion/output tokens.
 
 
   **Example:**
@@ -54,13 +53,13 @@ There are three ways to configure model pricing used for budget computation: Pla
     [...]
     - name: my-language-model
       type: text-generation
+      cost_prompt_tokens: 0.1
+      cost_completion_tokens: 0.3
       providers:
         - type: openai
           url: https://api.openai.com
           key: ${OPENAI_API_KEY}
           model_name: gpt-4o-mini
-          model_cost_prompt_tokens: 0.1
-          model_cost_completion_tokens: 0.3
   ```
 
   <LinkButton href="/configuration/configuration_file/" icon="external">Configuration file documentation</LinkButton>
@@ -71,13 +70,7 @@ There are three ways to configure model pricing used for budget computation: Pla
 By default, there value are set to 0, this means that the model requests are free of charge.
 </Aside>
 
-## Assign budget to a user
-
-Each user has a budget defined by create user endpoint or update user endpoint. The budget is defined in the `budget` field. You need has `admin` permission to create or update a user.
-
-See POST and PATCH /v1/admin/users endpoints for more information on [API reference](/reference/).
-
-## Budget monitoring
+## Cost monitoring
 
 The user can see each request cost in the response of the API request. The cost is returned in the `usage.cost` field. 
 Moreover, *Usage* page in the Playground allows the user to see the history of the requests made by him and the cost of each.

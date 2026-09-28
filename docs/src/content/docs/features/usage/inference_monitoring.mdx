@@ -14,7 +14,7 @@ The usage backend is selected automatically from your configuration:
 - By default, usage is recorded in and read from the PostgreSQL `usage` table.
 - When the [Langfuse dependency](/configuration/dependencies/langfuse/) is configured, usage is recorded in and read from **Langfuse** instead. Configuring the Langfuse dependency is all that is required — there is no separate setting to toggle.
 
-A single backend both records and serves usage, so requests are never dual-written. `GET /v1/usage` (and the Playground *Usage* page) reads from whichever backend is selected. Budget deduction always stays on PostgreSQL, independently of the usage backend.
+A single backend both records and serves usage, so requests are never dual-written. `GET /v1/usage` (and the Playground *Usage* page) reads from whichever backend is selected.
 
 Sensitive information such as the prompt or response content is not included in the logs.
 
