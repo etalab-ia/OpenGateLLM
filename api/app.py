@@ -1,12 +1,13 @@
 from importlib import import_module
 import logging
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
 from api.infrastructure.configuration import Configuration, get_configuration
-from api.infrastructure.fastapi import RequestContext
+from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.monitoring import setup_prometheus
 from api.infrastructure.fastapi.routes import RouterName
@@ -54,12 +55,17 @@ def _setup_sentry(configuration: Configuration) -> None:
 
 
 def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
+    app.add_middleware(RequestLogMiddleware)
     app.add_middleware(SessionMiddleware, secret_key=configuration.settings.auth_secret_key)
 
     @app.middleware("http")
     async def set_request_context(request: Request, call_next):
-        request_context.set(RequestContext(endpoint=request.url.path))
-        return await call_next(request)
+        request_id = uuid4().hex
+        request_context.set(RequestContext(id=request_id, method=request.method, endpoint=request.url.path))
+        response = await call_next(request)
+        # Lets a client quote the id of a failed request, to find its log lines.
+        response.headers["X-Request-ID"] = request_id
+        return response
 
 
 def _register_routers(app: FastAPI, configuration: Configuration) -> None:

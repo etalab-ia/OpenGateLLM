@@ -36,6 +36,7 @@ settings:
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
   # log_json: false
+  # log_config: logging.yml # see logging.example.yml; overrides log_level, log_format and log_json
 
   swagger_version: 0.8.0
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM

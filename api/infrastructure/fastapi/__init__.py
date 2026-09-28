@@ -9,6 +9,7 @@ The modules below are safe to re-export: they depend on the domain only, never o
 """
 
 from ._requestcontext import RequestContext
+from ._requestlogmiddleware import RequestLogMiddleware
 from ._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 
-__all__ = ["RequestContext", "StreamingResponseWithStatusCode"]
+__all__ = ["RequestContext", "RequestLogMiddleware", "StreamingResponseWithStatusCode"]

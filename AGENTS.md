@@ -20,7 +20,7 @@ infrastructure/
   postgres/       Postgres*Repository / Postgres*Query adapters, AutocommitSession
   configuration.py  Settings + get_configuration() / the `configuration` singleton
   context.py      GlobalContext — the process-wide infrastructure handles
-  logging.py      configure_logging — configures the "api" logger, every module uses getLogger(__name__)
+  logging.py      configure_logging — configures the "api" logger (or applies the settings.log_config file), every module uses getLogger(__name__)
 app.py            create_app: middleware, router registration, monitoring
 dependencies.py   DI factories (transactional vs autocommit session)
 lifespan.py       startup/shutdown: builds what GlobalContext holds, runs bootstrap
