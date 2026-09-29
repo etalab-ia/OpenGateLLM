@@ -170,3 +170,22 @@ async def test_should_name_a_validation_error_in_the_request_line():
     # Assert
     assert request_context.get().error == "RequestValidationError"
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_should_report_the_unhandled_exception_to_sentry_as_a_crash(monkeypatch, mock_logger, send):
+    # Arrange: swallowing the exception keeps it from SentryAsgiMiddleware, so the middleware must report it itself
+    captured = []
+    monkeypatch.setattr(_requestlogmiddleware.sentry_sdk, "capture_event", lambda event, hint: captured.append((event, hint)))
+    error = RuntimeError("database is gone")
+
+    async def failing_app(scope, receive, send):
+        raise error
+
+    # Act
+    await RequestLogMiddleware(failing_app)(SCOPE, receive, send)
+
+    # Assert
+    ((event, hint),) = captured
+    assert hint["exc_info"][1] is error
+    assert event["exception"]["values"][-1]["mechanism"] == {"type": "asgi", "handled": False}

@@ -5,6 +5,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -54,7 +55,7 @@ def create_app(
 def _setup_sentry(configuration: Configuration) -> None:
     if configuration.dependencies.sentry:
         logger.info("Initializing Sentry SDK.")
-        sentry_sdk.init(**configuration.dependencies.sentry.model_dump())
+        sentry_sdk.init(integrations=[LoggingIntegration(event_level=None)], **configuration.dependencies.sentry.model_dump())
 
 
 def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:

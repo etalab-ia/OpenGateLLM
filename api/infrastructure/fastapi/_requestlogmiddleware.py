@@ -3,6 +3,8 @@ from time import perf_counter
 
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
+import sentry_sdk
+from sentry_sdk.utils import event_from_exception
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -40,6 +42,7 @@ class RequestLogMiddleware:
             if status_code is not None:
                 raise
 
+            self._report_to_sentry(exception)
             logger.exception("Unhandled exception while processing request", extra=self._request_fields(scope, request_context.get()))
             status_code = InternalServerHTTPException.status_code
             response = JSONResponse(status_code=status_code, content={"detail": InternalServerHTTPException.detail})
@@ -72,6 +75,15 @@ class RequestLogMiddleware:
             "path": scope["path"],
             **{name: value for name, value in optional_fields.items() if value is not None},
         }
+
+    @staticmethod
+    def _report_to_sentry(exception: Exception) -> None:
+        event, hint = event_from_exception(
+            exception,
+            client_options=sentry_sdk.get_client().options,
+            mechanism={"type": "asgi", "handled": False},
+        )
+        sentry_sdk.capture_event(event, hint=hint)
 
     @staticmethod
     def _handler_name(handler: object) -> str:
