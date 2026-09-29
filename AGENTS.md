@@ -23,29 +23,30 @@ dependencies.py   DI factories (transactional vs autocommit session)
 
 **Dependency rule:** `infrastructure → use_cases → domain`.
 
-| Layer | Location |
-|-------|----------|
-| Domain | `api/domain/<context>/` |
-| Use cases | `api/use_cases/<area>/` |
-| Endpoints | `api/infrastructure/fastapi/endpoints/` |
-| API schemas | `api/infrastructure/fastapi/schemas/` |
+| Layer             | Location                                                     |
+|-------------------|--------------------------------------------------------------|
+| Domain            | `api/domain/<context>/`                                      |
+| Use cases         | `api/use_cases/<area>/`                                      |
+| Endpoints         | `api/infrastructure/fastapi/endpoints/`                      |
+| API schemas       | `api/infrastructure/fastapi/schemas/`                        |
 | Postgres adapters | `api/infrastructure/postgres/_postgres<entity>repository.py` |
-| Read models | `api/domain/<context>/views.py` + `_<noun>query.py` |
-| DI | `api/dependencies.py` |
+| Authorization     | `api/domain/authorization/` + `api/infrastructure/openfga/`  |
+| Read models       | `api/domain/<context>/views.py` + `_<noun>query.py`          |
+| DI                | `api/dependencies.py`                                        |
 
 Admin CRUD is grouped per resource: `api/use_cases/admin/roles/`, `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/schemas/admin/roles.py`. Everything else stays flat under its area (`api/use_cases/auth/`, `api/infrastructure/fastapi/endpoints/models.py`, `api/infrastructure/fastapi/schemas/models.py`).
 
 Reference implementations of these patterns:
 
-| Pattern | Example |
-|---------|---------|
-| Create with domain errors | `api/infrastructure/fastapi/endpoints/admin/keys.py` + `api/use_cases/admin/keys/_createkeyusecase.py` |
-| List + get-by-id | `api/infrastructure/fastapi/endpoints/admin/routers.py` (`GetRoutersUseCase` + `GetOneRouterUseCase`), self-service `api/infrastructure/fastapi/endpoints/keys.py` |
-| Paginated list | `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/endpoints/admin/users.py` (`EntitiesPage`, `*sResponse`) |
-| Full CRUD | `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/endpoints/admin/routers.py` |
-| Read-only projection | `api/infrastructure/fastapi/endpoints/models.py` (`ModelQuery` + `ModelView`) |
-| Model-forward (autocommit) | embeddings, OCR, rerank, audio transcriptions |
-| Model-forward with streaming | `api/infrastructure/fastapi/endpoints/chat.py` + `api/use_cases/chat/` (see [Streaming](#streaming)) |
+| Pattern                      | Example                                                                                                                                                            |
+|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Create with domain errors    | `api/infrastructure/fastapi/endpoints/admin/keys.py` + `api/use_cases/admin/keys/_createkeyusecase.py`                                                             |
+| List + get-by-id             | `api/infrastructure/fastapi/endpoints/admin/routers.py` (`GetRoutersUseCase` + `GetOneRouterUseCase`), self-service `api/infrastructure/fastapi/endpoints/keys.py` |
+| Paginated list               | `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/endpoints/admin/users.py` (`EntitiesPage`, `*sResponse`)                        |
+| Full CRUD                    | `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/endpoints/admin/routers.py`                                                     |
+| Read-only projection         | `api/infrastructure/fastapi/endpoints/models.py` (`ModelQuery` + `ModelView`)                                                                                      |
+| Model-forward (autocommit)   | embeddings, OCR, rerank, audio transcriptions                                                                                                                      |
+| Model-forward with streaming | `api/infrastructure/fastapi/endpoints/chat.py` + `api/use_cases/chat/` (see [Streaming](#streaming))                                                               |
 
 Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key.
 
@@ -53,10 +54,10 @@ Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `Get
 
 Do not confuse `api/endpoints/` (pre-clean-architecture) with `api/infrastructure/fastapi/endpoints/` (current). **Never add a route or a module to `api/endpoints/`.** Two items remain:
 
-| Remaining | Exposes | Migrate to |
-|-----------|---------|------------|
-| `api/endpoints/admin/organizations.py` | `PATCH /v1/admin/organizations/{organization}` | `api/infrastructure/fastapi/endpoints/admin/organizations.py` — the other organization routes already live there |
-| `api/endpoints/monitoring.py` | no route — `setup_prometheus`, called by `_setup_monitoring` | not a router; needs a home under `api/infrastructure/` |
+| Remaining                              | Exposes                                                      | Migrate to                                                                                                       |
+|----------------------------------------|--------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| `api/endpoints/admin/organizations.py` | `PATCH /v1/admin/organizations/{organization}`               | `api/infrastructure/fastapi/endpoints/admin/organizations.py` — the other organization routes already live there |
+| `api/endpoints/monitoring.py`          | no route — `setup_prometheus`, called by `_setup_monitoring` | not a router; needs a home under `api/infrastructure/`                                                           |
 
 These files run on the legacy stack (`api/helpers/_accesscontroller.py`, `api/schemas/`, `api/utils/dependencies.py`, `global_context.identity_access_manager`). Migrating one means porting it to the patterns in this file — do not carry its imports over, and do not copy them into new code.
 
@@ -129,20 +130,20 @@ Adding a route to an **existing** module needs neither: declare the `EndpointRou
 
 ## Naming
 
-| Kind | Pattern | Example |
-|------|---------|---------|
-| Use case file | `_<verb><noun>usecase.py` | `_getrolesusecase.py`, `_getoneroleusecase.py` |
-| Use case class | `<Verb><Noun>UseCase` | `GetRolesUseCase`, `GetOneRoleUseCase` |
-| Command | `<Verb><Noun>Command` | `GetRolesCommand`, `GetOneRoleCommand` |
-| Success | `<Verb><Noun>UseCaseSuccess` | `GetRolesUseCaseSuccess`, `GetOneRoleUseCaseSuccess` |
-| Domain error | `<Noun><Problem>Error` | `RoleNotFoundError` |
-| Read model | `<Noun>View` | `ModelView`, `AuthenticatedUserView` |
-| Query port | `<Noun>Query` in `_<noun>query.py` | `ModelQuery`, `AuthenticatedUserQuery` |
-| HTTP exception | `<Noun><Problem>HTTPException` | `RoleNotFoundHTTPException` |
-| Request body | `<Verb><Noun>Body` | `CreateRoleBody` |
-| Response | `<Noun>Response` / `<Noun>sResponse` | `RoleResponse`, `RolesResponse` |
-| DI factory | `<verb>_<noun>_use_case_factory` | `get_roles_use_case_factory`, `get_one_role_use_case_factory` |
-| Entity unit tests | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | `test_ocrentities.py`, `test_userentities.py` |
+| Kind              | Pattern                                                   | Example                                                       |
+|-------------------|-----------------------------------------------------------|---------------------------------------------------------------|
+| Use case file     | `_<verb><noun>usecase.py`                                 | `_getrolesusecase.py`, `_getoneroleusecase.py`                |
+| Use case class    | `<Verb><Noun>UseCase`                                     | `GetRolesUseCase`, `GetOneRoleUseCase`                        |
+| Command           | `<Verb><Noun>Command`                                     | `GetRolesCommand`, `GetOneRoleCommand`                        |
+| Success           | `<Verb><Noun>UseCaseSuccess`                              | `GetRolesUseCaseSuccess`, `GetOneRoleUseCaseSuccess`          |
+| Domain error      | `<Noun><Problem>Error`                                    | `RoleNotFoundError`                                           |
+| Read model        | `<Noun>View`                                              | `ModelView`, `AuthenticatedUserView`                          |
+| Query port        | `<Noun>Query` in `_<noun>query.py`                        | `ModelQuery`, `AuthenticatedUserQuery`                        |
+| HTTP exception    | `<Noun><Problem>HTTPException`                            | `RoleNotFoundHTTPException`                                   |
+| Request body      | `<Verb><Noun>Body`                                        | `CreateRoleBody`                                              |
+| Response          | `<Noun>Response` / `<Noun>sResponse`                      | `RoleResponse`, `RolesResponse`                               |
+| DI factory        | `<verb>_<noun>_use_case_factory`                          | `get_roles_use_case_factory`, `get_one_role_use_case_factory` |
+| Entity unit tests | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | `test_ocrentities.py`, `test_userentities.py`                 |
 
 Verbs: `Create`, `Update`, `Delete`, `GetOne` (single / get-by-id), `Get<Plural>` (list). When a resource has both a list and a get-by-id use case, the single-resource name is `GetOne<Noun>` — never `Get<Noun>` (`GetRoleUseCase` → `GetOneRoleUseCase`, `GetModelUseCase` → `GetOneModelUseCase`). Pair them: `GetRolesUseCase` + `GetOneRoleUseCase`, `GetModelsUseCase` + `GetOneModelUseCase`.
 
@@ -152,12 +153,12 @@ The domain and API term for an API credential is **key** (`Key`, `KeyResponse`, 
 
 ## Domain
 
-| Kind | Location | Form |
-|------|----------|------|
-| Entity | `api/domain/<context>/entities.py` | Pydantic `BaseModel` (from `api.domain`) |
-| Error | `api/domain/<context>/errors.py` | `@dataclass` |
-| Repository port | `api/domain/<context>/_<entity>repository.py` | `ABC` |
-| `Command` / `UseCaseSuccess` | `api/use_cases/<area>/` | `@dataclass` |
+| Kind                         | Location                                      | Form                                     |
+|------------------------------|-----------------------------------------------|------------------------------------------|
+| Entity                       | `api/domain/<context>/entities.py`            | Pydantic `BaseModel` (from `api.domain`) |
+| Error                        | `api/domain/<context>/errors.py`              | `@dataclass`                             |
+| Repository port              | `api/domain/<context>/_<entity>repository.py` | `ABC`                                    |
+| `Command` / `UseCaseSuccess` | `api/use_cases/<area>/`                       | `@dataclass`                             |
 
 **Entities are Pydantic models, never `@dataclass`.** A `@dataclass` validates nothing at construction, so it silently accepts a wrong type and skips the `UtcDatetime` normalization — an entity built with a naive `datetime` would then serialize to a shifted Unix timestamp. `BaseModel` also gives `model_copy(update=...)`, which the `with_*` helpers (`Router.with_name`, `Provider.with_timeout`, `Role.with_limits`) rely on.
 
@@ -167,11 +168,11 @@ The domain and API term for an API credential is **key** (`Key`, `KeyResponse`, 
 
 ## Imports
 
-| Importing module | Style | Example |
-|------------------|-------|---------|
-| `__init__.py` re-export | relative, single dot | `from ._httpproviderclient import HttpProviderClient` |
-| Module importing a sibling in the **same** directory | relative, single dot | `from ._httpproviderrequest import HttpProviderRequest` |
-| Anything else — other directory, other package, tests | absolute | `from api.infrastructure.http.adapters import HttpProviderAdapter` |
+| Importing module                                      | Style                | Example                                                            |
+|-------------------------------------------------------|----------------------|--------------------------------------------------------------------|
+| `__init__.py` re-export                               | relative, single dot | `from ._httpproviderclient import HttpProviderClient`              |
+| Module importing a sibling in the **same** directory  | relative, single dot | `from ._httpproviderrequest import HttpProviderRequest`            |
+| Anything else — other directory, other package, tests | absolute             | `from api.infrastructure.http.adapters import HttpProviderAdapter` |
 
 Never write a multi-dot relative import (`from ..x import`, `from ...x import`); use the absolute path instead. Reference siblings: `_requestcontextusagerecorder.py`, `_albertmodelprovider.py`.
 
@@ -198,21 +199,21 @@ Code **outside** the package keeps importing the public root (`from api.infrastr
 
 Location: `api/infrastructure/fastapi/schemas/`.
 
-| Kind | Pattern |
-|------|---------|
-| Create request | `Create<Noun>Body` |
-| Update request | `Update<Noun>Body` |
-| Single response | `<Noun>Response` |
-| List response | `<Noun>sResponse` |
+| Kind            | Pattern            |
+|-----------------|--------------------|
+| Create request  | `Create<Noun>Body` |
+| Update request  | `Update<Noun>Body` |
+| Single response | `<Noun>Response`   |
+| List response   | `<Noun>sResponse`  |
 
 ### `object` discriminator
 
 Every response includes `object`:
 
-| Type | `object` value |
-|------|----------------|
+| Type            | `object` value                                                    |
+|-----------------|-------------------------------------------------------------------|
 | Single resource | resource name (singular): `"role"`, `"user"`, `"key"`, `"router"` |
-| Paginated list | `"list"` |
+| Paginated list  | `"list"`                                                          |
 
 **Single resource:**
 ```json
@@ -240,13 +241,13 @@ Never return a bare array. Items inside `data` keep their own `object` discrimin
 
 ### `_id` suffix
 
-| Context | Convention | Examples |
-|---------|------------|----------|
-| Domain entity | `*_id` | `user_id`, `role_id`, `router_id` |
-| Path params | `*_id` | `role_id`, `router_id`, `user_id` |
-| Query filters | `*_id` | `?role_id=1`, `?organization_id=2` |
-| Response FK fields | `*_id` — always | `user_id` in `RouterResponse` and `KeyResponse`, `organization_id` in `UserResponse` |
-| Request body FK | sometimes shortened | `CreateKeyBody.user` (`CreateUserBody` uses `role_id`) |
+| Context            | Convention          | Examples                                                                             |
+|--------------------|---------------------|--------------------------------------------------------------------------------------|
+| Domain entity      | `*_id`              | `user_id`, `role_id`, `router_id`                                                    |
+| Path params        | `*_id`              | `role_id`, `router_id`, `user_id`                                                    |
+| Query filters      | `*_id`              | `?role_id=1`, `?organization_id=2`                                                   |
+| Response FK fields | `*_id` — always     | `user_id` in `RouterResponse` and `KeyResponse`, `organization_id` in `UserResponse` |
+| Request body FK    | sometimes shortened | `CreateKeyBody.user` (`CreateUserBody` uses `role_id`)                               |
 
 Responses never shorten a FK name: they carry the entity's `*_id` so `from_attributes` maps them without a mapper. Only request bodies shorten,
 and the endpoint expands them when building the command:
@@ -292,12 +293,12 @@ Always `Response.model_validate(entity, from_attributes=True)` — never a hand-
 field is a second, implicit declaration of the schema: it drifts, and a field forgotten in it silently falls back to its default instead of
 raising. Declare the difference on the field instead:
 
-| Difference | Declare it as |
-|---|---|
-| `datetime` → Unix seconds | `Annotated[UnixTimestamp, Field(...)]` (or `UnixTimestamp \| None`) |
-| `object` discriminator | the field's own `Literal` default — `object: Annotated[Literal["key"], Field(default="key", ...)]` |
-| JSON key ≠ entity attribute | `Field(alias="type")` — `from_attributes` reads the attribute named by the alias |
-| Nested value object | declare the nested schema; `from_attributes` propagates (`RoleResponse.limits`, `Model.costs`) |
+| Difference                  | Declare it as                                                                                      |
+|-----------------------------|----------------------------------------------------------------------------------------------------|
+| `datetime` → Unix seconds   | `Annotated[UnixTimestamp, Field(...)]` (or `UnixTimestamp \| None`)                                |
+| `object` discriminator      | the field's own `Literal` default — `object: Annotated[Literal["key"], Field(default="key", ...)]` |
+| JSON key ≠ entity attribute | `Field(alias="type")` — `from_attributes` reads the attribute named by the alias                   |
+| Nested value object         | declare the nested schema; `from_attributes` propagates (`RoleResponse.limits`, `Model.costs`)     |
 
 The response never renames a field just to shorten it — name it after the entity attribute (`user_id`, not `user`).
 
@@ -408,10 +409,10 @@ Do **not** inline them. Conversely, do not introduce new hooks of this kind unle
 
 **Template steps.** `ProviderRequestForwardingUseCase` keeps one `execute()` for every model-forward use case and lets a subclass vary its two ends, so none of them copies the shared middle. The steps it calls — `_resolve_router`, `_check_rate_limits`, `_send_request` — are extractions of the *how*: `execute()` still shows every branch. The two hooks below are its variation points:
 
-| Hook | Default | Override when |
-|------|---------|---------------|
-| `_check_command(command)` | `None` | a precondition must reject the command before any provider work — `CreateAudioTranscriptionsUseCase` and its file size limit |
-| `_build_success(command, response, headers)` | `ProviderRequestForwardingUseCaseSuccess` | the endpoint answers with more than one success shape — `CreateAudioTranscriptionsUseCase` and its JSON-vs-text response |
+| Hook                                         | Default                                   | Override when                                                                                                                |
+|----------------------------------------------|-------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `_check_command(command)`                    | `None`                                    | a precondition must reject the command before any provider work — `CreateAudioTranscriptionsUseCase` and its file size limit |
+| `_build_success(command, response, headers)` | `ProviderRequestForwardingUseCaseSuccess` | the endpoint answers with more than one success shape — `CreateAudioTranscriptionsUseCase` and its JSON-vs-text response     |
 
 The second type parameter is the use case's whole result union — success shapes and errors — so `execute()` keeps an honest return type whatever the subclass adds:
 
@@ -431,9 +432,9 @@ A subclass whose **flow shape** differs writes its own `execute()` instead — a
 
 Only chat completions streams today (`api/use_cases/chat/_createchatcompletionsusecase.py`). A streaming use case returns **two** success types and the endpoint matches on both:
 
-| Success | Carries | Endpoint returns |
-|---------|---------|------------------|
-| `Create<Noun>UseCaseSuccess` | `data`, `headers` | `JSONResponse` |
+| Success                            | Carries                                                    | Endpoint returns                  |
+|------------------------------------|------------------------------------------------------------|-----------------------------------|
+| `Create<Noun>UseCaseSuccess`       | `data`, `headers`                                          | `JSONResponse`                    |
 | `Create<Noun>StreamUseCaseSuccess` | `chunks: AsyncGenerator[ProviderChunkResponse]`, `headers` | `StreamingResponseWithStatusCode` |
 
 Rules:
@@ -453,10 +454,10 @@ Rules:
 
 Two session factories. Choose **in the use-case factory** in `api/dependencies.py`. Repositories stay agnostic: they take `AsyncSession` (`AutocommitSession` is a subclass).
 
-| Factory | Session | Use when |
-|---------|---------|----------|
-| `get_postgres_session` | transactional `AsyncSession` | Admin CRUD, auth login/SSO, bootstrap, anything with `@with_lock` or multi-statement atomicity |
-| `get_autocommit_postgres_session` | `AutocommitSession` | Use cases that call AI models (provider forward / inference) |
+| Factory                           | Session                      | Use when                                                                                       |
+|-----------------------------------|------------------------------|------------------------------------------------------------------------------------------------|
+| `get_postgres_session`            | transactional `AsyncSession` | Admin CRUD, auth login/SSO, bootstrap, anything with `@with_lock` or multi-statement atomicity |
+| `get_autocommit_postgres_session` | `AutocommitSession`          | Use cases that call AI models (provider forward / inference)                                   |
 
 **Why:** a transactional session stays checked out and `idle in transaction` for the whole request. Inference can take minutes and pin a pool connection. `AutocommitSession` commits after each `execute` / `scalar` / `get`, so the connection returns to the pool **before** the provider call. Everything wired to it is a read — the router and provider lookups, and the `AccessController` key and user lookups. Writes and multi-statement work take the transactional factory.
 
@@ -520,13 +521,13 @@ Reference adapters: `_postgreskeyrepository.py`, `_postgresproviderrepository.py
 
 A **repository** loads the aggregate a write flow mutates. A **query** loads a denormalized read model for a read-only endpoint. Use a query when the response joins several tables, or derives fields the aggregate must not own.
 
-| Kind | Location | Pattern |
-|------|----------|---------|
-| View | `api/domain/<context>/views.py` | `<Noun>View`, `BaseModel` + `ConfigDict(frozen=True)` |
-| Port | `api/domain/<context>/_<noun>query.py` | `<Noun>Query` ABC, returns `View \| DomainError` |
-| Adapter | `api/infrastructure/postgres/_postgres<noun>query.py` | `Postgres<Noun>Query` |
-| DI factory | `api/dependencies.py` | `_<noun>_query` |
-| Tests | `api/tests/integration/postgres/test_postgres<noun>query.py` | same rules as an adapter |
+| Kind       | Location                                                     | Pattern                                               |
+|------------|--------------------------------------------------------------|-------------------------------------------------------|
+| View       | `api/domain/<context>/views.py`                              | `<Noun>View`, `BaseModel` + `ConfigDict(frozen=True)` |
+| Port       | `api/domain/<context>/_<noun>query.py`                       | `<Noun>Query` ABC, returns `View \| DomainError`      |
+| Adapter    | `api/infrastructure/postgres/_postgres<noun>query.py`        | `Postgres<Noun>Query`                                 |
+| DI factory | `api/dependencies.py`                                        | `_<noun>_query`                                       |
+| Tests      | `api/tests/integration/postgres/test_postgres<noun>query.py` | same rules as an adapter                              |
 
 Reference: `ModelQuery` / `ModelView` / `PostgresModelQuery` (models API), `AuthenticatedUserQuery` / `AuthenticatedUserView` (`AccessController`).
 
@@ -572,6 +573,86 @@ async def get_roles(
 
 ---
 
+## Authorization
+
+Two mechanisms coexist. This is a migration in progress, not a steady state — read this before assuming an
+inconsistency is a bug.
+
+| Mechanism          | Decides                                                        | Where                           |
+|--------------------|----------------------------------------------------------------|---------------------------------|
+| `AccessController` | authentication, key validity, account expiry, and `only_admin` | `Security(...)` on the endpoint |
+| OpenFGA            | whether this user may act on this object                       | inside the use case             |
+
+Today **only `POST /v1/admin/organizations` asks OpenFGA**. Every other route, including the four other organization
+routes, still decides on `user.is_admin` through `AccessController(only_admin=True)`. Never put both on one route: two
+sources of truth for the same decision drift, and `only_admin` short-circuits any rule that would let a non-admin
+through (an organization member reading their own organization, for one).
+
+**A use case asks a business question, never composes a tuple.** It depends on a narrow port named after the aggregate
+it protects — `OrganizationAuthorization` in `api/domain/organization/` — whose methods are questions returning a plain
+`bool`:
+
+```python
+is_authorized = await self.organization_authorization.can_create_organization(user_id=command.authenticated_user_id)
+if not is_authorized:
+    return UserCannotCreateOrganizationError(user_id=command.authenticated_user_id)
+```
+
+The OpenFGA vocabulary — `AuthorizationObject`, the relation enums, `RelationTuple` — lives entirely in the adapter
+`OpenFgaOrganizationAuthorization`. A use case importing `api.domain.authorization.entities` is doing the adapter's job.
+The port grows one method per permission; that is the intended trade. Denials return a specific domain error carrying
+the business fact (`UserCannotCreateOrganizationError(user_id)`), like `UserIsNotAdminError` and
+`UserHasNoAccessToRouterError` before it.
+
+`AuthorizationClient` / `OpenFgaAuthorizationClient` sits under those adapters and speaks the raw triple: `check`,
+`write_relation`, `delete_relation`, one relation per call. No use case depends on it any more — treat it as
+infrastructure, not as the port a use case should reach for.
+
+**The model is schema, and it ships here.** OpenFGA runs on its own machine, deployed separately — but
+`api/infrastructure/openfga/model.fga` lives in this repo for the same reason the Alembic revisions do: it has to change
+in the same commit as the code that reads it, or a renamed relation turns every check into a silent `false`. The
+deployment repo owns the server; this repo owns the schema.
+
+`model.fga` is the reviewed source, `model.json` is generated from it. Change the DSL, run `make fga-model`, commit
+both, and add the case to `api/tests/store.fga.yaml` (`make fga-test`).
+
+**Publishing the model is a deploy step, never a start-up step.** `scripts/provision_openfga.py` runs once in
+`scripts/startup_api.sh`, right next to `alembic upgrade head`, before gunicorn forks. Workers only *read* the published
+model (`create_openfga_client`) and fail loudly if there is none, exactly as the API fails on an unmigrated Postgres.
+Writing it from the lifespan instead appends one model version per worker — eight in production — and pins each worker
+to a different one, so during a rolling deploy workers of the same container answer checks against different models.
+
+**Only relations with brackets can be written.** `define member: [user]` is a fact you store; `define can_read: member
+or admin from platform` is a question you ask, and writing it returns a 400. In this model the `can_*` prefix marks
+exactly the non-writable relations. A check, by contrast, accepts any relation.
+
+**Objects are typed; tuple direction is on you.** Build each side through `AuthorizationObject.platform()` /
+`.organization(id)` / `.user(id)`, never as a formatted string — a typo in a hand-written `"organization:42"` yields a
+silent `false`, not an error. `RelationTuple` carries no factories, so getting the direction right is the adapter's job:
+a relation is declared inside the type block of its *object*, and the brackets list its *subject* types. `define
+platform: [platform]` under `type organization` therefore means `organization:42#platform@platform:api`, and writing it
+the other way round is a 400 (`relation 'platform#platform' not found`).
+
+**Creation is checked on the platform.** A permission is checked against an object, and the object does not exist yet
+when it is being created — so `can_create_organization` lives on `platform:api`. Anything acting on an existing
+organization belongs on `organization:<id>`.
+
+**Writing the attachment is part of creating.** A new organization gets `organization:<id>#platform@platform:api`,
+written *after* the row and *before* returning success: a failed write raises out of the use case, which rolls the
+Postgres transaction back, so it cannot leave an organization no one can reach.
+
+**Never fail open.** The port returns a plain `bool`. An OpenFGA outage raises out of the adapter and surfaces as a 500:
+deliberately unhandled for now, but never swallowed into a `False`, which would read as a denial and hide the outage.
+Mapping it to a domain error and a 503 — a permission that could not be evaluated is not a permission that was denied —
+is the next step, once that failure mode is worth covering.
+
+**Not in place yet.** Nothing writes `platform:api#admin@user:<id>`, so on a fresh store no one holds
+`can_create_organization` and `POST /organizations` denies everyone. Projecting the Postgres admin roles onto relations
+at start-up is the missing piece. The authorization test suite (`store.fga.yaml`, the model drift test, the use-case
+tests) is currently stashed, so none of the rules above is enforced by CI.
+
+---
+
 ## Error handling
 
 1. Domain errors — `@dataclass` in `domain/<context>/errors.py`, **returned** not raised
@@ -586,15 +667,15 @@ async def get_roles(
 
 Each layer tests **its** responsibility. Do not re-run use-case branches through HTTP.
 
-| Layer | Path | Tests | Does not test |
-|-------|------|-------|----------------|
-| Unit use case | `api/tests/unit/use_case/<area>/test_<usecase>.py` | Every distinct `execute()` branch | SQL, HTTP status, Pydantic 422 |
-| Unit domain | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | Entity methods (`need_to_update`) | Use-case orchestration |
-| Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
-| Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
-| Model-forward pool | `api/tests/integration/postgres/test_autocommit_releases_connection_during_model_forward.py` | Connection released during provider call | Use-case branches |
-| Post-response hooks | `api/tests/integration/endpoints/test_post_response_hooks.py` | Router limits charged after a response | Usage logging and budget hooks (their session cannot be overridden) |
-| HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
+| Layer                  | Path                                                                                         | Tests                                                 | Does not test                                                       |
+|------------------------|----------------------------------------------------------------------------------------------|-------------------------------------------------------|---------------------------------------------------------------------|
+| Unit use case          | `api/tests/unit/use_case/<area>/test_<usecase>.py`                                           | Every distinct `execute()` branch                     | SQL, HTTP status, Pydantic 422                                      |
+| Unit domain            | `api/tests/unit/domain/<domain>/test_<domain>entities.py`                                    | Entity methods (`need_to_update`)                     | Use-case orchestration                                              |
+| Integration endpoint   | `api/tests/integration/endpoints/.../test_<action>_<resource>.py`                            | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows                                   |
+| Integration repository | `api/tests/integration/postgres/`                                                            | Persist/read, constraints, new columns                | Use-case policy                                                     |
+| Model-forward pool     | `api/tests/integration/postgres/test_autocommit_releases_connection_during_model_forward.py` | Connection released during provider call              | Use-case branches                                                   |
+| Post-response hooks    | `api/tests/integration/endpoints/test_post_response_hooks.py`                                | Router limits charged after a response                | Usage logging and budget hooks (their session cannot be overridden) |
+| HTTP adapter           | `api/tests/integration/http/test_<adapter>.py`                                               | Each distinct status / network branch (`respx`)       | Callers of the adapter                                              |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).
 
