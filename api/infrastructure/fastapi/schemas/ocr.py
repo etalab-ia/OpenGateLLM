@@ -1,21 +1,9 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, StringConstraints
 
 from api.domain import BaseModel
 from api.domain.usage.entities import Usage
-
-
-class JsonSchema(BaseModel):
-    name: Annotated[str, Field(default=..., description="The name of the JSON schema.")]
-    schema: Annotated[dict[str, Any], Field(default=..., description="The JSON schema definition.")]
-    strict: Annotated[bool, Field(default=False, description="Whether to use strict mode.")]
-    description: Annotated[str | None, Field(default=None, description="Optional description of the schema.")]
-
-
-class ResponseFormat(BaseModel):
-    type: Annotated[Literal["text", "json_object", "json_schema"], Field(default="text", description='Specify the format that the model must output. By default it will use `{ "type": "text" }`. Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the message the model generates is in JSON. When using JSON mode you MUST also instruct the model to produce JSON yourself with a system or a user message. Setting to `{ "type": "json_schema" }` enables JSON schema mode, which guarantees the message the model generates is in JSON and follows the schema you provide.')]  # fmt: off
-    json_schema: Annotated[JsonSchema | None, Field(default=None, description="The JSON schema definition. Required when type is 'json_schema'.")]  # fmt: off
 
 
 class DocumentURLChunk(BaseModel):
@@ -35,18 +23,9 @@ class ImageURLChunk(BaseModel):
 
 
 class CreateOCRBody(BaseModel):
-    bbox_annotation_format: Annotated[ResponseFormat | None, Field(default=None, description='Specify the format that the model must output for the bounding boxes. By default it will use `{ "type": "text" }`. Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the message the model generates is in JSON. When using JSON mode you MUST also instruct the model to produce JSON yourself with a system or a user message. Setting to `{ "type": "json_schema" }` enables JSON schema mode, which guarantees the message the model generates is in JSON and follows the schema you provide.')]  # fmt: off
     document: Annotated[DocumentURLChunk | ImageURLChunk, Field(default=..., description="Document to run OCR on.")]
-    document_annotation_format: Annotated[ResponseFormat | None, Field(default=None, description='Specify the format that the model must output for the document. By default it will use `{ "type": "text" }`. Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the message the model generates is in JSON. When using JSON mode you MUST also instruct the model to produce JSON yourself with a system or a user message. Setting to `{ "type": "json_schema" }` enables JSON schema mode, which guarantees the message the model generates is in JSON and follows the schema you provide.')]  # fmt: off
     document_annotation_prompt: Annotated[str | None, Field(default=None, description="Optional prompt to guide the model in extracting structured output from the entire document. A document_annotation_format must be provided.")]  # fmt: off
-    extract_footer: Annotated[bool, Field(default=False, description="Whether to extract the footer of the document.")]
-    extract_header: Annotated[bool, Field(default=False, description="Whether to extract the header of the document.")]
-    image_limit: Annotated[int | None, Field(default=None, description="Max images to extract")]
-    image_min_size: Annotated[int | None, Field(default=None, description="Minimum height and width of image to extract")]
-    include_image_base64: Annotated[bool | None, Field(default=None, description="Include image URLs in response")]
-    model: Annotated[str | None, StringConstraints(strip_whitespace=True), Field(default=None, description="The model to use for the OCR, call `/v1/models` endpoint to get the list of available models, only `image-to-text` model type is supported.")]  # fmt: off
-    pages: Annotated[list[int] | None, Field(default=None, description="Specific pages to process. Accepts a list of integers or a string of comma-separated numbers and ranges (e.g. '0,1,2' or '0-5' or '0,2-4'). Page numbers start from 0.")]  # fmt: off
-    table_format: Annotated[Literal["markdown", "html"] | None, Field(default=None, description="Format for table extraction: 'markdown' (default) or 'html'.")]  # fmt: off
+    model: Annotated[str, StringConstraints(strip_whitespace=True), Field(description="The model to use for the OCR, call `/v1/models` endpoint to get the list of available models, only `image-to-text` model type is supported.")]  # fmt: off
 
 
 class OCRUsage(BaseModel):

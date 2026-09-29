@@ -8,6 +8,7 @@ from openai.types.chat import ChatCompletionContentPartParam
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
+from api.domain.chat.entities import _extract_text
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
@@ -26,7 +27,6 @@ class CreateEmbeddingsBody(ForwardablePayload):
     input: list[int] | list[list[int]] | str | list[str] | None
     messages: list[EmbeddingMessage] | None = None
     model: str
-    dimensions: int | None = None
     encoding_format: EncodingFormat = EncodingFormat.FLOAT
 
     def get_prompts(self) -> list[str]:
@@ -40,12 +40,7 @@ class CreateEmbeddingsBody(ForwardablePayload):
         elif isinstance(self.messages, list) and len(self.messages) > 0:
             prompts = []
             for message in self.messages:
-                if isinstance(message.content, list):
-                    for content_part in message.content:
-                        if content_part["type"] == "text":
-                            prompts.append(content_part["text"])
-                else:
-                    prompts.append(message.content)
+                prompts.append(_extract_text(message.model_dump(exclude_none=True)))
             return prompts
         else:
             return []

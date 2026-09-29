@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 import json
 from json import JSONDecodeError
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field
@@ -29,27 +29,9 @@ def _extract_text(message: dict) -> str:
 
 
 class CreateChatCompletionsBody(ForwardablePayload):
-    # only the union between OpenAI fields and vLLM fields is defined. See https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/protocol.py#L209
     messages: list[dict]
     model: str
-    frequency_penalty: float | None = 0.0
-    logit_bias: dict[str, float] | None = None
-    logprobs: bool | None = False
-    top_logprobs: int | None = None
-    presence_penalty: float | None = 0.0
-    max_completion_tokens: int | None = None
-    n: int | None = 1
-    response_format: Any | None = None
-    seed: int | None = None
-    stop: str | list[str] | None = None
     stream: bool = False
-    stream_options: Any | None = None
-    temperature: float | None = None
-    top_p: float | None = None
-    tools: list[dict] | None = None
-    tool_choice: Any = "none"
-    parallel_tool_calls: bool | None = False
-    user: str | None = None
 
     def get_prompts(self) -> list[str]:
         return [text for message in self.messages if (text := _extract_text(message=message))]
