@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from contextlib import aclosing
+from contextlib import AsyncExitStack, aclosing
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -63,20 +63,32 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         request_id = self.usage_context.get_request_id()
 
         if command.stream:
-            provider = await self._select_provider(router=router)
+            providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
             request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=command.payload)
 
-            match await self.provider_client.forward_stream(provider=provider, request=request):
-                case AsyncGenerator() as provider_chunks:
-                    pass
-                case error:
-                    return error
+            async with AsyncExitStack() as admission_stack:
+                match await admission_stack.enter_async_context(self._admit_provider(router=router, providers=providers, request_id=request_id)):
+                    case Provider() as provider:
+                        pass
+                    case error:
+                        return error
+
+                self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+                match await self.provider_client.forward_stream(provider=provider, request=request):
+                    case AsyncGenerator() as provider_chunks:
+                        pass
+                    case error:
+                        return error
+
+                # the reservation now belongs to the stream, released once it is consumed or closed
+                reservation = admission_stack.pop_all()
 
             return CreateChatCompletionsStreamUseCaseSuccess(
                 chunks=self._forward_stream_to_client(
                     authenticated_user=authenticated_user,
                     router=router,
                     provider=provider,
+                    reservation=reservation,
                     provider_chunks=provider_chunks,
                     estimated_prompt_tokens=estimated_prompt_tokens,
                     request_id=request_id,
@@ -106,6 +118,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         authenticated_user: AuthenticatedUserView,
         router: Router,
         provider: Provider,
+        reservation: AsyncExitStack,
         provider_chunks: AsyncGenerator[ProviderChunkResponse],
         estimated_prompt_tokens: int,
         request_id: str,
@@ -113,7 +126,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         stream_reader = ChatCompletionStreamReader(model=router.name, request_id=request_id)
         stream_was_fully_read = False
 
-        async with self._count_ongoing_request(provider=provider):
+        async with reservation:
             async with aclosing(provider_chunks):
                 try:
                     async for chunk in provider_chunks:

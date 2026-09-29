@@ -2,9 +2,10 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from api.domain import SortOrder
-from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderSortField, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.entities import RouterType
 from api.infrastructure.postgres import PostgresProviderRepository
@@ -21,8 +22,8 @@ def _create_provider_args(user, router, **overrides):
         "provider_type": ProviderType.ALBERT,
         "url": "http://test.com/",
         "key": "model-key",
-        "basic_auth": BasicAuth(username="metrics", password="secret"),
         "timeout": 60,
+        "qos_limit": 9,
         "model_name": "my-model",
         "model_hosting_zone": HostingZone.FRA,
         "model_total_params": 1000,
@@ -57,8 +58,8 @@ class TestCreateProvider:
             type=ProviderType.ALBERT,
             url="http://test.com/",
             key="model-key",
-            basic_auth=BasicAuth(username="metrics", password="secret"),
             timeout=60,
+            qos_limit=9,
             model_name="my-model",
             model_hosting_zone=HostingZone.FRA,
             model_total_params=1000,
@@ -85,6 +86,16 @@ class TestCreateProvider:
         assert result.router_id == router.id
         assert result.url == "http://test.com/"
         assert result.model_name == "duplicate-provider"
+
+    async def test_create_provider_should_reject_negative_qos_limit(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory(admin_user=True)
+        router = RouterSQLFactory(user=user, type=RouterType.TEXT_GENERATION)
+        await db_session.flush()
+
+        # Act & Assert
+        with pytest.raises(IntegrityError):
+            await repository.create_provider(**_create_provider_args(user, router, qos_limit=-1))
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -328,6 +339,7 @@ class TestUpdateProvider:
         provider = ProviderSQLFactory(
             router=router_1,
             timeout=30,
+            qos_limit=4,
             model_hosting_zone=HostingZone.FRA,
             model_total_params=1_000_000,
             model_active_params=500_000,
@@ -339,6 +351,7 @@ class TestUpdateProvider:
         result = await repository.update_provider(
             domain_provider.with_router_id(router_2.id)
             .with_timeout(120)
+            .with_qos_limit(8)
             .with_model_hosting_zone(HostingZone.USA)
             .with_model_total_params(2_000_000)
             .with_model_active_params(1_000_000)
@@ -348,12 +361,14 @@ class TestUpdateProvider:
         assert isinstance(result, Provider)
         assert result.router_id == router_2.id
         assert result.timeout == 120
+        assert result.qos_limit == 8
         assert result.model_hosting_zone == HostingZone.USA
         assert result.model_total_params == 2_000_000
         assert result.model_active_params == 1_000_000
         persisted = (await db_session.execute(select(ProviderTable).where(ProviderTable.id == provider.id))).scalar_one()
         assert persisted.router_id == router_2.id
         assert persisted.timeout == 120
+        assert persisted.qos_limit == 8
         assert persisted.model_hosting_zone == HostingZone.USA
         assert persisted.model_total_params == 2_000_000
         assert persisted.model_active_params == 1_000_000
