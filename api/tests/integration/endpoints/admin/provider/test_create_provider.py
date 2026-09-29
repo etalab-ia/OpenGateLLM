@@ -36,6 +36,7 @@ def _valid_body(router_id: int, **overrides) -> dict:
         "type": ProviderType.ALBERT.value,
         "model_name": DEFAULT_MODEL_ID,
         "url": DEFAULT_PROVIDER_URL,
+        "qos_limit": 6,
     }
     body.update(overrides)
     return body
@@ -72,6 +73,7 @@ class TestCreateProvider:
         assert isinstance(response.json()["id"], int)
         assert isinstance(response.json()["created"], int)
         assert isinstance(response.json()["updated"], int)
+        assert response.json()["qos_limit"] == 6
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

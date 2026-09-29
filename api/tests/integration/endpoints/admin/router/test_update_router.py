@@ -20,6 +20,7 @@ def _valid_body(**overrides) -> dict:
         "type": RouterType.TEXT_GENERATION,
         "aliases": [],
         "load_balancing_strategy": RouterLoadBalancingStrategy.SHUFFLE,
+        "qos_retries_before_reject": 2,
         "cost_prompt_tokens": 0.0,
         "cost_completion_tokens": 0.0,
     }
@@ -56,6 +57,7 @@ class TestUpdateRouter:
         assert data["aliases"] == ["alias-1"]
         assert data["type"] == RouterType.TEXT_GENERATION
         assert data["load_balancing_strategy"] == RouterLoadBalancingStrategy.SHUFFLE
+        assert data["qos_retries_before_reject"] == 2
         assert data["cost_prompt_tokens"] == 0.5
         assert data["cost_completion_tokens"] == 1.5
         assert data["object"] == "router"
