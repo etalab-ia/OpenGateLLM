@@ -35,7 +35,6 @@ class OpenFgaAuthorizationProvisioner:
             client.set_store_id(store_id)
 
             model = json.loads(self.AUTHORIZATION_MODEL_PATH.read_text())
-            print(model)
             request = WriteAuthorizationModelRequest(type_definitions=model["type_definitions"], schema_version=model["schema_version"], conditions=model.get("conditions", {}))  # fmt: off
             authorization_model_id = (await client.write_authorization_model(body=request)).authorization_model_id
 
