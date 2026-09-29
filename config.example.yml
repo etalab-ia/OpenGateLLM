@@ -20,6 +20,7 @@ dependencies:
 
   # sentry:
   #   dsn: ${SENTRY_DSN}
+  #   debug: false
 
   # langfuse:
   #   public_key: ${LANGFUSE_PUBLIC_KEY}
@@ -34,7 +35,7 @@ settings:
   # app_title: My OpenGateLLM API
 
   # log_level: INFO
-  # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
+  # log_config: logging.yml # see logging.example.yml; replaces the default JSON logging
 
   swagger_version: 0.8.0
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM

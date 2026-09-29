@@ -1,15 +1,20 @@
 from importlib import import_module
 import logging
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from api.infrastructure.configuration import Configuration, get_configuration
-from api.infrastructure.fastapi import RequestContext
+from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, record_http_exception, record_validation_exception
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.monitoring import setup_prometheus
 from api.infrastructure.fastapi.routes import RouterName
+from api.infrastructure.logging import configure_logging
 from api.lifespan import lifespan
 
 logger = logging.getLogger(__name__)
@@ -22,6 +27,7 @@ def create_app(
     if configuration is None:
         configuration = get_configuration()
 
+    configure_logging(configuration.settings)
     _setup_sentry(configuration)
 
     app = FastAPI(
@@ -39,6 +45,7 @@ def create_app(
     )
 
     _setup_middleware(app, configuration)
+    _setup_exception_handlers(app)
     _register_routers(app, configuration)
     _setup_monitoring(app, configuration)
 
@@ -48,16 +55,25 @@ def create_app(
 def _setup_sentry(configuration: Configuration) -> None:
     if configuration.dependencies.sentry:
         logger.info("Initializing Sentry SDK.")
-        sentry_sdk.init(**configuration.dependencies.sentry.model_dump())
+        sentry_sdk.init(integrations=[LoggingIntegration(event_level=None)], **configuration.dependencies.sentry.model_dump())
 
 
 def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
+    app.add_middleware(RequestLogMiddleware)
     app.add_middleware(SessionMiddleware, secret_key=configuration.settings.auth_secret_key)
 
     @app.middleware("http")
     async def set_request_context(request: Request, call_next):
-        request_context.set(RequestContext(endpoint=request.url.path))
-        return await call_next(request)
+        request_id = uuid4().hex
+        request_context.set(RequestContext(id=request_id, method=request.method, endpoint=request.url.path))
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+def _setup_exception_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(StarletteHTTPException, record_http_exception)
+    app.add_exception_handler(RequestValidationError, record_validation_exception)
 
 
 def _register_routers(app: FastAPI, configuration: Configuration) -> None:

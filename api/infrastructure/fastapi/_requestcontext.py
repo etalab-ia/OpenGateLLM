@@ -11,6 +11,8 @@ class RequestContext(BaseModel):
     # request identifiers
     id: str | None = None
     endpoint: str | None = None
+    # name of the exception a 4xx/5xx was mapped from, for the request log line
+    error: str | None = None
 
     # user identifiers
     key: Key | None = None

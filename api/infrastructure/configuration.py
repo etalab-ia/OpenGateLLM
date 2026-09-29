@@ -251,7 +251,12 @@ class Settings(ConfigBaseModel):
 
     # logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO", description="Logging level of the API.")  # fmt: off
-    log_format: str = Field(default="[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s", description="Logging format of the API.")  # fmt: off
+    log_config: str | None = Field(default=None, description="Path to a logging configuration file (YAML or JSON, Python dictConfig schema) applied to the API process. Logs are JSON by default; set this file to render them otherwise, or to route them elsewhere. When set, log_level no longer applies. See logging.example.yml.", examples=["logging.yml"])  # fmt: off
+
+    @field_validator("log_config", mode="after")
+    def log_config_exists(cls, log_config):
+        assert log_config is None or Path(log_config).is_file(), f"Logging configuration file ({log_config}) not found."
+        return log_config
 
     # swagger
     swagger_summary: str = Field(default="OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API description."])  # fmt: off
