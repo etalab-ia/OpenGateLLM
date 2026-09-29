@@ -1,0 +1,92 @@
+# oauth2-proxy alpha config, rendered at Playground startup.
+# Cookie, logging, email domains, skip routes, redirect URL and whitelist stay
+# environment variables: this schema has no fields for them.
+
+# Replaces http-address, ignored once --alpha-config is set: without it
+# oauth2-proxy binds nothing and exits 0. nginx proxies to this address.
+server:
+  bindAddress: 127.0.0.1:4180
+
+upstreamConfig:
+  upstreams:
+    - id: playground
+      path: /
+      uri: http://127.0.0.1:8501
+
+# Replaces set-xauthrequest, set-authorization-header, pass-access-token,
+# pass-user-headers and pass-authorization-header. Those flags are rejected
+# once --alpha-config is set.
+injectRequestHeaders:
+  - name: X-Forwarded-User
+    values:
+      - claimSource:
+          claim: user
+  - name: X-Forwarded-Email
+    values:
+      - claimSource:
+          claim: email
+  - name: X-Forwarded-Preferred-Username
+    values:
+      - claimSource:
+          claim: preferred_username
+  - name: X-Forwarded-Access-Token
+    values:
+      - claimSource:
+          claim: access_token
+  - name: Authorization
+    values:
+      - claimSource:
+          claim: id_token
+          prefix: "Bearer "
+
+injectResponseHeaders:
+  - name: X-Auth-Request-User
+    values:
+      - claimSource:
+          claim: user
+  - name: X-Auth-Request-Email
+    values:
+      - claimSource:
+          claim: email
+  - name: X-Auth-Request-Preferred-Username
+    values:
+      - claimSource:
+          claim: preferred_username
+  - name: X-Auth-Request-Access-Token
+    values:
+      - claimSource:
+          claim: access_token
+  - name: Authorization
+    values:
+      - claimSource:
+          claim: id_token
+          prefix: "Bearer "
+
+providers:
+  - id: oidc
+    provider: oidc
+    clientID: {{ client_id | tojson }}
+    clientSecret: {{ client_secret | tojson }}
+    {% if scope %}
+    scope: {{ scope | tojson }}
+    {% endif %}
+    oidcConfig:
+      issuerURL: {{ issuer_url | tojson }}
+      {% if acr_values %}
+      # oauth2-proxy has no acr check: reading acr as the groups claim makes
+      # allowedGroups reject (403) an id_token whose acr was not requested.
+      groupsClaim: acr
+      {% endif %}
+    {% if acr_values %}
+    allowedGroups: {{ acr_values | tojson }}
+    {% endif %}
+    loginURLParameters:
+      # Classic oauth2-proxy default when neither prompt nor approval_prompt is set.
+      - name: approval_prompt
+        default:
+          - force
+      {% if claims_json %}
+      - name: claims
+        default:
+          - {{ claims_json | tojson }}
+      {% endif %}

@@ -157,6 +157,7 @@ class SettingsLoginOIDC(Settings):
     auth_sso_cookie_secret: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, validate_default=True, description="Secret used to sign the OAuth2-proxy cookies. If not provided, a random secret will be generated. To generate a secret, you can see the dedicated section in the [OAuth2-proxy documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview/#generating-a-cookie-secret).")]  # fmt: off
     auth_sso_logout_redirect_uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="The logout redirect uri for SSO.")]  # fmt: off
     auth_sso_oidc_scope: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default="openid email", description="OIDC scope for id_token validation.")]  # fmt: off
+    auth_sso_oidc_claims: Annotated[dict[str, Any] | None, Field(default=None, description="Optional OIDC claims parameter sent by oauth2-proxy to the authorization endpoint. Use it to request an authentication context, for example ProConnect multi-factor authentication via id_token.acr. When id_token.acr lists values, oauth2-proxy rejects (403) any id_token whose acr is not one of them. Omitted by default, so no extra factor is requested.")]  # fmt: off
     auth_sso_cookie_secure: bool = Field(default=False, description="Whether the cookie is secure. Set to True if the application is served over HTTPS.")  # fmt: off
 
     @field_validator("auth_sso_cookie_secret", mode="after")
