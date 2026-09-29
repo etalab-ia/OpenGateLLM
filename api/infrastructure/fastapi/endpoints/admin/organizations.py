@@ -61,9 +61,21 @@ logger = logging.getLogger(__name__)
 async def create_organization(
     body: CreateOrganizationBody = Body(description="The organization creation request."),
     create_organization_use_case: CreateOrganizationUseCase = Depends(create_organization_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
-    command = CreateOrganizationCommand(name=body.name)
-    result = await create_organization_use_case.execute(command)
+    try:
+        command = CreateOrganizationCommand(name=body.name)
+        result = await create_organization_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing create_organization use case",
+            extra={
+                "authenticated_user_id": authenticated_user.id,
+                "organization_name": body.name,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
 
     match result:
         case CreateOrganizationUseCaseSuccess(organization=organization):
@@ -122,9 +134,21 @@ async def get_organizations(
 async def get_organization(
     organization_id: int = Path(description="The ID of the organization to get."),
     get_one_organization_use_case: GetOneOrganizationUseCase = Depends(get_one_organization_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
     command = GetOneOrganizationCommand(organization_id=organization_id)
-    result = await get_one_organization_use_case.execute(command)
+    try:
+        result = await get_one_organization_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_organization use case",
+            extra={
+                "authenticated_user_id": authenticated_user.id,
+                "organization_id": organization_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
 
     match result:
         case GetOneOrganizationUseCaseSuccess(organization=organization):
