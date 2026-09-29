@@ -3,11 +3,13 @@ import logging
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 import sentry_sdk
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from api.infrastructure.configuration import Configuration, get_configuration
-from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware
+from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, record_http_exception, record_validation_exception
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.monitoring import setup_prometheus
 from api.infrastructure.fastapi.routes import RouterName
@@ -42,6 +44,7 @@ def create_app(
     )
 
     _setup_middleware(app, configuration)
+    _setup_exception_handlers(app)
     _register_routers(app, configuration)
     _setup_monitoring(app, configuration)
 
@@ -63,9 +66,13 @@ def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
         request_id = uuid4().hex
         request_context.set(RequestContext(id=request_id, method=request.method, endpoint=request.url.path))
         response = await call_next(request)
-        # Lets a client quote the id of a failed request, to find its log lines.
         response.headers["X-Request-ID"] = request_id
         return response
+
+
+def _setup_exception_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(StarletteHTTPException, record_http_exception)
+    app.add_exception_handler(RequestValidationError, record_validation_exception)
 
 
 def _register_routers(app: FastAPI, configuration: Configuration) -> None:

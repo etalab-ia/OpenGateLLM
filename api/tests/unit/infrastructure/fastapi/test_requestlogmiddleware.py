@@ -3,12 +3,15 @@ import json
 import logging
 from unittest.mock import ANY, create_autospec
 
+from fastapi.exceptions import RequestValidationError
 import pytest
+from starlette.requests import Request
 
 from api.domain.key.entities import Key
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, _requestlogmiddleware
+from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, _requestlogmiddleware, record_http_exception, record_validation_exception
 from api.infrastructure.fastapi.dependencies import request_context
+from api.infrastructure.fastapi.endpoints.exceptions import OrganizationAlreadyExistsHTTPException
 
 
 async def get_organization():
@@ -102,8 +105,9 @@ async def test_should_log_the_exception_and_answer_generic_500_when_the_app_rais
     await RequestLogMiddleware(failing_app)(SCOPE, receive, send)
 
     # Assert
-    mock_logger.exception.assert_called_once_with("Unhandled exception while processing request", extra=REQUEST_FIELDS)
+    mock_logger.exception.assert_called_once_with("Unhandled exception while processing request", extra={**REQUEST_FIELDS, "error": "RuntimeError"})
     assert mock_logger.info.call_args.kwargs["extra"]["status_code"] == 500
+    assert mock_logger.info.call_args.kwargs["extra"]["error"] == "RuntimeError"
     assert sent_messages[0]["status"] == 500
     assert json.loads(sent_messages[1]["body"]) == {"detail": "An unexpected error occurred"}
 
@@ -139,3 +143,30 @@ async def test_should_leave_out_the_fields_that_do_not_apply_to_the_route(mock_l
 
     # Assert
     assert mock_logger.info.call_args.kwargs["extra"] == {"method": "GET", "path": "/health", "status_code": 200, "duration_ms": ANY}
+
+
+@pytest.mark.asyncio
+async def test_should_name_the_mapped_error_in_the_request_line():
+    # Arrange
+    request = Request({"type": "http", "method": "POST", "path": "/v1/admin/organizations", "headers": []})
+
+    # Act
+    response = await record_http_exception(request, OrganizationAlreadyExistsHTTPException("my-org"))
+
+    # Assert
+    assert request_context.get().error == "OrganizationAlreadyExistsHTTPException"
+    assert response.status_code == 409
+    assert json.loads(response.body) == {"detail": "Organization my-org already exists."}
+
+
+@pytest.mark.asyncio
+async def test_should_name_a_validation_error_in_the_request_line():
+    # Arrange
+    request = Request({"type": "http", "method": "POST", "path": "/v1/admin/organizations", "headers": []})
+
+    # Act
+    response = await record_validation_exception(request, RequestValidationError(errors=[]))
+
+    # Assert
+    assert request_context.get().error == "RequestValidationError"
+    assert response.status_code == 422
