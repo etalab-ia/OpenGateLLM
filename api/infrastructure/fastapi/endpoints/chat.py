@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 import logging
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Security
@@ -46,8 +47,19 @@ router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
 
 
 async def _as_stream_chunks(chunks: AsyncGenerator[ProviderChunkResponse]) -> AsyncGenerator[StreamChunk]:
-    async for chunk in chunks:
-        yield chunk.content, chunk.status_code
+    first_chunk = True
+
+    async with aclosing(chunks):
+        async for chunk in chunks:
+            failed = chunk.status_code // 100 != 2
+
+            if failed and first_chunk:
+                yield chunk.content, chunk.status_code
+                return
+
+            line = f"event: error\ndata: {chunk.content}" if failed else chunk.content
+            yield f"{line}\n\n", chunk.status_code
+            first_chunk = False
 
 
 @router.post(
