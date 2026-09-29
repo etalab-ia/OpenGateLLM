@@ -60,11 +60,3 @@ class RelationTuple(BaseModel):
     subject: AuthorizationObject
     relation: AuthorizationRelation
     object: AuthorizationObject
-
-    @classmethod
-    def organization_platform(cls, organization_id: int) -> "RelationTuple":
-        return cls(
-            subject=AuthorizationObject.platform(),
-            relation=OrganizationRelation.PLATFORM,
-            object=AuthorizationObject.organization(organization_id),
-        )
