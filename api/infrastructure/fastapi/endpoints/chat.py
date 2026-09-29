@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Security
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
@@ -20,6 +20,7 @@ from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.decorators import cancel_on_disconnect
 from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -71,7 +72,9 @@ async def _as_stream_chunks(chunks: AsyncGenerator[ProviderChunkResponse]) -> As
     ),
     response_model=ChatCompletionResponse | ChatCompletionChunkResponse,
 )
+@cancel_on_disconnect
 async def create_chat_completions(
+    request: Request,
     body: CreateChatCompletionsBody = Body(description="The chat completion request."),
     create_chat_completions_use_case: CreateChatCompletionsUseCase = Depends(create_chat_completions_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
@@ -90,8 +93,8 @@ async def create_chat_completions(
             )
         case CreateChatCompletionsUseCaseSuccess(data=data, headers=headers):
             return JSONResponse(content=ChatCompletionResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
-        case NoAvailableProviderError():
-            raise ModelIsTooBusyExceptionHTTPException()
+        case NoAvailableProviderError(retry_after=retry_after):
+            raise ModelIsTooBusyExceptionHTTPException(retry_after=retry_after)
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):

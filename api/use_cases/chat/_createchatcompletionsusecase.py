@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from contextlib import aclosing
+from contextlib import AsyncExitStack, aclosing
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from json import dumps
@@ -62,22 +62,36 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         request_id = self._start_record_usage(command=command, router=router)
 
         if command.stream:
-            provider = await self._select_provider(router=router)
+            providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
             request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=command.payload)
 
-            match await self.provider_client.forward_stream(provider=provider, request=request):
-                case AsyncGenerator() as chunks:
-                    pass
-                case error:
-                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
-                    self.usage_repository.end_record()
-                    return error
+            async with AsyncExitStack() as admission_stack:
+                match await admission_stack.enter_async_context(self._admit_provider(router=router, providers=providers, request_id=request_id)):
+                    case Provider() as provider:
+                        pass
+                    case error:
+                        self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
+                        self.usage_repository.end_record()
+                        return error
+
+                self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+                match await self.provider_client.forward_stream(provider=provider, request=request):
+                    case AsyncGenerator() as chunks:
+                        pass
+                    case error:
+                        self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
+                        self.usage_repository.end_record()
+                        return error
+
+                # the reservation now belongs to the stream, released once it is consumed or closed
+                reservation = admission_stack.pop_all()
 
             return CreateChatCompletionsStreamUseCaseSuccess(
                 chunks=self._format_stream(
                     authenticated_user=authenticated_user,
                     router=router,
                     provider=provider,
+                    reservation=reservation,
                     chunks=chunks,
                     prompt_tokens=prompt_tokens,
                     request_id=request_id,
@@ -109,6 +123,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         authenticated_user: AuthenticatedUserView,
         router: Router,
         provider: Provider,
+        reservation: AsyncExitStack,
         chunks: AsyncGenerator[ProviderChunkResponse],
         prompt_tokens: int,
         request_id: str,
@@ -117,9 +132,9 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         first_token_at: datetime | None = None
         usage_is_recorded = False
 
-        async with self._inflight(provider=provider):
-            async with aclosing(chunks):
-                try:
+        try:
+            async with reservation:
+                async with aclosing(chunks):
                     async for chunk in chunks:
                         if chunk.status_code // 100 != 2:
                             self.usage_repository.fail_record(message=StatusCodeModelError.__name__, status_code=chunk.status_code)
@@ -155,19 +170,19 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     usage_is_recorded = True
                     yield ProviderChunkResponse(content=usage_line, status_code=200)
                     yield ProviderChunkResponse(content="data: [DONE]", status_code=200)
-                finally:
-                    if not usage_is_recorded and buffer:
-                        self._record_stream_usage(
-                            authenticated_user=authenticated_user,
-                            router=router,
-                            provider=provider,
-                            buffer=buffer,
-                            prompt_tokens=prompt_tokens,
-                            latency=self.usage_repository.compute_latency(),
-                            request_id=request_id,
-                            first_token_at=first_token_at,
-                        )
-                    self.usage_repository.end_record()
+        finally:
+            if not usage_is_recorded and buffer:
+                self._record_stream_usage(
+                    authenticated_user=authenticated_user,
+                    router=router,
+                    provider=provider,
+                    buffer=buffer,
+                    prompt_tokens=prompt_tokens,
+                    latency=self.usage_repository.compute_latency(),
+                    request_id=request_id,
+                    first_token_at=first_token_at,
+                )
+            self.usage_repository.end_record()
 
     def _build_usage_line(
         self,
