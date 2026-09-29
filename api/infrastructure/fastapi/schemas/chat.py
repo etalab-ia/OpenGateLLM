@@ -1,8 +1,7 @@
 from typing import Annotated
 
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
-from pydantic import Field, StringConstraints
-from pytantic import field_validator
+from pydantic import Field, StringConstraints, field_validator
 
 from api.domain import BaseModel
 from api.domain.usage.entities import Usage
