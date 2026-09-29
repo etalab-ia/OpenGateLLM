@@ -17,9 +17,7 @@ EXAMPLE_LOG_CONFIG = Path(__file__).parents[4] / "logging.example.yml"
 
 @pytest.fixture
 def settings():
-    return get_configuration().settings.model_copy(
-        update={"log_level": "INFO", "log_format": "%(levelname)s|%(name)s|%(message)s", "log_json": False, "log_config": None}
-    )
+    return get_configuration().settings.model_copy(update={"log_level": "INFO", "log_config": None})
 
 
 @pytest.fixture(autouse=True)
@@ -28,19 +26,6 @@ def restore_api_logger():
     handlers, level, propagate = list(api_logger.handlers), api_logger.level, api_logger.propagate
     yield
     api_logger.handlers, api_logger.level, api_logger.propagate = handlers, level, propagate
-
-
-def test_should_emit_info_logs_of_any_api_module_with_configured_format(settings, capsys):
-    # Arrange
-    configure_logging(settings)
-
-    # Act
-    logging.getLogger("api.infrastructure.fastapi.endpoints.keys").info("hello")
-
-    # Assert
-    output = capsys.readouterr().out
-    assert "INFO" in output
-    assert "|api.infrastructure.fastapi.endpoints.keys|hello" in output
 
 
 def test_should_not_stack_handlers_when_configured_twice(settings):
@@ -54,9 +39,9 @@ def test_should_not_stack_handlers_when_configured_twice(settings):
     assert len(logging.getLogger("api").handlers) == 1
 
 
-def test_should_emit_one_json_object_per_line_with_extra_fields_when_json_is_enabled(settings, capsys):
+def test_should_emit_one_json_object_per_line_with_extra_fields(settings, capsys):
     # Arrange
-    configure_logging(settings.model_copy(update={"log_json": True}))
+    configure_logging(settings)
 
     # Act
     logging.getLogger("api.infrastructure.fastapi.endpoints.keys").info("hello %s", "world", extra={"authenticated_user_id": 42})
@@ -72,7 +57,7 @@ def test_should_emit_one_json_object_per_line_with_extra_fields_when_json_is_ena
 
 def test_should_include_traceback_in_json_when_logging_an_exception(settings, capsys):
     # Arrange
-    configure_logging(settings.model_copy(update={"log_json": True}))
+    configure_logging(settings)
 
     # Act
     try:
@@ -111,11 +96,11 @@ def restore_uvicorn_loggers():
         logger.handlers, logger.level, logger.propagate, logger.disabled = handlers, level, propagate, disabled
 
 
-def test_should_render_standalone_uvicorn_logs_as_json_when_json_is_enabled(settings, restore_uvicorn_loggers, capsys):
+def test_should_render_standalone_uvicorn_logs_as_json(settings, restore_uvicorn_loggers, capsys):
     # Arrange
     # In the test body: dictConfig binds the handlers to the sys.stdout / sys.stderr that capsys swaps in for the call phase.
     dictConfig(UVICORN_LOGGING_CONFIG)
-    configure_logging(settings.model_copy(update={"log_json": True}))
+    configure_logging(settings)
 
     # Act
     logging.getLogger("uvicorn.error").info("Started server process")
@@ -138,7 +123,7 @@ def test_should_disable_uvicorn_access_log_replaced_by_the_request_log(settings,
 
 def test_should_add_the_request_id_to_api_logs_during_a_request(settings, capsys):
     # Arrange
-    configure_logging(settings.model_copy(update={"log_json": True}))
+    configure_logging(settings)
     token = request_context.set(RequestContext(id="3f2a"))
 
     # Act
