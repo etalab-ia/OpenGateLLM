@@ -7,9 +7,10 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.auth import AuthSsoSessionValidator
+from api.domain.authorization import AuthorizationClient
 from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, ModelTokenizer
-from api.domain.organization import OrganizationRepository
+from api.domain.organization import OrganizationAuthorization, OrganizationRepository
 from api.domain.provider import (
     ProviderClient,
     ProviderLoadBalancer,
@@ -26,6 +27,8 @@ from api.infrastructure.fastapi import RequestContextUsageRecorder
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
+from api.infrastructure.openfga import OpenFgaAuthorizationClient
+from api.infrastructure.openfga._openfgaorganizationauthorization import OpenFgaOrganizationAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresAuthenticatedUserQuery,
@@ -159,6 +162,15 @@ def get_router_rate_limiter() -> RouterRateLimiter:
 
 def _usage_recorder() -> UsageRecorder:
     return RequestContextUsageRecorder(request_context=request_context)
+
+
+# authorization
+def _authorization_client() -> AuthorizationClient:
+    return OpenFgaAuthorizationClient(client=global_context.openfga_client)
+
+
+def _get_organization_authorization(openfga_client: OpenFgaAuthorizationClient = Depends(_authorization_client)) -> OrganizationAuthorization:
+    return OpenFgaOrganizationAuthorization(openfga_client=openfga_client)
 
 
 # repositories
@@ -385,8 +397,13 @@ def create_ocr_use_case_factory(
 
 
 # organization use cases
-def create_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateOrganizationUseCase:
-    return CreateOrganizationUseCase(organization_repository=_organization_repository(postgres_session))
+def create_organization_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
+) -> CreateOrganizationUseCase:
+    return CreateOrganizationUseCase(
+        organization_repository=_organization_repository(postgres_session), organization_authorization=organization_authorization
+    )
 
 
 def delete_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteOrganizationUseCase:
