@@ -35,7 +35,7 @@ class TestProviderRequest:
     def test_should_generate_request_id_when_omitted(self):
         request = ProviderRequest(endpoint=ProviderEndpoint.MODELS)
 
-        assert request.id.startswith("request-")
+        assert len(request.id) == 32
         assert request.id != ProviderRequest(endpoint=ProviderEndpoint.MODELS).id
 
     def test_should_keep_explicit_request_id(self):

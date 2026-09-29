@@ -400,14 +400,20 @@ class TestSendRequest:
         assert exited is True
 
     @pytest.mark.asyncio
-    async def test_should_return_no_available_provider_after_immediate_rejection(self, use_case, router, payload):
+    async def test_should_return_no_available_provider_after_immediate_rejection(self, use_case, router, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 0
         use_case.provider_qos.admit.side_effect = lambda **_: admission(ProviderAdmissionFull(depth=4))
 
         # Act
         with patch.object(ProviderAdmissionFull, "retry_after", return_value=7) as mock_retry_after:
-            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access,
+                router=router,
+                prompt_tokens=1,
+                payload=payload,
+                request_id=REQUEST_ID,
+            )
 
         # Assert
         assert result == NoAvailableProviderError(router_id=router.id, retry_after=7)
@@ -415,7 +421,7 @@ class TestSendRequest:
         use_case.provider_client.forward.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_retry_full_admission_with_same_request_id_then_forward(self, use_case, router, provider, payload):
+    async def test_should_retry_full_admission_with_same_request_id_then_forward(self, use_case, router, provider, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 2
         admissions = [ProviderAdmissionFull(depth=2), ProviderAdmissionFull(depth=1), provider]
@@ -423,7 +429,9 @@ class TestSendRequest:
 
         # Act
         with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -435,7 +443,7 @@ class TestSendRequest:
         assert use_case.provider_client.forward.await_args.kwargs["request"].id == request_ids.pop()
 
     @pytest.mark.asyncio
-    async def test_should_return_no_available_provider_after_retries_exhausted(self, use_case, router, payload):
+    async def test_should_return_no_available_provider_after_retries_exhausted(self, use_case, router, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 4
         use_case.provider_qos.admit.side_effect = lambda **_: admission(ProviderAdmissionFull(depth=100))
@@ -445,7 +453,13 @@ class TestSendRequest:
             patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock),
             patch.object(ProviderAdmissionFull, "retry_after", return_value=2) as mock_retry_after,
         ):
-            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access,
+                router=router,
+                prompt_tokens=1,
+                payload=payload,
+                request_id=REQUEST_ID,
+            )
 
         # Assert
         assert result == NoAvailableProviderError(router_id=router.id, retry_after=2)
