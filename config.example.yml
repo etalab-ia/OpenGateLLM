@@ -37,7 +37,7 @@ settings:
   # log_level: INFO
   # log_config: logging.yml # see logging.example.yml; replaces the default JSON logging
 
-  swagger_version: 0.8.0
+  swagger_version: 0.9.0
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
   # swagger_contact_email: john.doe@example.com
   # swagger_docs_url: /docs
