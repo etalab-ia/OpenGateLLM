@@ -1,4 +1,3 @@
-import logging
 from typing import assert_never
 
 from fastapi import APIRouter, Body, Depends, Response, Security
@@ -10,7 +9,6 @@ from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InternalServerHTTPException,
     InvalidCurrentPasswordHTTPException,
     UserAlreadyExistsHTTPException,
     UserNotFoundHTTPException,
@@ -25,8 +23,6 @@ from api.use_cases.me import (
     UpdateMeUseCase,
     UpdateMeUseCaseSuccess,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
@@ -52,17 +48,7 @@ async def get_me(
     Get my user information.
     """
     command = GetMeCommand(authenticated_user=authenticated_user)
-    try:
-        result = await get_me_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_me use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_me_use_case.execute(command)
 
     match result:
         case GetMeUseCaseSuccess(authenticated_user=user):
@@ -100,17 +86,7 @@ async def update_me(
         current_password=body.current_password,
         new_password=body.password,
     )
-    try:
-        result = await update_me_info_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing update_me use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await update_me_info_use_case.execute(command)
 
     match result:
         case UpdateMeUseCaseSuccess():

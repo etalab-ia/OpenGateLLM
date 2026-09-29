@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Body, Depends, Path, Query, Security
 
 from api.dependencies import (
@@ -18,7 +16,6 @@ from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InternalServerHTTPException,
     KeyExpirationInvalidHTTPException,
     KeyNameReservedHTTPException,
     KeyNotFoundHTTPException,
@@ -44,8 +41,6 @@ from api.use_cases.admin.keys import (
     UpdateKeyUseCase,
     UpdateKeyUseCaseSuccess,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=[RouterName.KEYS.title()])
 
@@ -73,18 +68,7 @@ async def create_key(
     """
 
     command = CreateKeyCommand(user_id=authenticated_user.id, name=body.name, expire=body.expires)
-    try:
-        result = await create_me_key_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing create_me_key use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "name": body.name,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await create_me_key_use_case.execute(command)
 
     match result:
         case CreateKeyUseCaseSuccess(key=key):
@@ -133,22 +117,7 @@ async def get_keys(
         sort_order=sort_order,
         status=status,
     )
-    try:
-        result = await get_keys_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_keys use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "offset": command.offset,
-                "limit": command.limit,
-                "sort_by": command.sort_by,
-                "sort_order": command.sort_order,
-                "status": command.status,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_keys_use_case.execute(command)
 
     match result:
         case GetKeysUseCaseSuccess(key_page=key_page):
@@ -183,18 +152,7 @@ async def get_key(
     """
 
     command = GetOneKeyCommand(key_id=key_id, user_id=authenticated_user.id)
-    try:
-        result = await get_one_key_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_key use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "key_id": key_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_one_key_use_case.execute(command)
 
     match result:
         case GetOneKeyUseCaseSuccess(key=key):
@@ -227,18 +185,7 @@ async def update_key(
     """
 
     command = UpdateKeyCommand(key_id=key_id, user_id=authenticated_user.id, name=body.name)
-    try:
-        result = await update_key_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing update_key use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "key_id": key_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await update_key_use_case.execute(command)
 
     match result:
         case UpdateKeyUseCaseSuccess(key=key):
@@ -270,18 +217,7 @@ async def delete_key(
     """
 
     command = DeleteKeyCommand(key_id=key_id, user_id=authenticated_user.id)
-    try:
-        result = await delete_key_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing delete_key use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "key_id": key_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await delete_key_use_case.execute(command)
 
     match result:
         case DeleteKeyUseCaseSuccess(key=key):

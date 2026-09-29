@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import (
@@ -17,7 +15,6 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InternalServerHTTPException,
     NotAdminUserHTTPException,
     RouterAliasAlreadyExistsHTTPException,
     RouterAlreadyExistsHTTPException,
@@ -43,8 +40,6 @@ from api.use_cases.admin.routers import (
     UpdateRouterUseCaseSuccess,
 )
 
-logger = logging.getLogger(__name__)
-
 
 @router.post(
     path=EndpointRoute.ADMIN_ROUTERS,
@@ -66,18 +61,7 @@ async def create_router(
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
     )
-    try:
-        result = await create_router_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing create_router use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "router_name": body.name,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await create_router_use_case.execute(command)
 
     match result:
         case CreateRouterUseCaseSuccess(created_router):
@@ -97,21 +81,9 @@ async def create_router(
 async def get_router(
     router_id: int = Path(description="The router ID."),
     get_one_router_use_case: GetOneRouterUseCase = Depends(get_one_router_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RouterResponse:
     command = GetOneRouterCommand(router_id=router_id)
-    try:
-        result = await get_one_router_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_router use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "router_id": command.router_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_one_router_use_case.execute(command)
     match result:
         case GetOneRouterUseCaseSuccess(returned_router):
             return RouterResponse.model_validate(returned_router, from_attributes=True)
@@ -131,7 +103,6 @@ async def get_routers(
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_routers_use_case: GetRoutersUseCase = Depends(get_routers_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoutersResponse:
     command = GetRoutersCommand(
         offset=offset,
@@ -139,17 +110,7 @@ async def get_routers(
         sort_by=sort_by,
         sort_order=sort_order,
     )
-    try:
-        result = await get_routers_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_routers use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_routers_use_case.execute(command)
     match result:
         case GetRoutersUseCaseSuccess(router_page=router_page):
             return RoutersResponse(
@@ -169,21 +130,9 @@ async def get_routers(
 async def delete_router(
     router_id: int = Path(description="The ID of the router to delete (router ID, eg. 123)."),
     delete_router_use_case: DeleteRouterUseCase = Depends(delete_router_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RouterResponse:
     command = DeleteRouterCommand(router_id=router_id)
-    try:
-        result = await delete_router_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing delete_router use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "router_id": command.router_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await delete_router_use_case.execute(command)
 
     match result:
         case DeleteRouterUseCaseSuccess(deleted_router):
@@ -208,7 +157,6 @@ async def delete_router(
 async def update_router(
     router_id: int = Path(description="The ID of the router to update (router ID, eg. 123)."),
     update_router_use_case: UpdateRouterUseCase = Depends(update_router_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
     body: UpdateRouterBody = Body(description="The router update request."),
 ) -> RouterResponse:
     command = UpdateRouterCommand(
@@ -220,18 +168,7 @@ async def update_router(
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
     )
-    try:
-        result = await update_router_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing update_router use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "router_id": command.router_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await update_router_use_case.execute(command)
     match result:
         case UpdateRouterUseCaseSuccess(router=updated_router):
             return RouterResponse.model_validate(updated_router, from_attributes=True)

@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, Request
 
 from api.dependencies import auth_login_use_case_factory, auth_sso_login_use_case_factory
@@ -9,7 +7,6 @@ from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import InvalidUserPasswordError, UserAlreadyExistsError, UserNotFoundError
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InternalServerHTTPException,
     InvalidCredentialsHTTPException,
     OrganizationNotFoundHTTPException,
     RoleNotFoundHTTPException,
@@ -30,8 +27,6 @@ from api.use_cases.auth import (
     AuthSsoLoginUseCaseSuccess,
 )
 
-logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/v1", tags=[RouterName.AUTH.title()])
 
 
@@ -43,17 +38,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.AUTH.title()])
 )
 async def login(body: AuthLoginBody, auth_login_use_case: AuthLoginUseCase = Depends(auth_login_use_case_factory)):
     command = AuthLoginCommand(email=body.email, password=body.password)
-    try:
-        result = await auth_login_use_case.execute(command=command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing auth login use case",
-            extra={
-                "email": body.email,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await auth_login_use_case.execute(command=command)
 
     match result:
         case AuthLoginUseCaseSuccess(key=key):
@@ -95,18 +80,7 @@ async def sso_login(
         exp=body.exp,
         claims=body.claims,
     )
-    try:
-        result = await auth_sso_login_use_case.execute(command=command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing auth sso login use case",
-            extra={
-                "sub": body.sub,
-                "iss": body.iss,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await auth_sso_login_use_case.execute(command=command)
 
     match result:
         case AuthSsoLoginUseCaseSuccess(key=key):
