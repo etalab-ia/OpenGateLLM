@@ -71,12 +71,12 @@ sequenceDiagram
             ogl -->> user: 400 Wrong model type
         else Provider found.
             opt
-              ogl ->> ogl: Format request if different from standard
+              ogl ->> ogl: Format request to the provider structure body
             end
             ogl ->> backend: Forward request to a provider of the router (load balancing)
             backend -->> ogl: Response
             opt
-              ogl ->> ogl: Format response if different from standard
+              ogl ->> ogl: Format response to standard response format
             end
             ogl ->> ogl: Add usage metadata to the response
             ogl -->> user: Forward response
@@ -84,6 +84,13 @@ sequenceDiagram
         end
     end
 ```
+
+<Aside type="note" title="Request format">
+OpenGateLLM does not make any changes to the content of the request. In most cases, the provider's API follows the OpenAI API standard and no modification is performed.
+
+Request formatting is only performed when the request structure differs from the standard OpenAI API structure.
+For example, Mistral's audio models are served by the `/v1/chat/completions` endpoint. In OpenGateLLM, these models are served via the `/v1/audio/transcriptions` endpoint. In this case, request formatting is required so that the provider can process the request.
+</Aside>
 
 ## Configuration flow
 
@@ -102,6 +109,7 @@ sequenceDiagram
           <li><code>name</code>: model name shown to users.</li>
           <li><code>type</code>: model type (for example <code>text-generation</code>).</li>
           <li><code>load_balancing_strategy</code>: <code>shuffle</code> (default) or <code>least_busy</code>.</li>
+          <li><code>qos_retries_before_reject</code> (optional): <code>null</code>, <code>0</code>, or a positive retry count.</li>
           <li><code>aliases</code> (optional): additional names for the same router.</li>
         </ul>
       </li>
@@ -114,10 +122,13 @@ sequenceDiagram
           <li><code>url</code> (optional for some provider types): provider base URL (domain only, without <code>/v1</code>).</li>
           <li><code>key</code> (optional): API key.</li>
           <li><code>timeout</code> (optional): request timeout in seconds.</li>
+          <li><code>qos_limit</code> (optional): <code>null</code>, <code>0</code>, or a positive concurrent-request cap.</li>
         </ul>
       </li>
     </ol>
   </Steps>
+
+  For more information about `qos_retries_before_reject` and `qos_limit`, see [Load support](/features/usage/load/).
   </TabItem>
 
   <TabItem label="API" icon="lucide:code">
