@@ -20,6 +20,7 @@ dependencies:
 
   # sentry:
   #   dsn: ${SENTRY_DSN}
+  #   debug: false
 
   # langfuse:
   #   public_key: ${LANGFUSE_PUBLIC_KEY}
