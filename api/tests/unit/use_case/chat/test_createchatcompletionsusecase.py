@@ -252,7 +252,8 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert result is error
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()
-        use_case.usage_repository.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=503)
+        # 422 is what the endpoint answers for a validation error, so that is what the usage row must carry
+        use_case.usage_repository.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=422)
         use_case.usage_repository.end_record.assert_called_once()
 
 
