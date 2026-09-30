@@ -2,14 +2,15 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
+from fastapi import HTTPException
 import pytest
 
 from api.domain.key.entities import Key
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.usage.entities import Usage as RecordedUsage
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import RequestContext
-from api.infrastructure.fastapi.decorators import _wrap_streaming_response, set_usage_from_context
+from api.infrastructure.fastapi import RequestContext, decorators
+from api.infrastructure.fastapi.decorators import _wrap_streaming_response, hooks, set_usage_from_context
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.postgres.models import Usage
 
@@ -108,3 +109,43 @@ class TestSetUsageFromContext:
 
         # Assert
         assert usage.cost is None
+
+
+class TestHooksRecordedStatus:
+    @staticmethod
+    def _decorated(endpoint_func):
+        return hooks(postgres_session_provider=AsyncMock())(endpoint_func)
+
+    @pytest.mark.asyncio
+    async def test_should_record_the_status_of_a_mapped_http_exception(self, monkeypatch):
+        # Arrange
+        recorded: list[RecordedUsage] = []
+        monkeypatch.setattr(decorators, "_record_usage", lambda usage, postgres_session_provider: recorded.append(usage))
+        _set_request_context()
+
+        async def endpoint():
+            raise HTTPException(status_code=409, detail="already exists")
+
+        # Act
+        with pytest.raises(HTTPException):
+            await self._decorated(endpoint)()
+
+        # Assert
+        assert [usage.status for usage in recorded] == [409]
+
+    @pytest.mark.asyncio
+    async def test_should_record_500_when_the_endpoint_raises_an_unexpected_exception(self, monkeypatch):
+        # Arrange: RequestLogMiddleware answers 500, so the usage row must carry it too
+        recorded: list[RecordedUsage] = []
+        monkeypatch.setattr(decorators, "_record_usage", lambda usage, postgres_session_provider: recorded.append(usage))
+        _set_request_context()
+
+        async def endpoint():
+            raise RuntimeError("database is gone")
+
+        # Act
+        with pytest.raises(RuntimeError):
+            await self._decorated(endpoint)()
+
+        # Assert
+        assert [usage.status for usage in recorded] == [500]

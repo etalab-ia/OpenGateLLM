@@ -1,4 +1,3 @@
-import logging
 from typing import assert_never
 
 from fastapi import Body, Depends, Path, Query, Security
@@ -21,13 +20,10 @@ from api.domain.user.errors import (
     UserHasRoutersError,
     UserNotFoundError,
 )
-from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InternalServerHTTPException,
     InvalidCurrentPasswordHTTPException,
     NotAdminUserHTTPException,
     OrganizationNotFoundHTTPException,
@@ -57,8 +53,6 @@ from api.use_cases.admin.users import (
     UpdateUserUseCaseSuccess,
 )
 
-logger = logging.getLogger(__name__)
-
 
 @router.post(
     path=EndpointRoute.ADMIN_USERS,
@@ -76,30 +70,18 @@ logger = logging.getLogger(__name__)
 async def create_user(
     body: CreateUserBody = Body(description="The user creation request."),
     create_user_use_case: CreateUserUseCase = Depends(create_user_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
-    try:
-        command = CreateUserCommand(
-            email=body.email,
-            password=body.password,
-            role_id=body.role_id,
-            name=body.name,
-            organization_id=body.organization_id,
-            budget=body.budget,
-            expires=body.expires,
-            priority=body.priority,
-        )
-        result = await create_user_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing create_user use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "email": body.email,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    command = CreateUserCommand(
+        email=body.email,
+        password=body.password,
+        role_id=body.role_id,
+        name=body.name,
+        organization_id=body.organization_id,
+        budget=body.budget,
+        expires=body.expires,
+        priority=body.priority,
+    )
+    result = await create_user_use_case.execute(command)
 
     match result:
         case CreateUserUseCaseSuccess(user=user):
@@ -121,21 +103,9 @@ async def create_user(
 async def get_user(
     user_id: int = Path(description="The ID of the user to get."),
     get_one_user_use_case: GetOneUserUseCase = Depends(get_one_user_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     command = GetOneUserCommand(user_id=user_id)
-    try:
-        result = await get_one_user_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_user use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "user_id": command.user_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_one_user_use_case.execute(command)
     match result:
         case GetOneUserUseCaseSuccess(user=returned_user):
             return UserResponse.model_validate(returned_user, from_attributes=True)
@@ -160,7 +130,6 @@ async def get_users(
     sort_by: UserSortField = Query(default=UserSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_users_use_case: GetUsersUseCase = Depends(get_users_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UsersResponse:
     command = GetUsersCommand(
         role_id=role_id,
@@ -171,17 +140,7 @@ async def get_users(
         sort_by=sort_by,
         sort_order=sort_order,
     )
-    try:
-        result = await get_users_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_users use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_users_use_case.execute(command)
     match result:
         case GetUsersUseCaseSuccess(user_page=user_page):
             return UsersResponse(
@@ -210,21 +169,9 @@ async def get_users(
 async def delete_user(
     user_id: int = Path(description="The ID of the user to delete."),
     delete_user_use_case: DeleteUserUseCase = Depends(delete_user_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     command = DeleteUserCommand(user_id=user_id)
-    try:
-        result = await delete_user_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing delete_user use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "user_id": command.user_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await delete_user_use_case.execute(command)
     match result:
         case DeleteUserUseCaseSuccess(user=user):
             return UserResponse.model_validate(user, from_attributes=True)
@@ -257,7 +204,6 @@ async def update_user(
     user_id: int = Path(description="The ID of the user to update."),
     body: UserUpdateRequest = Body(description="The user update request."),
     update_user_use_case: UpdateUserUseCase = Depends(update_user_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     command = UpdateUserCommand(
         user_id=user_id,
@@ -271,18 +217,7 @@ async def update_user(
         expires=body.expires,
         priority=body.priority,
     )
-    try:
-        result = await update_user_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing update_user use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "user_id": command.user_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await update_user_use_case.execute(command)
     match result:
         case UpdateUserUseCaseSuccess(user=user):
             return UserResponse.model_validate(user, from_attributes=True)

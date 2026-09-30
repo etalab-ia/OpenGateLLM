@@ -1,4 +1,3 @@
-import logging
 from typing import assert_never
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Security
@@ -23,7 +22,6 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_a
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientBudgetHTTPException,
-    InternalServerHTTPException,
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
@@ -34,7 +32,6 @@ from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.embeddings import CreateEmbeddingsBody, EmbeddingsResponse
 from api.use_cases.embeddings import CreateEmbeddingsCommand, CreateEmbeddingsUseCase, CreateEmbeddingsUseCaseSuccess
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.EMBEDDINGS.title()])
 
 
@@ -60,19 +57,8 @@ async def create_embeddings(
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
     authenticated_key: Key = Depends(get_authenticated_key),
 ) -> JSONResponse:
-    try:
-        command = CreateEmbeddingsCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=authenticated_key)
-        result = await create_embeddings_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing embeddings use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "model_name": body.model,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    command = CreateEmbeddingsCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=authenticated_key)
+    result = await create_embeddings_use_case.execute(command)
 
     match result:
         case CreateEmbeddingsUseCaseSuccess(data=data, headers=headers):

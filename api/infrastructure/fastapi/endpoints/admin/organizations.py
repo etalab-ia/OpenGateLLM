@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import (
@@ -12,13 +10,10 @@ from api.dependencies import (
 from api.domain import SortOrder
 from api.domain.organization.entities import OrganizationSortField
 from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
-from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InternalServerHTTPException,
     NotAdminUserHTTPException,
     OrganizationAlreadyExistsHTTPException,
     OrganizationHasUsersHTTPException,
@@ -49,8 +44,6 @@ from api.use_cases.admin.organizations import (
     UpdateOrganizationUseCaseSuccess,
 )
 
-logger = logging.getLogger(__name__)
-
 
 @router.post(
     path=EndpointRoute.ADMIN_ORGANIZATIONS,
@@ -61,21 +54,9 @@ logger = logging.getLogger(__name__)
 async def create_organization(
     body: CreateOrganizationBody = Body(description="The organization creation request."),
     create_organization_use_case: CreateOrganizationUseCase = Depends(create_organization_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
-    try:
-        command = CreateOrganizationCommand(name=body.name)
-        result = await create_organization_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing create_organization use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "organization_name": body.name,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    command = CreateOrganizationCommand(name=body.name)
+    result = await create_organization_use_case.execute(command)
 
     match result:
         case CreateOrganizationUseCaseSuccess(organization=organization):
@@ -96,24 +77,9 @@ async def get_organizations(
     sort_by: OrganizationSortField = Query(default=OrganizationSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_organizations_use_case: GetOrganizationsUseCase = Depends(get_organizations_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationsResponse:
     command = GetOrganizationsCommand(offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
-    try:
-        result = await get_organizations_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_organizations use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "offset": offset,
-                "limit": limit,
-                "sort_by": sort_by,
-                "sort_order": sort_order,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_organizations_use_case.execute(command)
 
     match result:
         case GetOrganizationsUseCaseSuccess(organization_page=organization_page):
@@ -134,21 +100,9 @@ async def get_organizations(
 async def get_organization(
     organization_id: int = Path(description="The ID of the organization to get."),
     get_one_organization_use_case: GetOneOrganizationUseCase = Depends(get_one_organization_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
     command = GetOneOrganizationCommand(organization_id=organization_id)
-    try:
-        result = await get_one_organization_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_organization use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "organization_id": organization_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_one_organization_use_case.execute(command)
 
     match result:
         case GetOneOrganizationUseCaseSuccess(organization=organization):
@@ -166,21 +120,9 @@ async def get_organization(
 async def delete_organization(
     organization_id: int = Path(description="The ID of the organization to delete."),
     delete_organization_use_case: DeleteOrganizationUseCase = Depends(delete_organization_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
-    try:
-        command = DeleteOrganizationCommand(organization_id=organization_id)
-        result = await delete_organization_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing delete_organization use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "organization_id": organization_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    command = DeleteOrganizationCommand(organization_id=organization_id)
+    result = await delete_organization_use_case.execute(command)
 
     match result:
         case DeleteOrganizationUseCaseSuccess(organization=organization):
@@ -201,22 +143,9 @@ async def update_organization(
     organization_id: int = Path(description="The ID of the organization to update."),
     body: UpdateOrganizationBody = Body(description="The organization update request."),
     update_organization_use_case: UpdateOrganizationUseCase = Depends(update_organization_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
     command = UpdateOrganizationCommand(organization_id=organization_id, name=body.name)
-    try:
-        result = await update_organization_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing update_organization use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "organization_id": organization_id,
-                "organization_name": body.name,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await update_organization_use_case.execute(command)
 
     match result:
         case UpdateOrganizationUseCaseSuccess(organization=organization):

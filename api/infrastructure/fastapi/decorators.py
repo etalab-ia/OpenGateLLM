@@ -54,6 +54,7 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider):
                 record(usage=usage)
                 raise e
             except Exception:
+                usage.status = 500
                 record(usage=usage)
                 raise
 
