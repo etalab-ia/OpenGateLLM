@@ -69,7 +69,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case AsyncGenerator() as chunks:
                     pass
                 case error:
-                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
+                    self.usage_repository.fail_record(message=type(error).__name__, status_code=self._failure_status(error))
                     self.usage_repository.end_record()
                     return error
 
@@ -97,7 +97,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case ProviderResponse() as provider_response:
                     pass
                 case error:
-                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
+                    self.usage_repository.fail_record(message=type(error).__name__, status_code=self._failure_status(error))
                     return error
 
             return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)

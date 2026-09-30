@@ -7,10 +7,15 @@ import pytest
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
-from api.domain.model.errors import TooBusyModelError
+from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
-from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.provider.errors import (
+    NoAvailableProviderError,
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    UnsupportedProviderEndpointError,
+)
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
@@ -627,3 +632,22 @@ class TestExecute:
         use_case.usage_repository.start_record.assert_called_once()
         use_case.usage_repository.fail_record.assert_not_called()
         use_case.usage_repository.end_record.assert_called_once()
+
+
+class TestFailureStatus:
+    """usage.status must match the status the endpoint answers, not a hardcoded 503."""
+
+    @pytest.mark.parametrize(
+        "error,expected_status",
+        [
+            (StatusCodeModelError(status_code=429, detail="provider throttled"), 429),
+            (ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=[]), 422),
+            (ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=[]), 422),
+            (UnknownModelError(status_code=500, detail="unknown"), 500),
+            (UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.CHAT_COMPLETIONS, provider_type=ProviderType.VLLM), 500),
+            (TooBusyModelError(status_code=503, detail="busy"), 503),
+            (NoAvailableProviderError(router_id=1), 503),
+        ],
+    )
+    def test_should_return_the_status_the_endpoint_answers(self, error, expected_status):
+        assert ProviderRequestForwardingUseCase._failure_status(error) == expected_status
