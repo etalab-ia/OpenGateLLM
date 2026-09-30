@@ -1,3 +1,4 @@
+from fastapi import BackgroundTasks
 from pydantic import BaseModel, ConfigDict
 
 from api.domain.key.entities import Key
@@ -6,7 +7,8 @@ from api.domain.user.views import AuthenticatedUserView
 
 
 class RequestContext(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    # arbitrary_types_allowed: BackgroundTasks is a plain FastAPI object, not something pydantic can describe
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
     # request identifiers
     id: str | None = None
@@ -26,3 +28,7 @@ class RequestContext(BaseModel):
 
     # usage — carried whole so the row builder reads one recorded object instead of a flat mirror that drifts
     usage: Usage | None = None
+
+    # FastAPI only runs its BackgroundTasks on the response the route handler returns, so a raised exception drops the
+    # queued usage row. RequestLogMiddleware reads this to attach the queue to the 500 it builds instead.
+    background_tasks: BackgroundTasks | None = None

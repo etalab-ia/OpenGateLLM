@@ -210,6 +210,7 @@ def _usage_repository(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     configuration: Configuration = Depends(get_configuration),
 ) -> UsageRepository:
+    request_context.get().background_tasks = background_tasks
     if configuration.dependencies.langfuse is not None:
         return LangfuseUsageRepository(client=global_context.langfuse)
     return PostgresUsageRepository(postgres_session=postgres_session, background_tasks=background_tasks)
