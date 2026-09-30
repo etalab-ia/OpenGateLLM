@@ -9,6 +9,7 @@ import pytest
 from starlette.requests import Request
 
 from api.domain.key.entities import Key
+from api.domain.usage import UsageRepository
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, _requestlogmiddleware, record_http_exception, record_validation_exception
 from api.infrastructure.fastapi.dependencies import request_context
@@ -227,3 +228,36 @@ async def test_should_carry_the_background_tasks_over_to_a_mapped_error():
     # Assert
     assert response.status_code == 409
     assert response.background is tasks
+
+
+@pytest.mark.asyncio
+async def test_should_stamp_the_answered_status_on_the_usage_row(mock_logger, send):
+    # Arrange: only the HTTP layer knows the status, so the middleware writes it when the response starts
+    mock_usage_repository = create_autospec(UsageRepository, instance=True, spec_set=True)
+    request_context.get().usage_repository = mock_usage_repository
+
+    async def app(scope, receive, send):
+        await send({"type": "http.response.start", "status": 201, "headers": []})
+        await send({"type": "http.response.body", "body": b"{}"})
+
+    # Act
+    await RequestLogMiddleware(app)(SCOPE, receive, send)
+
+    # Assert
+    mock_usage_repository.record_response_status.assert_called_once_with(status_code=201)
+
+
+@pytest.mark.asyncio
+async def test_should_stamp_500_on_the_usage_row_when_the_app_raises(mock_logger, send):
+    # Arrange: the provider call may have succeeded and recorded 200 before the failure
+    mock_usage_repository = create_autospec(UsageRepository, instance=True, spec_set=True)
+    request_context.get().usage_repository = mock_usage_repository
+
+    async def failing_app(scope, receive, send):
+        raise RuntimeError("database is gone")
+
+    # Act
+    await RequestLogMiddleware(failing_app)(SCOPE, receive, send)
+
+    # Assert
+    mock_usage_repository.record_response_status.assert_called_once_with(status_code=500)

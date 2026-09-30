@@ -411,3 +411,36 @@ class TestEndRecordFillsWhatIsStillKnown:
         [row] = await _persisted_rows(db_session)
         assert row.status == 503
         assert row.latency is not None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestRecordResponseStatus:
+    async def test_overwrites_the_status_recorded_before_the_failure(self, repository, background_tasks, db_session):
+        # Arrange: the provider answered, then the request failed — the client got a 500, and the row must say so
+        key, provider = await _seed(db_session)
+        _start_record(repository, key, provider)
+        repository.update_record(usage=_usage(), provider_id=provider.id, provider_model_name=provider.model_name)
+        repository.end_record()
+
+        # Act: the middleware stamps the answered status on the row already queued
+        repository.record_response_status(status_code=500)
+        await background_tasks()
+
+        # Assert
+        [row] = await _persisted_rows(db_session)
+        assert row.status == 500
+        assert row.total_tokens is not None, "the inference did happen: its tokens stay on the row"
+
+    async def test_stamps_the_status_while_the_record_is_still_open(self, repository, background_tasks, db_session):
+        # Arrange: a streamed request is stamped before end_record runs
+        key, provider = await _seed(db_session)
+        _start_record(repository, key, provider)
+
+        # Act
+        repository.record_response_status(status_code=200)
+        repository.end_record()
+        await background_tasks()
+
+        # Assert
+        [row] = await _persisted_rows(db_session)
+        assert row.status == 200

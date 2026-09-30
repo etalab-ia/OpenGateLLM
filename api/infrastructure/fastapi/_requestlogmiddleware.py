@@ -33,6 +33,9 @@ class RequestLogMiddleware:
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message["status"]
+                # the row is still mutable here: the queued task only runs once the body has been sent
+                if (usage_repository := request_context.get().usage_repository) is not None:
+                    usage_repository.record_response_status(status_code=status_code)
             await send(message)
 
         try:
@@ -49,7 +52,8 @@ class RequestLogMiddleware:
             # FastAPI attaches its BackgroundTasks to the response the handler returns, and the handler raised: carry
             # the queue over to ours, or the usage row the use case queued is dropped.
             response.background = request_context.get().background_tasks
-            await response(scope, receive, send)
+            # through the spy, so the 500 is stamped on the row like any other answered status
+            await response(scope, receive, capture_status_and_send)
         finally:
             duration_ms = round((perf_counter() - started_at) * 1000, 1)
             logger.info(

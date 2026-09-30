@@ -21,6 +21,7 @@ class PostgresUsageRepository(UsageRepository):
         self.postgres_session = postgres_session
         self.background_tasks = background_tasks
         self._row: UsageTable | None = None
+        self._queued_row: UsageTable | None = None
         self.start_time: datetime | None = None
 
     def compute_latency(self, end_time: datetime | None = None) -> int:
@@ -79,6 +80,13 @@ class PostgresUsageRepository(UsageRepository):
             return
         self._row.status = status_code
 
+    def record_response_status(self, status_code: int) -> None:
+        # end_record may already have queued the row (non-streamed request): it stays mutable until the task runs.
+        row = self._row or self._queued_row
+        if row is None:
+            return
+        row.status = status_code
+
     def end_record(self) -> None:
         row = self._row
         if row is None:
@@ -90,6 +98,7 @@ class PostgresUsageRepository(UsageRepository):
             row.latency = self.compute_latency()
 
         self._row = None
+        self._queued_row = row
         self.start_time = None
         self.background_tasks.add_task(self._persist, row)
 
