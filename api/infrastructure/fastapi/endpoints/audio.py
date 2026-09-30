@@ -1,4 +1,3 @@
-import logging
 from typing import Annotated, assert_never
 
 from fastapi import APIRouter, Depends, HTTPException, Security
@@ -26,7 +25,6 @@ from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     FileSizeLimitExceededHTTPException,
     InsufficientBudgetHTTPException,
-    InternalServerHTTPException,
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
@@ -42,7 +40,6 @@ from api.use_cases.audio import (
     CreateAudioTranscriptionsUseCase,
 )
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
 
 
@@ -69,27 +66,16 @@ async def create_audio_transcription(
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
     authenticated_key: Key = Depends(get_authenticated_key),
 ) -> JSONResponse:
-    try:
-        payload = data.model_dump(mode="json", exclude={"file"})
-        payload["file"] = CreateAudioTranscriptionsFile(
-            name=data.file.filename,
-            file=data.file.file,
-            content_type=data.file.content_type,
-            size=data.file.size,
-        )
+    payload = data.model_dump(mode="json", exclude={"file"})
+    payload["file"] = CreateAudioTranscriptionsFile(
+        name=data.file.filename,
+        file=data.file.file,
+        content_type=data.file.content_type,
+        size=data.file.size,
+    )
 
-        command = CreateAudioTranscriptionsCommand(payload=payload, authenticated_user=authenticated_user, authenticated_key=authenticated_key)
-        result = await create_audio_transcriptions_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing audio transcriptions use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "model_name": data.model,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    command = CreateAudioTranscriptionsCommand(payload=payload, authenticated_user=authenticated_user, authenticated_key=authenticated_key)
+    result = await create_audio_transcriptions_use_case.execute(command)
 
     match result:
         case CreateAudioTranscriptionsJsonUseCaseSuccess(data=data, headers=headers, media_type=media_type):

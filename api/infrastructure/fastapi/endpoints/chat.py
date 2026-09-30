@@ -1,6 +1,5 @@
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
-import logging
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
@@ -26,7 +25,6 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_a
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientBudgetHTTPException,
-    InternalServerHTTPException,
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
@@ -42,7 +40,6 @@ from api.use_cases.chat import (
     CreateChatCompletionsUseCaseSuccess,
 )
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
 
 
@@ -85,19 +82,8 @@ async def create_chat_completions(
     authenticated_key: Key = Depends(get_authenticated_key),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation."""
-    try:
-        command = CreateChatCompletionsCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=authenticated_key)
-        result = await create_chat_completions_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing chat completions use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "model_name": body.model,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    command = CreateChatCompletionsCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=authenticated_key)
+    result = await create_chat_completions_use_case.execute(command)
 
     match result:
         case CreateChatCompletionsStreamUseCaseSuccess(chunks=chunks, headers=headers):

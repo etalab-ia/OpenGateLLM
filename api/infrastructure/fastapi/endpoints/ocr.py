@@ -1,4 +1,3 @@
-import logging
 from typing import assert_never
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Security
@@ -23,7 +22,6 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_a
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientBudgetHTTPException,
-    InternalServerHTTPException,
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
@@ -34,7 +32,6 @@ from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.ocr import CreateOCRBody, OCRResponse
 from api.use_cases.ocr import CreateOCRCommand, CreateOCRUseCase, CreateOCRUseCaseSuccess
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])
 
 
@@ -63,19 +60,8 @@ async def create_ocr(
     """
     Extracts text from files using Mistral Document AI pipeline
     """
-    try:
-        command = CreateOCRCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=autenticated_key)
-        result = await create_ocr_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing ocr use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "model_name": body.model,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    command = CreateOCRCommand(payload=body.model_dump(), authenticated_user=authenticated_user, authenticated_key=autenticated_key)
+    result = await create_ocr_use_case.execute(command)
 
     match result:
         case CreateOCRUseCaseSuccess(data=data, headers=headers):

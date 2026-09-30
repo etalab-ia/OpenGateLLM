@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import create_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
@@ -7,13 +5,10 @@ from api.domain import SortField, SortOrder
 from api.domain.key.entities import KeyStatus
 from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
-from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    InternalServerHTTPException,
     KeyExpirationInvalidHTTPException,
     KeyNameReservedHTTPException,
     KeyNotFoundHTTPException,
@@ -37,8 +32,6 @@ from api.use_cases.admin.keys import (
     GetOneKeyUseCaseSuccess,
 )
 
-logger = logging.getLogger(__name__)
-
 
 @router.post(
     path=EndpointRoute.ADMIN_KEYS,
@@ -49,24 +42,13 @@ logger = logging.getLogger(__name__)
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
     create_key_use_case: CreateKeyUseCase = Depends(create_key_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     """
     Create a new key for a user.
     """
 
     command = CreateKeyCommand(user_id=body.user, name=body.name, expire=body.expires)
-    try:
-        result = await create_key_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing create_key use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await create_key_use_case.execute(command)
 
     match result:
         case CreateKeyUseCaseSuccess(key=key):
@@ -88,21 +70,9 @@ async def create_key(
 async def get_key(
     key_id: int = Path(description="The ID of the key to get."),
     get_one_key_use_case: GetOneKeyUseCase = Depends(get_one_key_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     command = GetOneKeyCommand(key_id=key_id)
-    try:
-        result = await get_one_key_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_key use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "key_id": key_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_one_key_use_case.execute(command)
 
     match result:
         case GetOneKeyUseCaseSuccess(key=key):
@@ -125,25 +95,9 @@ async def get_keys(
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     status: KeyStatus | None = Query(default=None, description="Filter by key status. Omit to return all keys."),
     get_keys_use_case: GetKeysUseCase = Depends(get_keys_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeysResponse:
     command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order, status=status)
-    try:
-        result = await get_keys_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_keys use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "offset": command.offset,
-                "limit": command.limit,
-                "sort_by": command.sort_by,
-                "sort_order": command.sort_order,
-                "status": command.status,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_keys_use_case.execute(command)
 
     match result:
         case GetKeysUseCaseSuccess(key_page=key_page):
@@ -164,25 +118,13 @@ async def get_keys(
 async def delete_key(
     key_id: int = Path(description="The ID of the key to revoke."),
     delete_key_use_case: DeleteKeyUseCase = Depends(delete_key_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     """
     Revoke an API key. A revoked key can no longer be used.
     """
 
     command = DeleteKeyCommand(key_id=key_id)
-    try:
-        result = await delete_key_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing delete_key use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "key_id": key_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await delete_key_use_case.execute(command)
 
     match result:
         case DeleteKeyUseCaseSuccess(key=key):

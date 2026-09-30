@@ -575,14 +575,9 @@ async def get_roles(
     sort_by: SortField = Query(default=SortField.ID, ...),
     sort_order: SortOrder = Query(default=SortOrder.ASC, ...),
     get_roles_use_case: GetRolesUseCase = Depends(get_roles_use_case_factory),
-    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RolesResponse:
     command = GetRolesCommand(offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
-    try:
-        result = await get_roles_use_case.execute(command)
-    except Exception:
-        logger.exception("Unexpected error while executing get_roles use case", extra={...})
-        raise InternalServerHTTPException()
+    result = await get_roles_use_case.execute(command)
     match result:
         case GetRolesUseCaseSuccess(role_page=page):
             return RolesResponse(
@@ -592,7 +587,7 @@ async def get_roles(
 ```
 
 - Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes, `allow_expired=True` when expired users must still reach the route, e.g. GET `/v1/me`)
-- Auth user: `authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user)` when only the user is needed. Keep `get_request_context` only when the full `RequestContext` is required.
+- Auth user: `authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user)` when the handler **uses** the user, to scope a command or build a response. Authentication itself comes from `Security(AccessController(...))`, so do not declare the parameter just to have it. Keep `get_request_context` only when the full `RequestContext` is required.
 - Sort query params: `sort_by` / `sort_order`
 - Document errors: `responses=get_documentation_responses([...])`
 - `case RoleNotFoundError(id=role_id, name=name)` **captures** `None`; it does not require an id. Pass both through to the HTTP exception (which already has a generic `"Role not found."` fallback). Map the fields the use case actually returns (`id=` from FK failures, not `name=` unless that path exists).
@@ -605,7 +600,9 @@ async def get_roles(
 2. Use cases — propagate via `match`/`case`
 3. Repositories — return `Entity | Error`
 4. Endpoints — map domain error → `*HTTPException` in `api/infrastructure/fastapi/endpoints/exceptions.py`
-5. Unexpected — `logger.exception` + `InternalServerHTTPException`
+5. Unexpected — **nothing to write**. An endpoint never wraps its use case in `try` / `except Exception`: `RequestLogMiddleware` (`api/infrastructure/fastapi/_requestlogmiddleware.py`) logs the traceback once with the request context, reports it to Sentry as a crash, and answers the generic 500 of `InternalServerHTTPException`. It also covers what an endpoint block never could: a failure in a dependency, in the `AccessController` or while serializing the response.
+
+Resource context that the middleware cannot know (the model name of an inference, for instance) is recorded on `RequestContext`, the way the model-forward use cases record `router_name` — never by catching the exception again.
 
 ---
 

@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, Security
 
 from api.dependencies import get_one_organization_use_case_factory
@@ -8,12 +6,10 @@ from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
-from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException, OrganizationNotFoundHTTPException
+from api.infrastructure.fastapi.endpoints.exceptions import OrganizationNotFoundHTTPException
 from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.admin.organizations import OrganizationResponse
 from api.use_cases.admin.organizations import GetOneOrganizationCommand, GetOneOrganizationUseCase, GetOneOrganizationUseCaseSuccess
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ORGANIZATIONS.title()])
 
@@ -33,18 +29,7 @@ async def get_my_organization(
     """
 
     command = GetOneOrganizationCommand(organization_id=authenticated_user.organization_id)
-    try:
-        result = await get_one_organization_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_my_organization use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "organization_id": authenticated_user.organization_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_one_organization_use_case.execute(command)
 
     match result:
         case GetOneOrganizationUseCaseSuccess(organization=organization):

@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, Query, Security
 
 from api.dependencies import get_usages_use_case_factory
@@ -7,12 +5,9 @@ from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
-from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException
 from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.infrastructure.fastapi.schemas.usage import EndpointUsage, UsageBucketResponse, UsagesResponse
 from api.use_cases.usage import GetUsagesCommand, GetUsagesUseCase, GetUsagesUseCaseSuccess
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=[RouterName.USAGE.title()])
 
@@ -55,24 +50,7 @@ async def get_usages(
         model=model,
         key_id=key_id,
     )
-    try:
-        result = await get_usages_use_case.execute(command)
-    except Exception as e:
-        logger.exception(
-            "Unexpected error while executing get_usages use case",
-            extra={
-                "authenticated_user_id": authenticated_user.id,
-                "offset": command.offset,
-                "limit": command.limit,
-                "start_time": command.start_time,
-                "end_time": command.end_time,
-                "endpoint": command.endpoint,
-                "model": command.model,
-                "key_id": command.key_id,
-                "error_type": type(e).__name__,
-            },
-        )
-        raise InternalServerHTTPException()
+    result = await get_usages_use_case.execute(command)
 
     match result:
         case GetUsagesUseCaseSuccess(usage_page=usage_page):
