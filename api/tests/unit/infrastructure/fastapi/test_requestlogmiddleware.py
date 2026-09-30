@@ -3,6 +3,7 @@ import json
 import logging
 from unittest.mock import ANY, create_autospec
 
+from fastapi import BackgroundTasks
 from fastapi.exceptions import RequestValidationError
 import pytest
 from starlette.requests import Request
@@ -187,3 +188,40 @@ async def test_should_report_the_unhandled_exception_to_sentry_as_a_crash(monkey
     ((event, hint),) = captured
     assert hint["exc_info"][1] is error
     assert event["exception"]["values"][-1]["mechanism"] == {"type": "asgi", "handled": False}
+
+
+@pytest.mark.asyncio
+async def test_should_carry_the_background_tasks_over_to_the_generic_500(mock_logger, send, sent_messages):
+    # Arrange: FastAPI only runs its queue on the handler's response, and the handler raised
+    executed = []
+    tasks = BackgroundTasks()
+    tasks.add_task(executed.append, "usage row")
+    request_context.get().background_tasks = tasks
+
+    async def failing_app(scope, receive, send):
+        raise RuntimeError("database is gone")
+
+    # Act
+    await RequestLogMiddleware(failing_app)(SCOPE, receive, send)
+
+    # Assert
+    assert sent_messages[0]["status"] == 500
+    assert executed == ["usage row"]
+
+
+@pytest.mark.asyncio
+async def test_should_carry_the_background_tasks_over_to_a_mapped_error():
+    # Arrange: ExceptionMiddleware builds the 409, so FastAPI attached the queue to nothing
+    executed = []
+    tasks = BackgroundTasks()
+    tasks.add_task(executed.append, "usage row")
+    context = request_context.get()
+    context.background_tasks = tasks
+    request = Request({"type": "http", "method": "POST", "path": "/v1/chat/completions", "headers": []})
+
+    # Act
+    response = await record_http_exception(request, OrganizationAlreadyExistsHTTPException("my-org"))
+
+    # Assert
+    assert response.status_code == 409
+    assert response.background is tasks

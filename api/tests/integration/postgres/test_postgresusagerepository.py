@@ -379,3 +379,35 @@ class TestGetUsageBucketsPage:
 
         assert result.total == 0
         assert result.data == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestEndRecordFillsWhatIsStillKnown:
+    async def test_defaults_the_status_to_500_when_the_request_failed_unexpectedly(self, repository, background_tasks, db_session):
+        # Arrange: an unexpected failure runs neither update_record nor fail_record
+        key, provider = await _seed(db_session)
+        _start_record(repository, key, provider)
+
+        # Act
+        repository.end_record()
+        await background_tasks()
+
+        # Assert
+        [row] = await _persisted_rows(db_session)
+        assert row.status == 500
+        assert row.latency is not None
+
+    async def test_keeps_the_status_a_mapped_error_recorded(self, repository, background_tasks, db_session):
+        # Arrange
+        key, provider = await _seed(db_session)
+        _start_record(repository, key, provider)
+        repository.fail_record(message="NoAvailableProviderError", status_code=503)
+
+        # Act
+        repository.end_record()
+        await background_tasks()
+
+        # Assert
+        [row] = await _persisted_rows(db_session)
+        assert row.status == 503
+        assert row.latency is not None
