@@ -210,10 +210,18 @@ def _usage_repository(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     configuration: Configuration = Depends(get_configuration),
 ) -> UsageRepository:
-    request_context.get().background_tasks = background_tasks
-    if configuration.dependencies.langfuse is not None:
-        return LangfuseUsageRepository(client=global_context.langfuse)
-    return PostgresUsageRepository(postgres_session=postgres_session, background_tasks=background_tasks)
+    # the middleware reads both from the shared context: the queue, to survive an exception, and the repository, to
+    # stamp the answered status on the row
+    context = request_context.get()
+    context.background_tasks = background_tasks
+    repository = (
+        LangfuseUsageRepository(client=global_context.langfuse)
+        if configuration.dependencies.langfuse is not None
+        else PostgresUsageRepository(postgres_session=postgres_session, background_tasks=background_tasks)
+    )
+    context.usage_repository = repository
+
+    return repository
 
 
 # audio use cases

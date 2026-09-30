@@ -34,6 +34,12 @@ class UsageRepository(ABC):
         pass
 
     @abstractmethod
+    def record_response_status(self, status_code: int) -> None:
+        """The status the API answered. Only the HTTP layer knows it: a use case returns a domain error, and the
+        endpoint decides what it becomes."""
+        pass
+
+    @abstractmethod
     def end_record(self) -> None:
         pass
 

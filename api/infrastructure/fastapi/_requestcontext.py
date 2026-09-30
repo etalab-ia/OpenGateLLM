@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import BackgroundTasks
 from pydantic import BaseModel, ConfigDict
 
@@ -32,3 +34,8 @@ class RequestContext(BaseModel):
     # FastAPI only runs its BackgroundTasks on the response the route handler returns, so a raised exception drops the
     # queued usage row. RequestLogMiddleware reads this to attach the queue to the 500 it builds instead.
     background_tasks: BackgroundTasks | None = None
+
+    # usage.status is the status the API answered, and only the HTTP layer knows it: RequestLogMiddleware stamps it
+    # through this repository when the response starts. Typed Any, not UsageRepository: that port imports
+    # api.infrastructure.fastapi.routes, so naming it here closes an import cycle.
+    usage_repository: Any = None
