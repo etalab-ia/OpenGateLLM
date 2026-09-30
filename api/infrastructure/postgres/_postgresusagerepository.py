@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from http import HTTPStatus
 import logging
 from uuid import uuid4
 
@@ -80,10 +81,16 @@ class PostgresUsageRepository(UsageRepository):
 
     def end_record(self) -> None:
         row = self._row
-        self._row = None
-        self.start_time = None
         if row is None:
             return
+
+        if row.status is None:
+            row.status = HTTPStatus.INTERNAL_SERVER_ERROR
+        if row.latency is None:
+            row.latency = self.compute_latency()
+
+        self._row = None
+        self.start_time = None
         self.background_tasks.add_task(self._persist, row)
 
     async def _persist(self, row: UsageTable) -> None:
