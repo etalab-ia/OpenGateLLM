@@ -121,7 +121,7 @@ class LangfuseUsageRepository(UsageRepository):
         end_time: datetime,
         offset: int,
         limit: int,
-        endpoint: ProviderEndpoint | None = None,
+        endpoint: str | None = None,
         model: str | None = None,
         key_id: int | None = None,
     ) -> UsageBucketPage:
@@ -150,14 +150,14 @@ class LangfuseUsageRepository(UsageRepository):
         return f"key_id:{key_id}"
 
     @classmethod
-    def _context_filters(cls, user_id: int, endpoint: ProviderEndpoint | None, key_id: int | None) -> list[dict]:
+    def _context_filters(cls, user_id: int, endpoint: str | None, key_id: int | None) -> list[dict]:
         """Filters valid on both the observations and scores-numeric views, so both queries aggregate the same requests.
 
         The scores views cannot filter on metadata, so the key is matched through the trace tag set in start_record.
         """
         filters: list[dict] = [{"column": "userId", "operator": "=", "value": str(user_id), "type": "string"}]
         if endpoint is not None:
-            filters.append({"column": "traceName", "operator": "=", "value": f"/v1{endpoint}", "type": "string"})
+            filters.append({"column": "traceName", "operator": "=", "value": endpoint, "type": "string"})
         if key_id is not None:
             filters.append({"column": "tags", "operator": "any of", "value": [cls._key_tag(key_id)], "type": "arrayOptions"})
         return filters

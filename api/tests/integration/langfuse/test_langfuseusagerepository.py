@@ -10,6 +10,7 @@ import respx
 
 from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
+from api.infrastructure.fastapi.schemas.usage import EndpointUsage
 from api.infrastructure.langfuse import LangfuseUsageRepository
 
 LANGFUSE_URL = "http://langfuse.test"
@@ -259,7 +260,7 @@ class TestLangfuseUsageRepositoryReading:
             end_time=END_TIME,
             offset=0,
             limit=10,
-            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
+            endpoint=EndpointUsage.CHAT_COMPLETIONS.value,
             model="my-router",
             key_id=7,
         )
@@ -267,7 +268,12 @@ class TestLangfuseUsageRepositoryReading:
         # Assert — the impacts query must share the usage query's context filters so both aggregate the same requests.
         for view, model_column in (("observations", "providedModelName"), ("scores-numeric", "observationModelName")):
             query = self._query_for_view(mock_langfuse_api, view)
-            assert _filter_for(query, "traceName") == {"column": "traceName", "operator": "=", "value": "/v1/chat/completions", "type": "string"}
+            assert _filter_for(query, "traceName") == {
+                "column": "traceName",
+                "operator": "=",
+                "value": EndpointUsage.CHAT_COMPLETIONS.value,
+                "type": "string",
+            }
             assert _filter_for(query, "tags") == {"column": "tags", "operator": "any of", "value": ["key_id:7"], "type": "arrayOptions"}
             assert _filter_for(query, model_column) == {"column": model_column, "operator": "=", "value": "my-router", "type": "string"}
 
