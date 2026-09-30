@@ -101,6 +101,10 @@ class LangfuseUsageRepository(UsageRepository):
         except Exception:
             logger.exception("Failed to mark Langfuse observation as error")
 
+    def record_response_status(self, status_code: int) -> None:
+        # Langfuse carries the outcome on the observation itself, set by update_record and fail_record.
+        return
+
     def end_record(self) -> None:
         if self._observation is None:
             logger.warning("Cannot end Langfuse observation: no active observation (start_observation likely failed)")
