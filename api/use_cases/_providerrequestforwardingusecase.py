@@ -128,7 +128,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 case ProviderResponse() as provider_response:
                     pass
                 case error:
-                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
+                    self.usage_repository.fail_record(message=type(error).__name__, status_code=self._failure_status(error))
                     return error
 
             return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
@@ -302,6 +302,19 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
         )
+
+    @staticmethod
+    def _failure_status(error: ProviderRequestForwardingUseCaseError) -> int:
+        # the status the endpoint answers for this error, so usage.status matches what the client was told
+        match error:
+            case StatusCodeModelError(status_code=status_code):
+                return status_code
+            case ProviderAdapterValidationRequestError() | ProviderAdapterValidationResponseError():
+                return 422
+            case UnknownModelError() | UnsupportedProviderEndpointError():
+                return 500
+            case _:
+                return 503
 
     def _build_success(self, command: TCommand, response: ProviderResponse, headers: dict[str, str]) -> TResult:
         return ProviderRequestForwardingUseCaseSuccess(data=response.data, headers=headers)
