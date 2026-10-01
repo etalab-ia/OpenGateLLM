@@ -2,8 +2,8 @@
 
 Usage
 
-    ./env/bin/python adr/scripts/2026-09-30-langfuse-usage-backfill.py --dry-run --limit 20
-    ./env/bin/python adr/scripts/2026-09-30-langfuse-usage-backfill.py --user-id 42 --limit 20
+    ./env/bin/python adr/scripts/2026-09-30-langfuse-usage-backfill.py
+    ./env/bin/python adr/scripts/2026-09-30-langfuse-usage-backfill.py
 """
 
 import argparse
@@ -15,42 +15,17 @@ from typing import Any
 
 from langfuse import Langfuse, propagate_attributes
 from opentelemetry.sdk.trace.id_generator import IdGenerator
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
 from sqlalchemy.engine import URL, make_url
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(message)s", datefmt="%y:%m:%d %H:%M:%S", force=True)
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 500
-KWH_SCORE = "kWh"
-KGCO2EQ_SCORE = "kgCO2eq"
 EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
-COLUMNS = (
-    "id",
-    "created",
-    "user_id",
-    "user_email",
-    "token_id",
-    "token_name",
-    "router_id",
-    "router_name",
-    "provider_id",
-    "provider_model_name",
-    "request_id",
-    "endpoint",
-    "latency",
-    "ttft",
-    "status",
-    "prompt_tokens",
-    "completion_tokens",
-    "total_tokens",
-    "cost",
-    "kwh",
-    "kgco2eq",
-)
 
 
 class Config(BaseSettings):
@@ -61,57 +36,17 @@ class Config(BaseSettings):
     postgres_password: str = Field(default="", description="Injected into POSTGRES_URL when it carries no password.")
     langfuse_public_key: str = Field(default="", description="Langfuse project public key (pk-lf-...). Not needed with --dry-run.")
     langfuse_secret_key: str = Field(default="", description="Langfuse project secret key (sk-lf-...). Not needed with --dry-run.")
-    langfuse_base_url: str = Field(
-        default="",
-        validation_alias=AliasChoices("langfuse_base_url", "langfuse_host"),
-        description="Langfuse base URL (LANGFUSE_HOST is accepted too). Not needed with --dry-run.",
-    )
+    langfuse_base_url: str = Field(default="", validation_alias=AliasChoices("langfuse_base_url", "langfuse_host"))
     langfuse_environment: str | None = Field(default=None, description="Langfuse environment, must match the one the API writes to.")
-
-    @field_validator("postgres_url", mode="before")
-    @classmethod
-    def normalize_postgres_url(cls, value: str) -> str:
-        if value.startswith("postgresql://"):
-            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
-        if not value.startswith("postgresql+asyncpg://"):
-            raise ValueError("PostgreSQL URL must use postgresql:// or postgresql+asyncpg://")
-        return value
 
     def database_url(self) -> URL:
         """Keep the credentials out of POSTGRES_URL: SQLAlchemy escapes them, no percent-encoding needed."""
-        url = make_url(self.postgres_url)
+        url = make_url(self.postgres_url.replace("postgresql://", "postgresql+asyncpg://", 1))
         if self.postgres_user and not url.username:
             url = url.set(username=self.postgres_user)
         if self.postgres_password and not url.password:
             url = url.set(password=self.postgres_password)
-        if not url.password:
-            logger.warning("No password in POSTGRES_URL nor POSTGRES_PASSWORD: asyncpg will fall back to PGPASSWORD or ~/.pgpass.")
         return url
-
-    def require_langfuse(self) -> None:
-        missing = [name for name in ("langfuse_public_key", "langfuse_secret_key", "langfuse_base_url") if not getattr(self, name)]
-        if missing:
-            raise ValueError(f"Missing Langfuse credentials: {', '.join(name.upper() for name in missing)}")
-
-
-def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--start", type=_parse_day, default=None, help="Only replay rows created at or after this UTC date/datetime (ISO 8601).")
-    parser.add_argument("--end", type=_parse_day, default=None, help="Only replay rows created strictly before this UTC date/datetime (ISO 8601).")
-    parser.add_argument("--user-id", type=int, default=None, help="Only replay rows of that user id.")
-    parser.add_argument("--after-id", type=int, default=0, help="Resume after that `usage.id` (the script logs the last id of every batch).")
-    parser.add_argument("--limit", type=int, default=None, help="Stop after that many rows, for a first smoke test.")
-    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE, help=f"Rows read, ingested and flushed per batch (default {BATCH_SIZE}).")
-    parser.add_argument("--batch-pause", type=float, default=1, help="Seconds to wait between batches, to spare a small Langfuse instance.")
-    parser.add_argument("--include-failed", action=argparse.BooleanOptionalAction, default=True, help="Replay non-2xx rows too, as ERROR generations without usage or cost (default: enabled, --no-include-failed to skip them).")  # fmt: off
-    parser.add_argument("--skip-impacts", action="store_true", help="Do not replay the kWh / kgCO2eq scores.")
-    parser.add_argument("--dry-run", action="store_true", help="Read and log what would be sent, without touching Langfuse.")
-    return parser.parse_args()
-
-
-def _parse_day(value: str) -> datetime:
-    parsed = datetime.fromisoformat(value)
-    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
 
 
 class PinnedIdGenerator(IdGenerator):
@@ -132,69 +67,17 @@ def _digest(*parts: object, length: int) -> str:
     return hashlib.sha256(":".join(str(part) for part in parts).encode()).hexdigest()[:length]
 
 
-def _is_langfuse_trace_id(value: str) -> bool:
-    return len(value) == 32 and all(character in "0123456789abcdef" for character in value) and int(value, 16) != 0
-
-
 def trace_id_of(row: dict[str, Any]) -> str:
     """Reuse `request_id` as the trace id: it is a `uuid4().hex`, which is exactly a Langfuse trace id."""
     request_id = (row["request_id"] or "").lower()
-    return request_id if _is_langfuse_trace_id(request_id) else _digest("usage-trace", row["id"], length=32)
-
-
-def span_id_of(trace_id: str) -> str:
-    return _digest("usage-span", trace_id, length=16)
-
-
-def score_id_of(trace_id: str, name: str) -> str:
-    return _digest("usage-score", trace_id, name, length=32)
+    usable = len(request_id) == 32 and all(character in "0123456789abcdef" for character in request_id) and int(request_id or "0", 16) != 0
+    return request_id if usable else _digest("usage-trace", row["id"], length=32)
 
 
 def to_nanos(value: datetime) -> int:
     """Integer arithmetic only: `datetime.timestamp()` is a float and loses nanoseconds."""
     delta = value.astimezone(UTC) - EPOCH
     return (delta.days * 86_400 + delta.seconds) * 1_000_000_000 + delta.microseconds * 1_000
-
-
-class PostgreSQL:
-    def __init__(self, url: URL):
-        self.engine: AsyncEngine = create_async_engine(url, echo=False, pool_size=5, max_overflow=0, pool_pre_ping=True)
-
-    async def connect(self) -> AsyncConnection:
-        return await self.engine.connect()
-
-    async def dispose(self) -> None:
-        await self.engine.dispose()
-
-
-async def require_usage_table(connection: AsyncConnection) -> None:
-    result = await connection.execute(
-        text("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'usage'")
-    )
-    columns = {row[0] for row in result.fetchall()}
-    if not columns:
-        raise RuntimeError("Table `usage` not found in the source database")
-    missing = sorted(set(COLUMNS) - columns)
-    if missing:
-        raise RuntimeError(f"Table `usage` is missing the expected columns: {', '.join(missing)}")
-
-
-async def read_batch(connection: AsyncConnection, arguments: argparse.Namespace, after_id: int, size: int) -> list[dict[str, Any]]:
-    conditions = ["id > :after_id"]
-    parameters: dict[str, Any] = {"after_id": after_id, "size": size}
-    if arguments.start is not None:
-        conditions.append("created >= :start_time")
-        parameters["start_time"] = arguments.start
-    if arguments.end is not None:
-        conditions.append("created < :end_time")
-        parameters["end_time"] = arguments.end
-    if arguments.user_id is not None:
-        conditions.append("user_id = :user_id")
-        parameters["user_id"] = arguments.user_id
-
-    query = f"SELECT {', '.join(COLUMNS)} FROM usage WHERE {' AND '.join(conditions)} ORDER BY id LIMIT :size"
-    result = await connection.execute(text(query), parameters)
-    return [dict(row) for row in result.mappings().all()]
 
 
 def succeeded(row: dict[str, Any]) -> bool:
@@ -221,19 +104,27 @@ def metadata_of(row: dict[str, Any]) -> dict[str, Any]:
 
 def usage_details_of(row: dict[str, Any]) -> dict[str, int] | None:
     """`total` is sent explicitly: Langfuse only sums the other keys when it is absent."""
-    details = {
-        "input": row["prompt_tokens"],
-        "output": row["completion_tokens"],
-        "total": row["total_tokens"],
-    }
+    details = {"input": row["prompt_tokens"], "output": row["completion_tokens"], "total": row["total_tokens"]}
     present = {key: int(value) for key, value in details.items() if value is not None}
     return present or None
+
+
+async def read_batch(connection: AsyncConnection, user_id: int | None, after_id: int, size: int) -> list[dict[str, Any]]:
+    conditions = ["id > :after_id"]
+    parameters: dict[str, Any] = {"after_id": after_id, "size": size}
+    if user_id is not None:
+        conditions.append("user_id = :user_id")
+        parameters["user_id"] = user_id
+
+    query = f"SELECT * FROM usage WHERE {' AND '.join(conditions)} ORDER BY id LIMIT :size"
+    result = await connection.execute(text(query), parameters)
+    return [dict(row) for row in result.mappings().all()]
 
 
 def emit_generation(client: Langfuse, generator: PinnedIdGenerator, row: dict[str, Any]) -> tuple[str, str]:
     created = created_at(row)
     trace_id = trace_id_of(row)
-    span_id = span_id_of(trace_id)
+    span_id = _digest("usage-span", trace_id, length=16)
     generator.trace_id = int(trace_id, 16)
     generator.span_id = int(span_id, 16)
 
@@ -257,8 +148,7 @@ def emit_generation(client: Langfuse, generator: PinnedIdGenerator, row: dict[st
         # An unended span is never exported, so bailing out here leaves nothing behind.
         if generation.trace_id != trace_id or generation.id != span_id:
             raise RuntimeError(
-                "OpenTelemetry ignored the pinned id generator "
-                f"(expected {trace_id}/{span_id}, got {generation.trace_id}/{generation.id}). "
+                f"OpenTelemetry ignored the pinned id generator (expected {trace_id}/{span_id}, got {generation.trace_id}/{generation.id}). "
                 "A globally registered TracerProvider takes precedence; without pinned ids a re-run would duplicate every row."
             )
         generation.end(end_time=to_nanos(created + timedelta(milliseconds=row["latency"] or 0)))
@@ -267,9 +157,8 @@ def emit_generation(client: Langfuse, generator: PinnedIdGenerator, row: dict[st
 
 
 def emit_impacts(client: Langfuse, row: dict[str, Any], trace_id: str, span_id: str) -> int:
-    created = created_at(row)
     emitted = 0
-    for name, value in ((KWH_SCORE, row["kwh"]), (KGCO2EQ_SCORE, row["kgco2eq"])):
+    for name, value in (("kWh", row["kwh"]), ("kgCO2eq", row["kgco2eq"])):
         if value is None:
             continue
         client.create_score(
@@ -278,8 +167,8 @@ def emit_impacts(client: Langfuse, row: dict[str, Any], trace_id: str, span_id: 
             data_type="NUMERIC",
             trace_id=trace_id,
             observation_id=span_id,
-            score_id=score_id_of(trace_id, name),
-            timestamp=created,
+            score_id=_digest("usage-score", trace_id, name, length=32),
+            timestamp=created_at(row),
         )
         emitted += 1
     return emitted
@@ -287,14 +176,14 @@ def emit_impacts(client: Langfuse, row: dict[str, Any], trace_id: str, span_id: 
 
 async def backfill(connection: AsyncConnection, client: Langfuse | None, generator: PinnedIdGenerator, arguments: argparse.Namespace) -> None:
     after_id = arguments.after_id
-    read = generations = scores = skipped_no_user = skipped_failed = 0
+    read = generations = scores = skipped = 0
 
     while True:
-        size = arguments.batch_size if arguments.limit is None else min(arguments.batch_size, arguments.limit - read)
+        size = BATCH_SIZE if arguments.limit is None else min(BATCH_SIZE, arguments.limit - read)
         if size <= 0:
             break
 
-        rows = await read_batch(connection, arguments, after_id=after_id, size=size)
+        rows = await read_batch(connection, user_id=arguments.user_id, after_id=after_id, size=size)
         if not rows:
             break
 
@@ -304,20 +193,16 @@ async def backfill(connection: AsyncConnection, client: Langfuse | None, generat
 
         for row in rows:
             if row["user_id"] is None:
-                skipped_no_user += 1
-                continue
-            if not succeeded(row) and not arguments.include_failed:
-                skipped_failed += 1
+                skipped += 1
                 continue
             if client is None:
-                trace_id = trace_id_of(row)
                 logger.info(
                     "[dry-run] %s %s user=%s model=%s trace=%s tokens=%s cost=%s impacts=(%s, %s)",
                     created_at(row).isoformat(),
                     row["endpoint"],
                     row["user_id"],
                     row["router_name"],
-                    trace_id,
+                    trace_id_of(row),
                     usage_details_of(row),
                     row["cost"],
                     row["kwh"],
@@ -332,36 +217,35 @@ async def backfill(connection: AsyncConnection, client: Langfuse | None, generat
         if client is not None:
             # Flush the spans before enqueuing their scores, so an observation always exists first.
             client.flush()
-            if not arguments.skip_impacts:
-                for row, trace_id, span_id in replayed:
-                    if succeeded(row):
-                        scores += emit_impacts(client, row, trace_id, span_id)
-                client.flush()
+            for row, trace_id, span_id in replayed:
+                if succeeded(row):
+                    scores += emit_impacts(client, row, trace_id, span_id)
+            client.flush()
 
         logger.info(f"Replayed {generations} generations and {scores} scores over {read} rows (last usage.id = {after_id}).")
 
         if len(rows) < size:
             break
-        if arguments.batch_pause > 0:
-            await asyncio.sleep(arguments.batch_pause)
 
-    logger.info(
-        f"Done: {read} rows read, {generations} generations, {scores} scores, {skipped_no_user} skipped (no user), {skipped_failed} skipped (failed)."
-    )
-    if skipped_failed and not arguments.include_failed:
-        logger.info("Failed rows are excluded from GET /v1/usage anyway. Re-run with --include-failed to see them in the Langfuse UI.")
+    logger.info(f"Done: {read} rows read, {generations} generations, {scores} scores, {skipped} skipped (no user).")
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--user-id", type=int, default=None, help="Only replay rows of that user id.")
+    parser.add_argument("--after-id", type=int, default=0, help="Resume after that `usage.id` (the script logs the last id of every batch).")
+    parser.add_argument("--limit", type=int, default=None, help="Stop after that many rows, for a first smoke test.")
+    parser.add_argument("--dry-run", action="store_true", help="Read and log what would be sent, without touching Langfuse.")
+    return parser.parse_args()
 
 
 async def main() -> None:
     arguments = parse_arguments()
     config = Config()
-    if arguments.start is not None and arguments.end is not None and arguments.start >= arguments.end:
-        raise ValueError("--start must be strictly before --end")
 
     client: Langfuse | None = None
     generator = PinnedIdGenerator()
     if not arguments.dry_run:
-        config.require_langfuse()
         client = Langfuse(
             public_key=config.langfuse_public_key,
             secret_key=config.langfuse_secret_key,
@@ -372,22 +256,17 @@ async def main() -> None:
         if not client.auth_check():
             raise RuntimeError(f"Langfuse authentication failed against {config.langfuse_base_url}")
 
-    postgres = PostgreSQL(config.database_url())
-    connection = await postgres.connect()
+    engine = create_async_engine(config.database_url(), pool_pre_ping=True)
     try:
-        await require_usage_table(connection)
-        await backfill(connection, client, generator, arguments)
+        async with engine.connect() as connection:
+            await backfill(connection, client, generator, arguments)
         if arguments.dry_run:
             logger.info("Dry-run completed. Re-run without --dry-run to ingest into Langfuse.")
-    except Exception as error:
-        logger.exception(f"Backfill failed: {error}")
-        raise
     finally:
         if client is not None:
             client.flush()
             client.shutdown()
-        await connection.close()
-        await postgres.dispose()
+        await engine.dispose()
 
 
 if __name__ == "__main__":
