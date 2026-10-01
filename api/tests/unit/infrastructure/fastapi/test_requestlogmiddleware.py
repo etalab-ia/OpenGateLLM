@@ -47,9 +47,7 @@ def mock_logger(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def authenticated_request_context():
-    user = AuthenticatedUserView(
-        id=42, email="alice@example.com", name="Alice", organization_id=1, budget=None, permissions=[], limits=[], expires=None
-    )
+    user = AuthenticatedUserView(id=42, email="alice@example.com", name="Alice", organization_id=1, permissions=[], limits=[], expires=None)
     key = Key(id=5, name="my-key", user_id=42, value="sk-...", expires=None, created=datetime.now(tz=UTC))
     token = request_context.set(RequestContext(id="3f2a", user=user, key=key, router_name="my-router"))
     yield
