@@ -152,7 +152,6 @@ async def seed_forward_auth(probe_engine, scenario):
                 user=admin,
                 name=ROUTER_NAME,
                 type=scenario.router_type,
-                free=True,
                 providers=1,
                 providers__type=scenario.provider_type,
                 providers__url=DEFAULT_PROVIDER_URL,
