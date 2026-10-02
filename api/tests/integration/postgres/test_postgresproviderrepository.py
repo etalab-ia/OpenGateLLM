@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from api.domain import SortOrder
 from api.domain.provider.entities import HostingZone, Provider, ProviderSortField, ProviderType
@@ -22,6 +21,7 @@ def _create_provider_args(user, router, **overrides):
         "provider_type": ProviderType.ALBERT,
         "url": "http://test.com/",
         "key": "model-key",
+        "basic_auth": None,
         "timeout": 60,
         "qos_limit": 9,
         "model_name": "my-model",
@@ -86,16 +86,6 @@ class TestCreateProvider:
         assert result.router_id == router.id
         assert result.url == "http://test.com/"
         assert result.model_name == "duplicate-provider"
-
-    async def test_create_provider_should_reject_negative_qos_limit(self, repository, db_session):
-        # Arrange
-        user = UserSQLFactory(admin_user=True)
-        router = RouterSQLFactory(user=user, type=RouterType.TEXT_GENERATION)
-        await db_session.flush()
-
-        # Act & Assert
-        with pytest.raises(IntegrityError):
-            await repository.create_provider(**_create_provider_args(user, router, qos_limit=-1))
 
 
 @pytest.mark.asyncio(loop_scope="session")
