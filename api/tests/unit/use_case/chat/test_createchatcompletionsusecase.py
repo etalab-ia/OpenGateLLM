@@ -515,6 +515,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
     @pytest.mark.asyncio
     async def test_should_release_the_reservation_when_the_consumer_abandons_the_stream(self, use_case, router, provider):
         # Arrange
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         mock_release = Mock()
         reservation = AsyncExitStack()
         reservation.callback(mock_release)
