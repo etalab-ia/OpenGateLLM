@@ -40,6 +40,16 @@ def router_settings_form_fields() -> rx.Component:
             disable=RoutersState.edit_entity_loading,
         ),
         entity_form_input_field(
+            label="QoS retries before reject",
+            value=RoutersState.entity.qos_retries_before_reject,
+            on_change=lambda value: RoutersState.set_edit_entity_attribut("qos_retries_before_reject", value),
+            tooltip="Admission retries before a 503. Leave empty for unlimited admission; 0 rejects immediately.",
+            placeholder="Unlimited admission",
+            type="number",
+            min=0,
+            disable=RoutersState.edit_entity_loading,
+        ),
+        entity_form_input_field(
             label="Prompt tokens cost",
             value=RoutersState.entity.cost_prompt_tokens,
             on_change=lambda value: RoutersState.set_edit_entity_attribut("cost_prompt_tokens", value),
@@ -97,6 +107,15 @@ def router_create_form_fields() -> rx.Component:
             on_change=lambda value: RoutersState.set_new_entity_attribut("load_balancing_strategy", value),
             tooltip="Strategy to use for load balancing between providers of the router",
             placeholder="Select strategy",
+        ),
+        entity_form_input_field(
+            label="QoS retries before reject",
+            value=RoutersState.entity_to_create.qos_retries_before_reject,
+            on_change=lambda value: RoutersState.set_new_entity_attribut("qos_retries_before_reject", value),
+            tooltip="Admission retries before a 503. Leave empty for unlimited admission; 0 rejects immediately.",
+            placeholder="Unlimited admission",
+            type="number",
+            min=0,
         ),
         entity_form_input_field(
             label="Prompt tokens cost",

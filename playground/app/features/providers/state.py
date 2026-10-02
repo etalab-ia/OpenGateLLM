@@ -60,6 +60,7 @@ class ProvidersState(EntityState):
             type=_type_converter.get(provider["type"]),
             url=provider["url"],
             timeout=provider["timeout"],
+            qos_limit=provider["qos_limit"],
             model_name=provider["model_name"],
             model_hosting_zone=provider["model_hosting_zone"],
             model_total_params=provider["model_total_params"],
@@ -258,6 +259,7 @@ class ProvidersState(EntityState):
             "url": self.entity_to_create.url if self.entity_to_create.url else None,
             "key": self.entity_to_create.key,
             "timeout": self.entity_to_create.timeout,
+            "qos_limit": self.entity_to_create.qos_limit if self.entity_to_create.qos_limit != "" else None,
             "model_hosting_zone": self.entity_to_create.model_hosting_zone,
             "model_total_params": self.entity_to_create.model_total_params,
             "model_active_params": self.entity_to_create.model_active_params,
@@ -322,6 +324,7 @@ class ProvidersState(EntityState):
         payload = {
             "router_id": self.routers_dict.get(self.entity.router),
             "timeout": self.entity.timeout,
+            "qos_limit": self.entity.qos_limit if self.entity.qos_limit != "" else None,
             "model_hosting_zone": self.entity.model_hosting_zone,
             "model_total_params": self.entity.model_total_params,
             "model_active_params": self.entity.model_active_params,

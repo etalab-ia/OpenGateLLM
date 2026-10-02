@@ -1,0 +1,49 @@
+---
+title: Load support
+sidebar:
+  label: "[lucide:activity] Load support"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+OpenGateLLM routes requests to self-hosted models. Under heavy load, an inference engine can crash. Load support exists to prevent that. 
+The gateway measures how busy each provider is, and a limit tells it when to stop sending that provider new requests. 
+A request that cannot be admitted waits in the gateway instead of being forwarded to a saturated engine.
+
+## Measuring load
+
+The load of a provider is the number of requests OpenGateLLM is currently forwarding to it. The gateway counts those requests itself. It does not ask the inference engine, so the same measure applies to every provider, including one that is already failing and can no longer report its own state.
+
+The count also has to stay correct when the process that owns the request disappears:
+
+- A FastAPI worker can be killed while a request is still in flight. A counter that lives only in that process would never be decremented.
+- The client can cancel the request. The load must drop even when the handler does not reach its usual cleanup.
+
+Each admitted request is an entry in Redis. For the whole forward, the worker refreshes that entry with a heartbeat. The entry dies when the heartbeat stops. When forwarding ends — the provider responds, or the client cancels — the gateway removes the entry. If the worker is killed first, nothing removes it: the heartbeat is no longer refreshed, so the entry expires on its own. The next admission also drops entries that have already expired.
+
+That count is what a limit is compared to.
+
+## Quality of Service
+
+Quality of Service (QoS) is the load-support mechanism available today. It uses the Redis load above to cap each provider and to choose which provider receives the next request.
+
+### Provider limit
+
+Configure the cap with `qos_limit` on the provider. OpenGateLLM does not compute this number. 
+Choose it by load-testing the deployed model: raise concurrency until the engine fails, or until the quality you require is no longer held — time to first token (TTFT) and throughput.
+
+- `null` (default): no cap. The provider stays eligible whatever its current load. Health stays `green` while the provider is live.
+- `0`: closed. The provider cannot receive requests, and health is `red`.
+- Positive integer: maximum number of concurrent requests. The cap is enforced only when the router asks for it.
+
+### Waiting for capacity
+
+Configure what a saturated request does with `qos_retries_before_reject` on the router:
+
+- `null` (default): do not enforce positive caps. Load is still recorded, so `least_busy` and health can use it. A closed provider (`qos_limit = 0`) stays ineligible.
+- `0`: return 503 as soon as no provider has capacity.
+- Positive integer `n`: retry admission `n` times, every 0.5 seconds, then return 503. The request waits in the gateway. It is sent on only when a provider is under its limit.
+
+### Choosing a provider
+
+`shuffle` picks an eligible provider without looking at its load. `least_busy` picks the provider with the most free capacity. If an uncapped provider is eligible, free capacity cannot be compared, so `least_busy` compares the raw number of active requests.
+

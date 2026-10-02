@@ -1,12 +1,13 @@
 import asyncio
 from collections.abc import AsyncGenerator
+from contextlib import AsyncExitStack
 import gc
 from unittest.mock import create_autospec
 
 import pytest
 
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -41,8 +42,7 @@ def use_case() -> CreateChatCompletionsUseCase:
         model_environmental_impacts_computer=impacts,
         model_tokenizer=tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
-        provider_load_balancer=create_autospec(ProviderLoadBalancer, instance=True, spec_set=True),
-        provider_metrics_logger=create_autospec(ProviderMetricsLogger, instance=True, spec_set=True),
+        provider_qos=create_autospec(ProviderQoS, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
@@ -59,7 +59,7 @@ def _provider_stream() -> AsyncGenerator[ProviderChunkResponse]:
     return stream()
 
 
-def _assemble(use_case, router, provider) -> StreamingResponseWithStatusCode:
+def _assemble(use_case, router, provider, reservation=None) -> StreamingResponseWithStatusCode:
     """Stack the layers exactly as the chat endpoint does — `_as_stream_chunks` is the endpoint's own adapter."""
     return StreamingResponseWithStatusCode(
         content=_as_stream_chunks(
@@ -67,6 +67,7 @@ def _assemble(use_case, router, provider) -> StreamingResponseWithStatusCode:
                 authenticated_user=AuthenticatedUserFactory(),
                 router=router,
                 provider=provider,
+                reservation=reservation if reservation is not None else AsyncExitStack(),
                 chunks=_provider_stream(),
                 prompt_tokens=1,
                 request_id="req-123",
@@ -79,12 +80,16 @@ def _assemble(use_case, router, provider) -> StreamingResponseWithStatusCode:
 @pytest.mark.asyncio
 class TestUsageRecordedOnClientDisconnect:
     async def test_should_record_the_usage_row_when_closing_the_chain_is_cancelled(self, use_case, router, provider):
-        """Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises
+        """Starlette cancels the request scope on a disconnect, so the Redis call releasing the QoS reservation raises
         as soon as it suspends. Observed in production: without a guard, no usage row is written at all."""
+
         # Arrange
-        use_case.provider_metrics_logger.increment_inflight.return_value = True
-        use_case.provider_metrics_logger.decrement_inflight.side_effect = asyncio.CancelledError()
-        response = _assemble(use_case, router, provider)
+        async def release_raises_cancel():
+            raise asyncio.CancelledError()
+
+        reservation = AsyncExitStack()
+        reservation.push_async_callback(release_raises_cancel)
+        response = _assemble(use_case, router, provider, reservation=reservation)
 
         async def slow_client(message: dict) -> None:
             await asyncio.sleep(1)
