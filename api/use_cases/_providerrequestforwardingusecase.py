@@ -22,7 +22,7 @@ from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import Usage
-from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 
 
@@ -58,7 +58,6 @@ type ProviderRequestForwardingUseCaseError = (
     | UnknownModelError
     | UnsupportedProviderEndpointError
     | UserHasNoAccessToRouterError
-    | UserHasInsufficientBudgetError
 )
 type ProviderRequestForwardingUseCaseResult[TData] = ProviderRequestForwardingUseCaseSuccess[TData] | ProviderRequestForwardingUseCaseError
 
@@ -142,14 +141,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self,
         authenticated_user: AuthenticatedUserView,
         model_name_or_alias: str,
-    ) -> (
-        Router
-        | RouterNotFoundError
-        | RouterHasNoProvidersError
-        | RouterHasWrongTypeError
-        | UserHasNoAccessToRouterError
-        | UserHasInsufficientBudgetError
-    ):
+    ) -> Router | RouterNotFoundError | RouterHasNoProvidersError | RouterHasWrongTypeError | UserHasNoAccessToRouterError:
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=model_name_or_alias)
         match result:
             case Router() as router:
@@ -165,9 +157,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=self.ROUTER_TYPE)
         if authenticated_user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
-
-        if router.is_billable and authenticated_user.has_insufficient_budget:
-            return UserHasInsufficientBudgetError()
 
         return router
 

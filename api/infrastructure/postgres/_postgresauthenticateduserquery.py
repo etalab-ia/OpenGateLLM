@@ -60,7 +60,6 @@ class PostgresAuthenticatedUserQuery(AuthenticatedUserQuery):
             UserTable.email,
             UserTable.name,
             UserTable.organization_id,
-            UserTable.budget,
             UserTable.expires,
             permissions_subquery,
             limits_subquery,

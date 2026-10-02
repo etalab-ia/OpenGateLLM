@@ -22,7 +22,6 @@ def _valid_body(**overrides) -> dict:
         "name": "Updated Name",
         "role_id": 1,
         "organization_id": 1,
-        "budget": None,
         "expires": None,
         "priority": 0,
     }
@@ -45,7 +44,7 @@ class TestUpdateUser:
         response = await client.patch(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(role_id=user.role_id, organization_id=organization.id, budget=50.5, priority=2),
+            json=_valid_body(role_id=user.role_id, organization_id=organization.id, priority=2),
         )
 
         assert response.status_code == 200, response.text
@@ -53,25 +52,23 @@ class TestUpdateUser:
         assert data["id"] == user.id
         assert data["email"] == "updated@example.com"
         assert data["name"] == "Updated Name"
-        assert data["budget"] == 50.5
         assert data["priority"] == 2
         assert data["role_id"] == user.role_id
         assert data["organization_id"] == organization.id
 
     async def test_clears_nullable_fields_sent_as_null(self, client: AsyncClient, db_session):
-        user = UserSQLFactory(budget=100.0, expires=dt.datetime.now() + dt.timedelta(days=30))
+        user = UserSQLFactory(expires=dt.datetime.now() + dt.timedelta(days=30))
         await db_session.flush()
 
         response = await client.patch(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(role_id=user.role_id, organization_id=user.organization_id, name=None, budget=None, expires=None),
+            json=_valid_body(role_id=user.role_id, organization_id=user.organization_id, name=None, expires=None),
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["name"] is None
-        assert data["budget"] is None
         assert data["expires"] is None
         # organization is not nullable: the membership survives the update.
         assert data["organization_id"] == user.organization_id

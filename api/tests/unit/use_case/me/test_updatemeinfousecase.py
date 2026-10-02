@@ -37,7 +37,7 @@ def use_case(user_repository, user_password_encoder):
 
 @pytest.fixture
 def sample_user():
-    return UserFactory(id=42, organization_id=7, budget=100.0, expires=None, priority=1)
+    return UserFactory(id=42, organization_id=7, expires=None, priority=1)
 
 
 class TestUpdateMeInfoUseCase:
@@ -74,7 +74,6 @@ class TestUpdateMeInfoUseCase:
         assert result.user.priority == sample_user.priority
         assert result.user.password == sample_user.password
         assert result.user.organization_id == sample_user.organization_id
-        assert result.user.budget == sample_user.budget
         assert result.user.expires == sample_user.expires
 
     @pytest.mark.asyncio

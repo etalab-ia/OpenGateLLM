@@ -16,7 +16,7 @@ URL = f"/v1{EndpointRoute.ME}"
 class TestGetMe:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
-        self.user = UserSQLFactory(regular_user=True, name="Alice", email="alice@example.com", budget=42.5, priority=3)
+        self.user = UserSQLFactory(regular_user=True, name="Alice", email="alice@example.com", priority=3)
         PermissionSQLFactory(role=self.user.role, permission=PermissionType.READ_METRIC)
         self.router = RouterSQLFactory()
         LimitSQLFactory(role=self.user.role, router=self.router, type=LimitType.TPM, value=100)
@@ -33,7 +33,6 @@ class TestGetMe:
         assert data["email"] == "alice@example.com"
         assert data["name"] == "Alice"
         assert data["organization_id"] == self.user.organization_id
-        assert data["budget"] == 42.5
         assert data["permissions"] == [PermissionType.READ_METRIC]
         assert data["expires"] is None
         assert {"router_id": self.router.id, "type": LimitType.TPM, "value": 100} in data["limits"]

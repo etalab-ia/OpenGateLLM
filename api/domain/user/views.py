@@ -13,7 +13,6 @@ class AuthenticatedUserView(BaseModel):
     email: str
     name: str | None
     organization_id: int
-    budget: float | None
     permissions: list[PermissionType]
     limits: list[Limit]
     expires: UtcDatetime | None
@@ -25,10 +24,6 @@ class AuthenticatedUserView(BaseModel):
     @property
     def has_expired(self) -> bool:
         return self.expires is not None and self.expires < datetime.now(tz=UTC)
-
-    @property
-    def has_insufficient_budget(self) -> bool:
-        return self.budget == 0
 
     def cannot_access_router(self, router_id: int) -> bool:
         if PermissionType.ADMIN in self.permissions:

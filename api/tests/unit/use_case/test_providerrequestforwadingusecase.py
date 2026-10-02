@@ -17,7 +17,7 @@ from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRate
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases._providerrequestforwardingusecase import (
     ForwardingCommand,
@@ -239,76 +239,6 @@ class TestResolveRouter:
         # Assert
         assert isinstance(result, UserHasNoAccessToRouterError)
         assert result.id == router.id
-
-    @pytest.mark.asyncio
-    async def test_should_return_insufficient_budget_error_when_router_is_billable_and_user_budget_is_zero(
-        self, use_case, router, user_with_router_access
-    ):
-        # Arrange
-        user = AuthenticatedUserFactory(
-            id=user_with_router_access.id,
-            without_permission=True,
-            budget=0,
-            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
-        )
-        use_case.router_repository.get_router_by_name_or_alias.return_value = router
-
-        # Act
-        result = await use_case._resolve_router(authenticated_user=user, model_name_or_alias="test-router")
-
-        # Assert
-        assert isinstance(result, UserHasInsufficientBudgetError)
-
-    @pytest.mark.asyncio
-    async def test_should_return_insufficient_budget_error_when_router_bills_completion_only_and_user_budget_is_zero(
-        self, use_case, user_with_router_access
-    ):
-        # Arrange
-        user = AuthenticatedUserFactory(
-            id=user_with_router_access.id,
-            without_permission=True,
-            budget=0,
-            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
-        )
-        router = RouterFactory(
-            id=1,
-            name="test-router",
-            type=RouterType.TEXT_GENERATION,
-            providers=1,
-            cost_prompt_tokens=0.0,
-            cost_completion_tokens=0.002,
-        )
-        use_case.router_repository.get_router_by_name_or_alias.return_value = router
-
-        # Act
-        result = await use_case._resolve_router(authenticated_user=user, model_name_or_alias="test-router")
-
-        # Assert
-        assert isinstance(result, UserHasInsufficientBudgetError)
-
-    @pytest.mark.asyncio
-    async def test_should_return_router_when_not_billable_even_if_user_budget_is_zero(self, use_case, user_with_router_access):
-        # Arrange
-        user = AuthenticatedUserFactory(
-            id=user_with_router_access.id,
-            without_permission=True,
-            budget=0,
-            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
-        )
-        router = RouterFactory(
-            id=1,
-            name="test-router",
-            type=RouterType.TEXT_GENERATION,
-            providers=1,
-            free=True,
-        )
-        use_case.router_repository.get_router_by_name_or_alias.return_value = router
-
-        # Act
-        result = await use_case._resolve_router(authenticated_user=user, model_name_or_alias="test-router")
-
-        # Assert
-        assert result is router
 
     @pytest.mark.asyncio
     async def test_should_return_router_when_checks_pass(self, use_case, admin_user, router):

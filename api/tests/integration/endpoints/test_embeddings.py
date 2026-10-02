@@ -18,7 +18,7 @@ from api.domain.provider.errors import (
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
@@ -137,11 +137,6 @@ class TestCreateEmbeddings:
                 UserHasNoAccessToRouterError(id=1),
                 404,
                 f"Model {DEFAULT_MODEL_NAME} not found.",
-            ),
-            (
-                UserHasInsufficientBudgetError(),
-                400,
-                "Insufficient budget.",
             ),
             (
                 RouterHasWrongTypeError(id=1, actual_type=RouterType.TEXT_GENERATION, expected_type=RouterType.TEXT_EMBEDDINGS_INFERENCE),

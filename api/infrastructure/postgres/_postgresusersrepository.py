@@ -27,7 +27,6 @@ _USER_COLUMNS = (
     UserTable.claims,
     UserTable.role_id,
     UserTable.organization_id,
-    UserTable.budget,
     UserTable.expires,
     UserTable.created,
     UserTable.updated,
@@ -51,7 +50,6 @@ class PostgresUserRepository(UserRepository):
             claims=row.claims,
             role_id=row.role_id,
             organization_id=row.organization_id,
-            budget=row.budget,
             priority=row.priority,
             expires=row.expires,
             created=row.created,
@@ -76,7 +74,6 @@ class PostgresUserRepository(UserRepository):
         sub: str | None = None,
         iss: str | None = None,
         claims: dict[str, Any] | None = None,
-        budget: float | None = None,
         expires: datetime | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
@@ -92,7 +89,6 @@ class PostgresUserRepository(UserRepository):
                     iss=iss,
                     role_id=role_id,
                     organization_id=organization_id,
-                    budget=budget,
                     expires=expires,
                     priority=priority,
                 )
@@ -185,7 +181,6 @@ class PostgresUserRepository(UserRepository):
                 claims=user.claims,
                 role_id=user.role_id,
                 organization_id=user.organization_id,
-                budget=user.budget,
                 expires=user.expires,
                 priority=user.priority,
             )

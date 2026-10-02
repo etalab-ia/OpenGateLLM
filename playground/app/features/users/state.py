@@ -43,7 +43,6 @@ class UsersState(EntityState):
             name=user["name"],
             role=role_name,
             organization=organization_name,
-            budget=user["budget"],
             priority=user["priority"],
             expires=format_date(user["expires"]) if user["expires"] else None,
             created=format_datetime(user["created"]),
@@ -264,9 +263,6 @@ class UsersState(EntityState):
         if self.entity_to_create.expires:
             payload["expires"] = date_to_timestamp(self.entity_to_create.expires)
 
-        if self.entity_to_create.budget:
-            payload["budget"] = self.entity_to_create.budget
-
         response = None
         try:
             async with httpx.AsyncClient() as client:
@@ -328,7 +324,6 @@ class UsersState(EntityState):
             "name": self.entity.name or None,
             "role_id": self.roles_dict[self.entity.role],
             "organization_id": self.organizations_dict[self.entity.organization],
-            "budget": self.entity.budget if self.entity.budget != "" else None,
             "expires": date_to_timestamp(self.entity.expires) if self.entity.expires else None,
             "priority": self.entity.priority,
         }

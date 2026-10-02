@@ -10,7 +10,6 @@ class User(Entity):
     password: str | None = None
     role: str | None = None
     organization: str | None = None
-    budget: float | None = None
     priority: int = 0
     expires: str | None = None
     created: str | None = None

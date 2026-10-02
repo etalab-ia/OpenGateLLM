@@ -116,7 +116,6 @@ class User(Base):
     claims: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=True)
     role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="RESTRICT"))
     organization_id: Mapped[int] = mapped_column(ForeignKey(column="organization.id", ondelete="RESTRICT"))
-    budget: Mapped[float | None]
     expires: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())

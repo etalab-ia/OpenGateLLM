@@ -77,7 +77,6 @@ async def create_user(
         role_id=body.role_id,
         name=body.name,
         organization_id=body.organization_id,
-        budget=body.budget,
         expires=body.expires,
         priority=body.priority,
     )
@@ -213,7 +212,6 @@ async def update_user(
         new_password=body.password,
         role_id=body.role_id,
         organization_id=body.organization_id,
-        budget=body.budget,
         expires=body.expires,
         priority=body.priority,
     )

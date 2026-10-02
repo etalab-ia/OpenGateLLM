@@ -144,8 +144,8 @@ class Model(ConfigBaseModel):
     type: RouterType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]], json_schema_extra={"default": []})  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model.", examples=["least_busy"])  # fmt: off
-    cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
-    cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens. Set to `0.0` to disable budget computation for this model.", examples=[0.1])  # fmt: off
+    cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for usage tracking. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
+    cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for usage tracking. The cost is by 1M tokens. Set to `0.0` to disable cost computation for this model.", examples=[0.1])  # fmt: off
     providers: list[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
 
     @model_validator(mode="after")

@@ -25,7 +25,6 @@ class User(BaseModel):
     claims: dict[str, Any] | None
     role_id: int
     organization_id: int
-    budget: float | None
     expires: UtcDatetime | None
     created: UtcDatetime
     updated: UtcDatetime
