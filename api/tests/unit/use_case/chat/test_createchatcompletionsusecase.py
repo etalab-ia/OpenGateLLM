@@ -8,9 +8,9 @@ import pytest
 from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderResponse, ProviderType
-from api.domain.provider.errors import ProviderAdapterValidationRequestError
+from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType
@@ -98,8 +98,7 @@ def use_case(mock_model_tokenizer, mock_usage_recorder, mock_trace_recorder) -> 
         model_environmental_impacts_computer=create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True),
         model_tokenizer=mock_model_tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
-        provider_load_balancer=create_autospec(ProviderLoadBalancer, instance=True, spec_set=True),
-        provider_metrics_logger=create_autospec(ProviderMetricsLogger, instance=True, spec_set=True),
+        provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
@@ -117,7 +116,7 @@ def _format_stream(use_case, router, provider, chunks, prompt_tokens=1):
     return use_case._format_stream(
         authenticated_user=AuthenticatedUserFactory(without_permission=True),
         router=router,
-        provider=provider,
+        reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID),
         chunks=chunks,
         prompt_tokens=prompt_tokens,
         request_id=REQUEST_ID,
@@ -138,7 +137,8 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case._resolve_router = AsyncMock(return_value=router)
         use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
         use_case._send_request = AsyncMock(return_value=ProviderResponse(data=sample_completion))
-        use_case._select_provider = AsyncMock(return_value=provider)
+        use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider, request_id=TRACE_ID)
         use_case.provider_client.forward_stream = AsyncMock(return_value=_chunk_stream())
 
     @pytest.mark.asyncio
@@ -162,9 +162,10 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case.usage_repository.fail_record.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_stream_success_without_consuming_the_stream_when_stream_is_requested(self, use_case, make_command):
+    async def test_should_return_stream_success_and_hold_the_admission_until_the_stream_is_consumed(self, use_case, make_command, provider):
         # Arrange
         command = make_command(stream=True)
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
 
         # Act
         result = await use_case.execute(command=command)
@@ -172,10 +173,32 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert isinstance(result, CreateChatCompletionsStreamUseCaseSuccess)
         use_case._send_request.assert_not_awaited()
-        use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()  # the generator is returned unconsumed
         forwarded_request = use_case.provider_client.forward_stream.call_args.kwargs["request"]
         assert forwarded_request.id == TRACE_ID
+        use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
         use_case.usage_repository.end_record.assert_not_called()
+        use_case.provider_concurrency_limiter.release.assert_not_awaited()
+
+        [chunk async for chunk in result.chunks]
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=TRACE_ID)
+        )
+
+    @pytest.mark.asyncio
+    async def test_should_return_no_available_provider_when_the_stream_admission_is_full(self, use_case, make_command, router):
+        # Arrange
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused()
+
+        # Act
+        result = await use_case.execute(command=make_command(stream=True))
+
+        # Assert
+        assert isinstance(result, NoAvailableProviderError)
+        assert result.router_id == router.id
+        assert 1 <= result.retry_after <= 2
+        use_case.provider_client.forward_stream.assert_not_awaited()
+        use_case.usage_repository.fail_record.assert_called_once_with(message="NoAvailableProviderError", status_code=503)
+        use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_stamp_streamed_chunks_with_the_generated_request_id(self, use_case, make_command, mock_usage_recorder):
@@ -241,7 +264,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_should_return_the_error_when_the_provider_client_refuses_to_open_the_stream(self, use_case, make_command):
+    async def test_should_return_the_error_when_the_provider_client_refuses_to_open_the_stream(self, use_case, make_command, provider):
         # Arrange: forward_stream answers with a typed error instead of a generator
         error = ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
         use_case.provider_client.forward_stream.return_value = error
@@ -251,9 +274,25 @@ class TestCreateChatCompletionsUseCaseExecute:
 
         # Assert
         assert result is error
-        use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=TRACE_ID)
+        )
         use_case.usage_repository.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=503)
         use_case.usage_repository.end_record.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_should_release_the_reservation_when_opening_the_stream_raises(self, use_case, make_command, provider):
+        # Arrange
+        use_case.provider_client.forward_stream.side_effect = TypeError("adapter blew up while building the request")
+
+        # Act
+        with pytest.raises(TypeError):
+            await use_case.execute(command=make_command(stream=True))
+
+        # Assert
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=TRACE_ID)
+        )
 
 
 class TestCreateChatCompletionsUseCaseFormatStream:
@@ -355,7 +394,6 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
         use_case.usage_repository.fail_record.assert_called_once_with(message="StatusCodeModelError", status_code=503)
         use_case.usage_repository.end_record.assert_called_once()
-        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
 
     @pytest.mark.asyncio
     async def test_should_relay_data_chunks_under_the_router_name(self, use_case, router, provider):
@@ -476,7 +514,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         mock_usage_recorder.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_release_the_inflight_counter_when_the_consumer_abandons_the_stream(self, use_case, router, provider):
+    async def test_should_release_the_reservation_when_the_consumer_abandons_the_stream(self, use_case, router, provider):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": []}', "data: [DONE]")
@@ -487,14 +525,15 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         await stream.aclose()
 
         # Assert
-        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID)
+        )
         use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_should_release_the_inflight_counter_when_the_stream_completes(self, use_case, router, provider):
+    async def test_should_release_the_reservation_when_the_stream_completes(self, use_case, router, provider):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
-        use_case.provider_metrics_logger.increment_inflight.return_value = True
         chunks = _chunk_stream(
             'data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}',
             "data: [DONE]",
@@ -504,4 +543,6 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
-        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID)
+        )

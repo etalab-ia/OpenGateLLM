@@ -27,6 +27,7 @@ def sample_router_with_aliases():
         aliases=["alias1", "alias2"],
         user_id=1,
         load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+        qos_retries_before_reject=3,
         cost_prompt_tokens=0.01,
         cost_completion_tokens=0.02,
         providers=0,
@@ -49,6 +50,7 @@ class TestCreateRouterUseCase:
                 load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
                 cost_prompt_tokens=0.01,
                 cost_completion_tokens=0.02,
+                qos_retries_before_reject=3,
             )
         )
 
@@ -59,6 +61,7 @@ class TestCreateRouterUseCase:
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            qos_retries_before_reject=3,
             cost_prompt_tokens=0.01,
             cost_completion_tokens=0.02,
             user_id=1,
@@ -97,6 +100,7 @@ class TestCreateRouterUseCase:
             name="model-no-alias",
             router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            qos_retries_before_reject=None,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             user_id=1,
@@ -128,6 +132,7 @@ class TestCreateRouterUseCase:
             cost_completion_tokens=0.0,
             cost_prompt_tokens=0.0,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            qos_retries_before_reject=None,
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
             user_id=1,
@@ -158,6 +163,7 @@ class TestCreateRouterUseCase:
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            qos_retries_before_reject=None,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             aliases=["alias1", "alias2"],

@@ -6,7 +6,9 @@ from json import dumps
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
 from api.domain.model.errors import StatusCodeModelError
+from api.domain.provider import ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
+from api.domain.provider.errors import NoAvailableProviderError
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.usage.entities import Usage
 from api.domain.user.views import AuthenticatedUserView
@@ -62,22 +64,49 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         request_id = self._start_record_usage(command=command, router=router)
 
         if command.stream:
-            provider = await self._select_provider(router=router)
+            providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
             request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=command.payload)
 
-            match await self.provider_client.forward_stream(provider=provider, request=request):
+            result = await self._reserve_provider(
+                providers=providers,
+                strategy=router.load_balancing_strategy,
+                retries_before_reject=router.qos_retries_before_reject,
+                request_id=request_id,
+            )
+            match result:
+                case ProviderReservation() as reservation:
+                    provider = reservation.provider
+                case ProviderReservationRefused():
+                    error = NoAvailableProviderError(
+                        router_id=router.id,
+                        retry_after=self._compute_retry_after(retries_before_reject=router.qos_retries_before_reject),
+                    )
+                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
+                    self.usage_repository.end_record()
+                    return error
+
+            self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+            try:
+                result = await self.provider_client.forward_stream(provider=provider, request=request)
+            except BaseException:
+                await self.provider_concurrency_limiter.release(reservation=reservation)
+                raise
+
+            match result:
                 case AsyncGenerator() as chunks:
                     pass
                 case error:
                     self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
                     self.usage_repository.end_record()
+                    await self.provider_concurrency_limiter.release(reservation=reservation)
                     return error
 
+            # from here on the stream owns the reservation and releases it once consumed or closed
             return CreateChatCompletionsStreamUseCaseSuccess(
                 chunks=self._format_stream(
                     authenticated_user=authenticated_user,
                     router=router,
-                    provider=provider,
+                    reservation=reservation,
                     chunks=chunks,
                     prompt_tokens=prompt_tokens,
                     request_id=request_id,
@@ -108,66 +137,67 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         self,
         authenticated_user: AuthenticatedUserView,
         router: Router,
-        provider: Provider,
+        reservation: ProviderReservation,
         chunks: AsyncGenerator[ProviderChunkResponse],
         prompt_tokens: int,
         request_id: str,
     ) -> AsyncGenerator[ProviderChunkResponse]:
+        provider = reservation.provider
         buffer: list[dict] = []
         first_token_at: datetime | None = None
         usage_is_recorded = False
 
-        async with self._inflight(provider=provider):
+        try:
             async with aclosing(chunks):
-                try:
-                    async for chunk in chunks:
-                        if chunk.status_code // 100 != 2:
-                            self.usage_repository.fail_record(message=StatusCodeModelError.__name__, status_code=chunk.status_code)
-                            yield chunk
-                            return
+                async for chunk in chunks:
+                    if chunk.status_code // 100 != 2:
+                        self.usage_repository.fail_record(message=StatusCodeModelError.__name__, status_code=chunk.status_code)
+                        yield chunk
+                        return
 
-                        parsed_chunk = ChatCompletionChunk.parse_chunk(chunk=chunk.content)
+                    parsed_chunk = ChatCompletionChunk.parse_chunk(chunk=chunk.content)
 
-                        if parsed_chunk == "[DONE]":
-                            break
+                    if parsed_chunk == "[DONE]":
+                        break
 
-                        if parsed_chunk is None:
-                            yield ProviderChunkResponse(content=chunk.content, status_code=chunk.status_code)
-                            continue
+                    if parsed_chunk is None:
+                        yield ProviderChunkResponse(content=chunk.content, status_code=chunk.status_code)
+                        continue
 
-                        buffer.append(parsed_chunk)
-                        if first_token_at is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
-                            first_token_at = datetime.now(tz=UTC)
+                    buffer.append(parsed_chunk)
+                    if first_token_at is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
+                        first_token_at = datetime.now(tz=UTC)
 
-                        relayed = {**parsed_chunk, "model": router.name, "id": request_id}
-                        yield ProviderChunkResponse(content=f"data: {dumps(relayed)}", status_code=chunk.status_code)
+                    relayed = {**parsed_chunk, "model": router.name, "id": request_id}
+                    yield ProviderChunkResponse(content=f"data: {dumps(relayed)}", status_code=chunk.status_code)
 
-                    usage_line = self._build_usage_line(
-                        authenticated_user=authenticated_user,
-                        router=router,
-                        provider=provider,
-                        buffer=buffer,
-                        prompt_tokens=prompt_tokens,
-                        latency=self.usage_repository.compute_latency(),
-                        request_id=request_id,
-                        first_token_at=first_token_at,
-                    )
-                    usage_is_recorded = True
-                    yield ProviderChunkResponse(content=usage_line, status_code=200)
-                    yield ProviderChunkResponse(content="data: [DONE]", status_code=200)
-                finally:
-                    if not usage_is_recorded and buffer:
-                        self._record_stream_usage(
-                            authenticated_user=authenticated_user,
-                            router=router,
-                            provider=provider,
-                            buffer=buffer,
-                            prompt_tokens=prompt_tokens,
-                            latency=self.usage_repository.compute_latency(),
-                            request_id=request_id,
-                            first_token_at=first_token_at,
-                        )
-                    self.usage_repository.end_record()
+                usage_line = self._build_usage_line(
+                    authenticated_user=authenticated_user,
+                    router=router,
+                    provider=provider,
+                    buffer=buffer,
+                    prompt_tokens=prompt_tokens,
+                    latency=self.usage_repository.compute_latency(),
+                    request_id=request_id,
+                    first_token_at=first_token_at,
+                )
+                usage_is_recorded = True
+                yield ProviderChunkResponse(content=usage_line, status_code=200)
+                yield ProviderChunkResponse(content="data: [DONE]", status_code=200)
+        finally:
+            if not usage_is_recorded and buffer:
+                self._record_stream_usage(
+                    authenticated_user=authenticated_user,
+                    router=router,
+                    provider=provider,
+                    buffer=buffer,
+                    prompt_tokens=prompt_tokens,
+                    latency=self.usage_repository.compute_latency(),
+                    request_id=request_id,
+                    first_token_at=first_token_at,
+                )
+            self.usage_repository.end_record()
+            await self.provider_concurrency_limiter.release(reservation=reservation)
 
     def _build_usage_line(
         self,

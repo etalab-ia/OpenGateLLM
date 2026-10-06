@@ -195,7 +195,7 @@ class TestCreateOCR:
                 "Model has wrong type. Expected: image-to-text. Actual: text-generation.",
             ),
             (
-                NoAvailableProviderError(router_id=1),
+                NoAvailableProviderError(router_id=1, retry_after=7),
                 503,
                 "Model is too busy, please try again later.",
             ),
@@ -239,6 +239,8 @@ class TestCreateOCR:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
+        if isinstance(use_case_result, NoAvailableProviderError):
+            assert response.headers["Retry-After"] == "7"
 
     @pytest.mark.parametrize(
         "use_case_result",

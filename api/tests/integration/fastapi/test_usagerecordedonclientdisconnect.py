@@ -6,7 +6,7 @@ from unittest.mock import create_autospec
 import pytest
 
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -41,8 +41,7 @@ def use_case() -> CreateChatCompletionsUseCase:
         model_environmental_impacts_computer=impacts,
         model_tokenizer=tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
-        provider_load_balancer=create_autospec(ProviderLoadBalancer, instance=True, spec_set=True),
-        provider_metrics_logger=create_autospec(ProviderMetricsLogger, instance=True, spec_set=True),
+        provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
@@ -66,7 +65,7 @@ def _assemble(use_case, router, provider) -> StreamingResponseWithStatusCode:
             use_case._format_stream(
                 authenticated_user=AuthenticatedUserFactory(),
                 router=router,
-                provider=provider,
+                reservation=ProviderReservation(provider=provider, request_id="req-123"),
                 chunks=_provider_stream(),
                 prompt_tokens=1,
                 request_id="req-123",
@@ -79,11 +78,11 @@ def _assemble(use_case, router, provider) -> StreamingResponseWithStatusCode:
 @pytest.mark.asyncio
 class TestUsageRecordedOnClientDisconnect:
     async def test_should_record_the_usage_row_when_closing_the_chain_is_cancelled(self, use_case, router, provider):
-        """Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises
+        """Starlette cancels the request scope on a disconnect, so the Redis call releasing the QoS reservation raises
         as soon as it suspends. Observed in production: without a guard, no usage row is written at all."""
+
         # Arrange
-        use_case.provider_metrics_logger.increment_inflight.return_value = True
-        use_case.provider_metrics_logger.decrement_inflight.side_effect = asyncio.CancelledError()
+        use_case.provider_concurrency_limiter.release.side_effect = asyncio.CancelledError()
         response = _assemble(use_case, router, provider)
 
         async def slow_client(message: dict) -> None:
@@ -125,4 +124,28 @@ class TestUsageRecordedOnClientDisconnect:
             await asyncio.sleep(0.01)
 
         # Assert
+        use_case.usage_repository.end_record.assert_called_once()
+
+    async def test_should_release_the_reservation_when_the_client_disconnects_before_the_first_chunk(self, use_case, router, provider):
+        """Below ASGI 2.4, Starlette schedules stream_response in a task and listens for the disconnect in the current one.
+        A client already gone cancels the scope before that task has run, but anyio only cancels a task once it has started:
+        the chain is entered, so its finally blocks run and the reservation is released."""
+
+        # Arrange
+        response = _assemble(use_case, router, provider)
+        scope = {"type": "http", "asgi": {"spec_version": "2.0"}}
+
+        async def receive() -> dict:
+            return {"type": "http.disconnect"}
+
+        async def slow_send(message: dict) -> None:
+            await asyncio.sleep(1)
+
+        # Act
+        await response(scope, receive, slow_send)
+
+        # Assert
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id="req-123")
+        )
         use_case.usage_repository.end_record.assert_called_once()

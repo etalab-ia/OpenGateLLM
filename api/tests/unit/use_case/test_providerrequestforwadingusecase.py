@@ -8,9 +8,9 @@ from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
-from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
@@ -77,13 +77,8 @@ def provider_client():
 
 
 @pytest.fixture
-def provider_load_balancer():
-    return create_autospec(ProviderLoadBalancer, instance=True, spec_set=True)
-
-
-@pytest.fixture
-def provider_metrics_logger():
-    return create_autospec(ProviderMetricsLogger, instance=True, spec_set=True)
+def provider_concurrency_limiter():
+    return create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -163,8 +158,7 @@ def use_case(
     model_environmental_impacts_computer,
     model_tokenizer,
     provider_client,
-    provider_load_balancer,
-    provider_metrics_logger,
+    provider_concurrency_limiter,
     provider_repository,
     router_rate_limiter,
     router_repository,
@@ -175,8 +169,7 @@ def use_case(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_load_balancer=provider_load_balancer,
-        provider_metrics_logger=provider_metrics_logger,
+        provider_concurrency_limiter=provider_concurrency_limiter,
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
@@ -329,9 +322,8 @@ class TestSendRequest:
     @pytest.fixture(autouse=True)
     def configure_provider_flow(self, use_case, provider, sample_data):
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
-        use_case.provider_load_balancer.find_best_provider.return_value = provider
-        use_case.provider_metrics_logger.increment_inflight.return_value = True
-        use_case.provider_client.forward.return_value = ProviderResponse(data=sample_data)
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider, request_id=REQUEST_ID)
+        use_case.provider_client.forward.return_value = ProviderResponse(id=sample_data.id, data=sample_data)
 
     @pytest.mark.asyncio
     async def test_should_return_request_validation_error_when_provider_call_rejects_request(
@@ -352,16 +344,14 @@ class TestSendRequest:
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
-        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
+        assert forwarded_request.id
         use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
         use_case.usage_context.record_usage.assert_not_called()
         use_case.usage_repository.update_record.assert_not_called()
         use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_forward_error_and_decrement_inflight_when_provider_call_fails(
-        self, use_case, router, provider, payload, user_with_router_access
-    ):
+    async def test_should_return_forward_error_when_provider_call_fails(self, use_case, router, provider, payload):
         # Arrange
         provider_error = TooBusyModelError(status_code=503, detail="busy")
         use_case.provider_client.forward.return_value = provider_error
@@ -373,11 +363,10 @@ class TestSendRequest:
 
         # Assert
         assert result == provider_error
-        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         use_case.usage_context.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_decrement_inflight_when_the_provider_call_raises(self, use_case, router, provider, payload, user_with_router_access):
+    async def test_should_release_the_reservation_when_the_provider_call_raises(self, use_case, router, provider, payload):
         # Arrange
         use_case.provider_client.forward.side_effect = TypeError("adapter blew up while converting the response")
 
@@ -388,26 +377,77 @@ class TestSendRequest:
             )
 
         # Assert
-        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID)
+        )
 
     @pytest.mark.asyncio
-    async def test_should_return_response_validation_error_without_decrementing_when_inflight_was_not_incremented(
-        self, use_case, router, payload, user_with_router_access
-    ):
+    async def test_should_return_no_available_provider_after_immediate_rejection(self, use_case, router, payload, user_with_router_access):
         # Arrange
-        use_case.provider_metrics_logger.increment_inflight.return_value = False
-        validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
-        use_case.provider_client.forward.return_value = validation_error
+        router.qos_retries_before_reject = 0
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused()
 
         # Act
         result = await use_case._send_request(
-            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
-        assert result == validation_error
-        use_case.provider_metrics_logger.decrement_inflight.assert_not_called()
-        use_case.usage_context.record_usage.assert_not_called()
+        assert isinstance(result, NoAvailableProviderError)
+        assert result.router_id == router.id
+        assert 1 <= result.retry_after <= 2
+        use_case.provider_client.forward.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_retry_full_admission_with_same_request_id_then_forward(self, use_case, router, provider, payload, user_with_router_access):
+        # Arrange
+        router.qos_retries_before_reject = 2
+        use_case.provider_concurrency_limiter.reserve.side_effect = [
+            ProviderReservationRefused(),
+            ProviderReservationRefused(),
+            ProviderReservation(provider=provider, request_id=REQUEST_ID),
+        ]
+
+        # Act
+        with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
+
+        # Assert
+        assert isinstance(result, ProviderResponse)
+        assert use_case.provider_concurrency_limiter.reserve.await_count == 3
+        request_ids = {call.kwargs["request_id"] for call in use_case.provider_concurrency_limiter.reserve.await_args_list}
+        assert len(request_ids) == 1
+        assert all(call.kwargs["enforce_limit"] is True for call in use_case.provider_concurrency_limiter.reserve.await_args_list)
+        assert [entry.args for entry in mock_sleep.await_args_list] == [(0.5,), (0.5,)]
+        assert use_case.provider_client.forward.await_args.kwargs["request"].id == request_ids.pop()
+
+    @pytest.mark.asyncio
+    async def test_should_return_no_available_provider_after_retries_exhausted(self, use_case, router, payload, user_with_router_access):
+        # Arrange
+        router.qos_retries_before_reject = 4
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused()
+
+        # Act
+        with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock):
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access,
+                router=router,
+                prompt_tokens=1,
+                payload=payload,
+                request_id=REQUEST_ID,
+            )
+
+        # Assert: 4 retries spaced by 0.5 s, so the client waits between 2 and 4 s
+        assert isinstance(result, NoAvailableProviderError)
+        assert result.router_id == router.id
+        assert 2 <= result.retry_after <= 4
+        assert use_case.provider_concurrency_limiter.reserve.await_count == 5
 
     @pytest.mark.asyncio
     async def test_should_enrich_usage_when_formatted_response_has_data(
@@ -432,16 +472,20 @@ class TestSendRequest:
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
         use_case.provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=router.id)
-        use_case.provider_load_balancer.find_best_provider.assert_awaited_once_with(
+        forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
+        use_case.provider_concurrency_limiter.reserve.assert_awaited_once_with(
+            request_id=forwarded_request.id,
+            enforce_limit=False,
             strategy=router.load_balancing_strategy,
             providers=[provider],
         )
-        forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID)
+        )
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
         assert forwarded_request.id == REQUEST_ID
 
-        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         model_tokenizer.compute_tokens.assert_called_once_with(texts=["world"])
         model_environmental_impacts_computer.compute.assert_called_once_with(
             model_active_params=provider.model_active_params,

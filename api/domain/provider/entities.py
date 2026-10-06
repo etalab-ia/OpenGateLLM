@@ -102,6 +102,7 @@ class Provider(BaseModel):
     vector_size: int | None = None
     created: UtcDatetime
     updated: UtcDatetime
+    qos_limit: int | None = None
 
     def with_router_id(self, router_id: int) -> "Provider":
         return self.model_copy(update={"router_id": router_id})
@@ -123,6 +124,9 @@ class Provider(BaseModel):
 
     def with_vector_size(self, vector_size: int | None) -> "Provider":
         return self.model_copy(update={"vector_size": vector_size})
+
+    def with_qos_limit(self, qos_limit: int | None) -> "Provider":
+        return self.model_copy(update={"qos_limit": qos_limit})
 
     def is_compatible_with(self, router: Router) -> bool:
         return self.type.is_compatible_with(router.type)

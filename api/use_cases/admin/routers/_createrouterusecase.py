@@ -14,6 +14,7 @@ class CreateRouterCommand:
     load_balancing_strategy: RouterLoadBalancingStrategy
     cost_prompt_tokens: float
     cost_completion_tokens: float
+    qos_retries_before_reject: int | None = None
 
 
 @dataclass
@@ -33,6 +34,7 @@ class CreateRouterUseCase:
             name=command.name,
             router_type=command.router_type,
             load_balancing_strategy=command.load_balancing_strategy,
+            qos_retries_before_reject=command.qos_retries_before_reject,
             cost_prompt_tokens=command.cost_prompt_tokens,
             cost_completion_tokens=command.cost_completion_tokens,
             user_id=command.user_id,

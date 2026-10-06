@@ -17,6 +17,7 @@ class UpdateProviderCommand:
     model_hosting_zone: HostingZone
     model_total_params: int
     model_active_params: int
+    qos_limit: int | None
 
 
 @dataclass
@@ -82,6 +83,7 @@ class UpdateProviderUseCase:
             .with_model_hosting_zone(command.model_hosting_zone)
             .with_model_total_params(command.model_total_params)
             .with_model_active_params(command.model_active_params)
+            .with_qos_limit(command.qos_limit)
         )
 
         if existing_provider == provider_to_persist:
