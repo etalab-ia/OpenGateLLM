@@ -63,7 +63,6 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
             limit = provider.qos_limit if enforce_limit and provider.qos_limit is not None else self.NO_LIMIT
             key = self._load_key(provider.id)
             if await self._try_reserve(keys=[key], args=[request_id, limit, self.RESERVATION_TTL_MILLISECONDS], client=self.redis_client):
-                # @TODO: bound the heartbeat lifetime (e.g. to provider.timeout): a caller that never calls release() keeps the place held until the worker stops.
                 self._heartbeats[request_id] = asyncio.create_task(
                     self._heartbeat(key=key, request_id=request_id), name=f"reservation-heartbeat-{request_id}"
                 )
