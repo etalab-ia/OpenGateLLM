@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsForm
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -51,7 +51,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
         provider_client: ProviderClient,
-        provider_qos: ProviderQoS,
+        provider_concurrency_limiter: ProviderConcurrencyLimiter,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
@@ -63,7 +63,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
             model_environmental_impacts_computer=model_environmental_impacts_computer,
             model_tokenizer=model_tokenizer,
             provider_client=provider_client,
-            provider_qos=provider_qos,
+            provider_concurrency_limiter=provider_concurrency_limiter,
             provider_repository=provider_repository,
             router_rate_limiter=router_rate_limiter,
             router_repository=router_repository,

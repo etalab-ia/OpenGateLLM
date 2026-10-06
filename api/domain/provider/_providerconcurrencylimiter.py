@@ -14,19 +14,19 @@ class ProviderReservation:
 
 
 @dataclass
-class ProviderAdmissionFull:
-    depth: int
+class ProviderReservationRefused:
+    total_load: int
 
     def retry_after(self, retries: int | None) -> int:
         retry_after_ceiling = 1 if retries is None else max(1, math.ceil(retries * 0.5))
-        jitter = math.ceil((1 + self.depth) * (0.5 + random.random()))
+        jitter = math.ceil((1 + self.total_load) * (0.5 + random.random()))
         return max(1, min(retry_after_ceiling, jitter))
 
 
-type ProviderAdmissionResult = ProviderReservation | ProviderAdmissionFull
+type ProviderReservationResult = ProviderReservation | ProviderReservationRefused
 
 
-class ProviderQoS(ABC):
+class ProviderConcurrencyLimiter(ABC):
     @abstractmethod
     async def reserve(
         self,
@@ -34,7 +34,7 @@ class ProviderQoS(ABC):
         providers: list[Provider],
         strategy: RouterLoadBalancingStrategy,
         enforce_limit: bool,
-    ) -> ProviderAdmissionResult:
+    ) -> ProviderReservationResult:
         """Choose one of the providers and hold a place on it until release() is called.
 
         request_id identifies the reservation and must be unique per request. A provider whose limit is 0 is closed and
