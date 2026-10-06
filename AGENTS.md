@@ -666,10 +666,18 @@ deliberately unhandled for now, but never swallowed into a `False`, which would 
 Mapping it to a domain error and a 503 — a permission that could not be evaluated is not a permission that was denied —
 is the next step, once that failure mode is worth covering.
 
-**Not in place yet.** Nothing writes `platform:api#admin@user:<id>`, so on a fresh store no one holds
-`can_create_organization` and `POST /organizations` denies everyone. Projecting the Postgres admin roles onto relations
-at start-up is the missing piece. The authorization test suite (`store.fga.yaml`, the model drift test, the use-case
-tests) is currently stashed, so none of the rules above is enforced by CI.
+**Granting the bootstrap admin is the one authorization step that stays in the lifespan.** `bootstrap_authorization`
+(`api/utils/lifespan.py`) writes `platform:api#admin@user:<id>` for the bootstrap admin, so a fresh store has someone who
+holds `can_create_organization`. It cannot move to `scripts/provision_openfga.py` like the model does, because it needs
+the admin that `bootstrap_admin_role_and_user` may have just created. It therefore runs once per worker, and
+`OpenFgaBootstrapAuthorization` checks before writing: a duplicate write is a 400, OpenFGA having no upsert.
+
+Only users holding a Postgres admin role at *bootstrap* get the relation. Promoting an existing user to admin through
+`PATCH /roles` writes no tuple, so OpenFGA will not see it until something projects Postgres roles onto relations — still
+missing.
+
+**Not enforced by CI yet.** The authorization test suite (`store.fga.yaml`, the model drift test, the use-case tests) is
+currently stashed, so none of the rules above is covered.
 
 ---
 
