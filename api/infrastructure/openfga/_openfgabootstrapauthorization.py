@@ -1,6 +1,6 @@
 from api.domain.authorization.entities import AuthorizationObject, PlatformRelation, RelationTuple
 from api.domain.user import BootstrapAuthorization
-from api.infrastructure.openfga import OpenFgaAuthorizationClient
+from api.infrastructure.openfga._openfgaauthorizationclient import OpenFgaAuthorizationClient
 
 
 class OpenFgaBootstrapAuthorization(BootstrapAuthorization):
@@ -11,6 +11,8 @@ class OpenFgaBootstrapAuthorization(BootstrapAuthorization):
         user_subject = AuthorizationObject.user(user_id)
         platform_object = AuthorizationObject.platform()
 
-        relation_tuple = RelationTuple(subject=user_subject, relation=PlatformRelation.CAN_CREATE_ORGANIZATION, object=platform_object)
+        if await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.ADMIN, object=platform_object):
+            return
 
+        relation_tuple = RelationTuple(subject=user_subject, relation=PlatformRelation.ADMIN, object=platform_object)
         await self.openfga_client.write_relation(relation_tuple)
