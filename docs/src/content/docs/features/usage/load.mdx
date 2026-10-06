@@ -22,6 +22,8 @@ Each admitted request is an entry in Redis. For the whole forward, the worker re
 
 That count is what a limit is compared to.
 
+If Redis is unreachable, the gateway does not reject the request: it forwards it to a random provider that is not closed, without enforcing the limits and without counting it. Closed providers (`qos_limit = 0`) stay excluded.
+
 ## Quality of Service
 
 Quality of Service (QoS) is the load-support mechanism available today. It uses the Redis load above to cap each provider and to choose which provider receives the next request.

@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 from redis.exceptions import RedisError
@@ -226,3 +227,31 @@ class TestRedisProviderConcurrencyLimiter:
 
         assert len(reservations) == 3
         assert sum(isinstance(result, ProviderReservationRefused) for result in results) == 7
+
+    async def test_reserves_without_enforcing_the_limit_when_redis_is_unreachable(self, provider_concurrency_limiter, redis_client, monkeypatch):
+        candidate = provider(1, qos_limit=1)
+        monkeypatch.setattr(provider_concurrency_limiter, "_try_reserve", AsyncMock(side_effect=RedisError("unavailable")))
+
+        result = await reserve(provider_concurrency_limiter, "request-1", [candidate])
+
+        assert result == ProviderReservation(provider=candidate, request_id="request-1")
+        assert await redis_client.zcard(provider_concurrency_limiter._load_key(candidate.id)) == 0
+
+    async def test_still_refuses_closed_providers_when_redis_is_unreachable(self, provider_concurrency_limiter, monkeypatch):
+        candidate = provider(1, qos_limit=0)
+        monkeypatch.setattr(provider_concurrency_limiter, "_try_reserve", AsyncMock(side_effect=RedisError("unavailable")))
+
+        result = await reserve(provider_concurrency_limiter, "request-1", [candidate])
+
+        assert result == ProviderReservationRefused()
+
+    async def test_release_does_not_touch_redis_for_a_place_given_while_redis_was_unreachable(self, provider_concurrency_limiter, monkeypatch):
+        candidate = provider(1)
+        monkeypatch.setattr(provider_concurrency_limiter, "_try_reserve", AsyncMock(side_effect=RedisError("unavailable")))
+        reservation = await reserve(provider_concurrency_limiter, "request-1", [candidate])
+        mock_zrem = AsyncMock()
+        monkeypatch.setattr(provider_concurrency_limiter.redis_client, "zrem", mock_zrem)
+
+        await provider_concurrency_limiter.release(reservation=reservation)
+
+        mock_zrem.assert_not_awaited()

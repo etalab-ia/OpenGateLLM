@@ -59,14 +59,19 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
     ) -> ProviderReservationResult:
         open_providers = [provider for provider in providers if provider.qos_limit != 0]
 
-        for provider in await self._order_by_strategy(providers=open_providers, strategy=strategy):
-            limit = provider.qos_limit if enforce_limit and provider.qos_limit is not None else self.NO_LIMIT
-            key = self._load_key(provider.id)
-            if await self._try_reserve(keys=[key], args=[request_id, limit, self.RESERVATION_TTL_MILLISECONDS], client=self.redis_client):
-                self._heartbeats[request_id] = asyncio.create_task(
-                    self._heartbeat(key=key, request_id=request_id), name=f"reservation-heartbeat-{request_id}"
-                )
-                return ProviderReservation(provider=provider, request_id=request_id)
+        try:
+            for provider in await self._order_by_strategy(providers=open_providers, strategy=strategy):
+                limit = provider.qos_limit if enforce_limit and provider.qos_limit is not None else self.NO_LIMIT
+                key = self._load_key(provider.id)
+                if await self._try_reserve(keys=[key], args=[request_id, limit, self.RESERVATION_TTL_MILLISECONDS], client=self.redis_client):
+                    self._heartbeats[request_id] = asyncio.create_task(
+                        self._heartbeat(key=key, request_id=request_id), name=f"reservation-heartbeat-{request_id}"
+                    )
+                    return ProviderReservation(provider=provider, request_id=request_id)
+        except RedisError:
+            logger.exception("Redis is unreachable: request %s is forwarded without enforcing the provider limits.", request_id)
+            if open_providers:
+                return ProviderReservation(provider=random.choice(open_providers), request_id=request_id)
 
         return ProviderReservationRefused()
 
@@ -100,9 +105,11 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
 
     async def release(self, reservation: ProviderReservation) -> None:
         heartbeat = self._heartbeats.pop(reservation.request_id, None)
-        if heartbeat is not None:
-            heartbeat.cancel()
-            await asyncio.wait([heartbeat])
+        if heartbeat is None:
+            return
+
+        heartbeat.cancel()
+        await asyncio.wait([heartbeat])
 
         try:
             await self.redis_client.zrem(self._load_key(reservation.provider.id), reservation.request_id)
