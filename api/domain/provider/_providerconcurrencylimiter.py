@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import math
-import random
 
 from api.domain.provider.entities import Provider
 from api.domain.router.entities import RouterLoadBalancingStrategy
@@ -13,14 +11,9 @@ class ProviderReservation:
     request_id: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProviderReservationRefused:
-    total_load: int
-
-    def retry_after(self, retries: int | None) -> int:
-        retry_after_ceiling = 1 if retries is None else max(1, math.ceil(retries * 0.5))
-        jitter = math.ceil((1 + self.total_load) * (0.5 + random.random()))
-        return max(1, min(retry_after_ceiling, jitter))
+    pass
 
 
 type ProviderReservationResult = ProviderReservation | ProviderReservationRefused

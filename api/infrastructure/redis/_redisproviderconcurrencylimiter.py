@@ -35,8 +35,8 @@ logger = logging.getLogger(__name__)
 #   then two values per provider, in the same order as KEYS:
 #              its id, and its limit ("none" when it has no limit)
 #
-# Result: {"RESERVED", chosen provider id, total load}
-#      or {"REFUSED", 0, total load} when no provider can take the request.
+# Result: {"RESERVED", chosen provider id}
+#      or {"REFUSED"} when no provider can take the request.
 TRY_RESERVE_SCRIPT = """
 local request_id = ARGV[1]
 local strategy = ARGV[2]
@@ -49,7 +49,6 @@ local now_ms = time[1] * 1000 + math.floor(time[2] / 1000)
 
 -- 1. Read every provider and keep those that can take the request.
 local candidates = {}
-local total_load = 0
 local some_candidate_has_no_limit = false
 
 for i, key in ipairs(KEYS) do
@@ -63,7 +62,6 @@ for i, key in ipairs(KEYS) do
     -- Drop reservations whose worker stopped without releasing them, then count the rest.
     redis.call("ZREMRANGEBYSCORE", key, "-inf", now_ms)
     local load = redis.call("ZCARD", key)
-    total_load = total_load + load
 
     local accepts
     if limit == nil then
@@ -83,7 +81,7 @@ for i, key in ipairs(KEYS) do
 end
 
 if #candidates == 0 then
-    return {"REFUSED", 0, total_load}
+    return {"REFUSED"}
 end
 
 -- 2. Choose one candidate.
@@ -92,7 +90,7 @@ local chosen = candidates[1]
 -- Nothing to choose when a single provider can take the request.
 if #candidates == 1 then
     redis.call("ZADD", chosen.key, now_ms + reservation_ms, request_id)
-    return {"RESERVED", chosen.provider_id, total_load}
+    return {"RESERVED", chosen.provider_id}
 end
 
 if strategy == "shuffle" then
@@ -126,7 +124,7 @@ end
 
 -- 3. Reserve a place on the chosen provider.
 redis.call("ZADD", chosen.key, now_ms + reservation_ms, request_id)
-return {"RESERVED", chosen.provider_id, total_load}
+return {"RESERVED", chosen.provider_id}
 """
 
 
@@ -189,7 +187,7 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
         raw_result = await self._try_reserve(keys=keys, args=args, client=self.redis_client)
         status = raw_result[0].decode() if isinstance(raw_result[0], bytes) else raw_result[0]
         if status == "REFUSED":
-            return ProviderReservationRefused(total_load=int(raw_result[2]))
+            return ProviderReservationRefused()
 
         selected_provider_id = int(raw_result[1])
         provider = next(provider for provider in providers if provider.id == selected_provider_id)
