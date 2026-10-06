@@ -5,8 +5,7 @@ type user
 
 type platform
   relations
-    define superadmin: [user]
-    define admin: [user] or superadmin
+    define admin: [user]
 
     define can_create_organization: admin
 

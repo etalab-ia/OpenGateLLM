@@ -14,38 +14,17 @@
               }
             ]
           },
-          "can_create_organization": {},
-          "superadmin": {
-            "directly_related_user_types": [
-              {
-                "type": "user"
-              }
-            ]
-          }
+          "can_create_organization": {}
         }
       },
       "relations": {
         "admin": {
-          "union": {
-            "child": [
-              {
-                "this": {}
-              },
-              {
-                "computedUserset": {
-                  "relation": "superadmin"
-                }
-              }
-            ]
-          }
+          "this": {}
         },
         "can_create_organization": {
           "computedUserset": {
             "relation": "admin"
           }
-        },
-        "superadmin": {
-          "this": {}
         }
       },
       "type": "platform"
