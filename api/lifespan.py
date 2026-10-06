@@ -18,7 +18,7 @@ from api.infrastructure.configuration import Configuration, Tokenizer
 from api.infrastructure.configuration import Model as ModelConfiguration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.openfga import OpenFgaAuthorizationProvisioner
+from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaAuthorizationProvisioner, OpenFgaBootstrapAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -64,6 +64,7 @@ async def lifespan(app: FastAPI):
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
         if bootstrap_admin_user_id is not None:
+            await bootstrap_authorization(bootstrap_admin_user_id=bootstrap_admin_user_id)
             await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     global_context.langfuse = create_langfuse(configuration=configuration)
@@ -139,6 +140,13 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
             logger.info(f"user ID: {skipped.user_id}")
             logger.info(f"role ID: {skipped.role_id}")
             return skipped.user_id
+
+
+async def bootstrap_authorization(bootstrap_admin_user_id: int) -> None:
+    authorization = OpenFgaBootstrapAuthorization(openfga_client=OpenFgaAuthorizationClient(client=global_context.openfga_client))
+    await authorization.attach_bootstrap_admin_to_platform(user_id=bootstrap_admin_user_id)
+
+    logger.info(f"Bootstrap admin holds the platform admin relation (user ID: {bootstrap_admin_user_id}).")
 
 
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
