@@ -2,23 +2,23 @@ from unittest.mock import patch
 
 import pytest
 
-from api.domain.provider import ProviderAdmissionFull
+from api.domain.provider import ProviderReservationRefused
 from api.domain.provider.entities import ProviderEndpoint, ProviderRequest
 from api.tests.unit.use_case.factories import ProviderFactory
 
 
-class TestProviderAdmissionFull:
+class TestProviderReservationRefused:
     @pytest.mark.parametrize("retries", [None, 0])
     def test_should_return_one_second_when_retry_window_is_empty(self, retries):
-        assert ProviderAdmissionFull(depth=4).retry_after(retries=retries) == 1
+        assert ProviderReservationRefused(total_load=4).retry_after(retries=retries) == 1
 
-    def test_should_scale_retry_after_with_depth(self):
-        with patch("api.domain.provider._providerqos.random.random", return_value=0.5):
-            assert ProviderAdmissionFull(depth=2).retry_after(retries=10) == 3
+    def test_should_scale_retry_after_with_total_load(self):
+        with patch("api.domain.provider._providerconcurrencylimiter.random.random", return_value=0.5):
+            assert ProviderReservationRefused(total_load=2).retry_after(retries=10) == 3
 
     def test_should_clamp_retry_after_to_retry_window(self):
-        with patch("api.domain.provider._providerqos.random.random", return_value=0.99):
-            assert ProviderAdmissionFull(depth=100).retry_after(retries=4) == 2
+        with patch("api.domain.provider._providerconcurrencylimiter.random.random", return_value=0.99):
+            assert ProviderReservationRefused(total_load=100).retry_after(retries=4) == 2
 
 
 class TestProviderQoSLimit:

@@ -6,7 +6,7 @@ from unittest.mock import create_autospec
 import pytest
 
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -41,7 +41,7 @@ def use_case() -> CreateChatCompletionsUseCase:
         model_environmental_impacts_computer=impacts,
         model_tokenizer=tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
-        provider_qos=create_autospec(ProviderQoS, instance=True, spec_set=True),
+        provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
@@ -82,7 +82,7 @@ class TestUsageRecordedOnClientDisconnect:
         as soon as it suspends. Observed in production: without a guard, no usage row is written at all."""
 
         # Arrange
-        use_case.provider_qos.release.side_effect = asyncio.CancelledError()
+        use_case.provider_concurrency_limiter.release.side_effect = asyncio.CancelledError()
         response = _assemble(use_case, router, provider)
 
         async def slow_client(message: dict) -> None:

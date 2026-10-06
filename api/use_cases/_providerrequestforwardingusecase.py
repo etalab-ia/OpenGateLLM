@@ -8,7 +8,14 @@ from api.domain import ForwardablePayload
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderAdmissionFull, ProviderAdmissionResult, ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
+from api.domain.provider import (
+    ProviderClient,
+    ProviderConcurrencyLimiter,
+    ProviderRepository,
+    ProviderReservation,
+    ProviderReservationRefused,
+    ProviderReservationResult,
+)
 from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -71,7 +78,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
         provider_client: ProviderClient,
-        provider_qos: ProviderQoS,
+        provider_concurrency_limiter: ProviderConcurrencyLimiter,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
@@ -81,7 +88,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
         self.provider_client = provider_client
-        self.provider_qos = provider_qos
+        self.provider_concurrency_limiter = provider_concurrency_limiter
         self.provider_repository = provider_repository
 
         self.router_rate_limiter = router_rate_limiter
@@ -222,10 +229,10 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         match result:
             case ProviderReservation() as reservation:
                 provider = reservation.provider
-            case ProviderAdmissionFull() as admission_full:
+            case ProviderReservationRefused() as reservation_refused:
                 return NoAvailableProviderError(
                     router_id=router.id,
-                    retry_after=admission_full.retry_after(retries=router.qos_retries_before_reject),
+                    retry_after=reservation_refused.retry_after(retries=router.qos_retries_before_reject),
                 )
 
         try:
@@ -233,7 +240,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             result = await self.provider_client.forward(provider=provider, request=request)
             latency = self.usage_repository.compute_latency()
         finally:
-            await self.provider_qos.release(reservation=reservation)
+            await self.provider_concurrency_limiter.release(reservation=reservation)
 
         match result:
             case ProviderResponse() as provider_response:
@@ -264,11 +271,11 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         strategy: RouterLoadBalancingStrategy,
         retries_before_reject: int | None,
         request_id: str,
-    ) -> ProviderAdmissionResult:
+    ) -> ProviderReservationResult:
         remaining_retries = retries_before_reject or 0
 
         while True:
-            result = await self.provider_qos.reserve(
+            result = await self.provider_concurrency_limiter.reserve(
                 request_id=request_id,
                 providers=providers,
                 strategy=strategy,
@@ -277,9 +284,9 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             match result:
                 case ProviderReservation():
                     return result
-                case ProviderAdmissionFull() if remaining_retries == 0:
+                case ProviderReservationRefused() if remaining_retries == 0:
                     return result
-                case ProviderAdmissionFull():
+                case ProviderReservationRefused():
                     remaining_retries -= 1
                     await asyncio.sleep(self.RESERVATION_RETRY_DELAY_SECONDS)
 

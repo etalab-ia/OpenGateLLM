@@ -5,7 +5,12 @@ import logging
 from redis.asyncio import Redis as AsyncRedis
 from redis.exceptions import RedisError
 
-from api.domain.provider._providerqos import ProviderAdmissionFull, ProviderAdmissionResult, ProviderQoS, ProviderReservation
+from api.domain.provider._providerconcurrencylimiter import (
+    ProviderConcurrencyLimiter,
+    ProviderReservation,
+    ProviderReservationRefused,
+    ProviderReservationResult,
+)
 from api.domain.provider.entities import Provider
 from api.domain.router.entities import RouterLoadBalancingStrategy
 
@@ -21,7 +26,7 @@ logger = logging.getLogger(__name__)
 # a load between the moment it is counted and the moment the reservation is written.
 # That is what prevents two requests from taking the last free place together.
 #
-# Inputs, in the order built by RedisProviderQoS.reserve:
+# Inputs, in the order built by RedisProviderConcurrencyLimiter.reserve:
 #   KEYS[i]    sorted set of the i-th provider
 #   ARGV[1]    request id, written as the reservation entry
 #   ARGV[2]    "shuffle" or "least_busy"
@@ -30,9 +35,9 @@ logger = logging.getLogger(__name__)
 #   then two values per provider, in the same order as KEYS:
 #              its id, and its limit ("none" when it has no limit)
 #
-# Result: {"ADMITTED", chosen provider id, total load}
-#      or {"FULL", 0, total load} when no provider can take the request.
-TRY_ADMIT_SCRIPT = """
+# Result: {"RESERVED", chosen provider id, total load}
+#      or {"REFUSED", 0, total load} when no provider can take the request.
+TRY_RESERVE_SCRIPT = """
 local request_id = ARGV[1]
 local strategy = ARGV[2]
 local enforce_limit = ARGV[3] == "1"
@@ -78,7 +83,7 @@ for i, key in ipairs(KEYS) do
 end
 
 if #candidates == 0 then
-    return {"FULL", 0, total_load}
+    return {"REFUSED", 0, total_load}
 end
 
 -- 2. Choose one candidate.
@@ -87,7 +92,7 @@ local chosen = candidates[1]
 -- Nothing to choose when a single provider can take the request.
 if #candidates == 1 then
     redis.call("ZADD", chosen.key, now_ms + reservation_ms, request_id)
-    return {"ADMITTED", chosen.provider_id, total_load}
+    return {"RESERVED", chosen.provider_id, total_load}
 end
 
 if strategy == "shuffle" then
@@ -121,11 +126,11 @@ end
 
 -- 3. Reserve a place on the chosen provider.
 redis.call("ZADD", chosen.key, now_ms + reservation_ms, request_id)
-return {"ADMITTED", chosen.provider_id, total_load}
+return {"RESERVED", chosen.provider_id, total_load}
 """
 
 
-class RedisProviderQoS(ProviderQoS):
+class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
     LOAD_KEY_PREFIX = "ogl_qos:load"
     HEARTBEAT_INTERVAL_SECONDS = 10.0
     HEARTBEAT_TTL_MILLISECONDS = 30_000
@@ -134,7 +139,7 @@ class RedisProviderQoS(ProviderQoS):
 
     def __init__(self, redis_client: AsyncRedis):
         self.redis_client = redis_client
-        self._try_admit = redis_client.register_script(TRY_ADMIT_SCRIPT)
+        self._try_reserve = redis_client.register_script(TRY_RESERVE_SCRIPT)
         self._heartbeats: dict[str, asyncio.Task] = {}
 
     @classmethod
@@ -173,18 +178,18 @@ class RedisProviderQoS(ProviderQoS):
         providers: list[Provider],
         strategy: RouterLoadBalancingStrategy,
         enforce_limit: bool,
-    ) -> ProviderAdmissionResult:
-        # Layout documented above TRY_ADMIT_SCRIPT: four fixed values, then (id, limit) per provider.
+    ) -> ProviderReservationResult:
+        # Layout documented above TRY_RESERVE_SCRIPT: four fixed values, then (id, limit) per provider.
         keys = [self._load_key(provider.id) for provider in providers]
         args = [request_id, strategy.value, int(enforce_limit), self.HEARTBEAT_TTL_MILLISECONDS]
         for provider in providers:
             # Redis arguments are strings and cannot be empty, so "no limit" is sent as "none".
             args.extend([provider.id, "none" if provider.qos_limit is None else provider.qos_limit])
 
-        raw_result = await self._try_admit(keys=keys, args=args, client=self.redis_client)
+        raw_result = await self._try_reserve(keys=keys, args=args, client=self.redis_client)
         status = raw_result[0].decode() if isinstance(raw_result[0], bytes) else raw_result[0]
-        if status == "FULL":
-            return ProviderAdmissionFull(depth=int(raw_result[2]))
+        if status == "REFUSED":
+            return ProviderReservationRefused(total_load=int(raw_result[2]))
 
         selected_provider_id = int(raw_result[1])
         provider = next(provider for provider in providers if provider.id == selected_provider_id)

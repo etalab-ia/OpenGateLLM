@@ -12,7 +12,7 @@ from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, Mode
 from api.domain.organization import OrganizationRepository
 from api.domain.provider import (
     ProviderClient,
-    ProviderQoS,
+    ProviderConcurrencyLimiter,
     ProviderRepository,
 )
 from api.domain.role import LimitRepository, PermissionRepository
@@ -42,7 +42,7 @@ from api.infrastructure.postgres import (
     PostgresUsageRepository,
     PostgresUserRepository,
 )
-from api.infrastructure.redis import RedisProviderQoS, RedisRouterRateLimiter
+from api.infrastructure.redis import RedisProviderConcurrencyLimiter, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.use_cases.admin.keys import CreateKeyUseCase, DeleteKeyUseCase, GetKeysUseCase, GetOneKeyUseCase, UpdateKeyUseCase
 from api.use_cases.admin.organizations import (
@@ -135,8 +135,8 @@ def _provider_client(provider_adapter_builder: HttpProviderAdapterBuilder = Depe
     return HttpProviderClient(adapter_builder=provider_adapter_builder)
 
 
-def _provider_qos(redis_client: Redis = Depends(get_redis_client)) -> ProviderQoS:
-    return RedisProviderQoS(redis_client=redis_client)
+def _provider_concurrency_limiter(redis_client: Redis = Depends(get_redis_client)) -> ProviderConcurrencyLimiter:
+    return RedisProviderConcurrencyLimiter(redis_client=redis_client)
 
 
 def _provider_capabilities_probe(provider_client: ProviderClient = Depends(_provider_client)) -> ProviderCapabilitiesProbe:
@@ -220,7 +220,7 @@ def create_audio_transcriptions_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_qos=_provider_qos(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
@@ -244,7 +244,7 @@ def create_chat_completions_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_qos=_provider_qos(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
@@ -311,7 +311,7 @@ def create_embeddings_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_qos=_provider_qos(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
@@ -388,7 +388,7 @@ def create_ocr_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_qos=_provider_qos(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
@@ -453,7 +453,7 @@ def create_rerank_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_qos=_provider_qos(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),

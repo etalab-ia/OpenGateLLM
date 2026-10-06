@@ -6,7 +6,7 @@ from json import dumps
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
 from api.domain.model.errors import StatusCodeModelError
-from api.domain.provider import ProviderAdmissionFull, ProviderReservation
+from api.domain.provider import ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import NoAvailableProviderError
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
@@ -76,10 +76,10 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             match result:
                 case ProviderReservation() as reservation:
                     provider = reservation.provider
-                case ProviderAdmissionFull() as admission_full:
+                case ProviderReservationRefused() as reservation_refused:
                     error = NoAvailableProviderError(
                         router_id=router.id,
-                        retry_after=admission_full.retry_after(retries=router.qos_retries_before_reject),
+                        retry_after=reservation_refused.retry_after(retries=router.qos_retries_before_reject),
                     )
                     self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
                     self.usage_repository.end_record()
@@ -89,7 +89,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             try:
                 result = await self.provider_client.forward_stream(provider=provider, request=request)
             except BaseException:
-                await self.provider_qos.release(reservation=reservation)
+                await self.provider_concurrency_limiter.release(reservation=reservation)
                 raise
 
             match result:
@@ -98,7 +98,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case error:
                     self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
                     self.usage_repository.end_record()
-                    await self.provider_qos.release(reservation=reservation)
+                    await self.provider_concurrency_limiter.release(reservation=reservation)
                     return error
 
             # from here on the stream owns the reservation and releases it once consumed or closed
@@ -197,7 +197,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     first_token_at=first_token_at,
                 )
             self.usage_repository.end_record()
-            await self.provider_qos.release(reservation=reservation)
+            await self.provider_concurrency_limiter.release(reservation=reservation)
 
     def _build_usage_line(
         self,

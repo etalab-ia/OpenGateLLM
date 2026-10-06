@@ -8,7 +8,7 @@ import pytest
 from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
@@ -98,7 +98,7 @@ def use_case(mock_model_tokenizer, mock_usage_recorder, mock_trace_recorder) -> 
         model_environmental_impacts_computer=create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True),
         model_tokenizer=mock_model_tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
-        provider_qos=create_autospec(ProviderQoS, instance=True, spec_set=True),
+        provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
@@ -138,7 +138,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
         use_case._send_request = AsyncMock(return_value=ProviderResponse(data=sample_completion))
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
-        use_case.provider_qos.reserve.return_value = ProviderReservation(provider=provider, request_id=TRACE_ID)
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider, request_id=TRACE_ID)
         use_case.provider_client.forward_stream = AsyncMock(return_value=_chunk_stream())
 
     @pytest.mark.asyncio
@@ -177,18 +177,20 @@ class TestCreateChatCompletionsUseCaseExecute:
         assert forwarded_request.id == TRACE_ID
         use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
         use_case.usage_repository.end_record.assert_not_called()
-        use_case.provider_qos.release.assert_not_awaited()
+        use_case.provider_concurrency_limiter.release.assert_not_awaited()
 
         [chunk async for chunk in result.chunks]
-        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=TRACE_ID))
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=TRACE_ID)
+        )
 
     @pytest.mark.asyncio
     async def test_should_return_no_available_provider_when_the_stream_admission_is_full(self, use_case, make_command, router):
         # Arrange
-        use_case.provider_qos.reserve.return_value = ProviderAdmissionFull(depth=0)
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused(total_load=0)
 
         # Act
-        with patch.object(ProviderAdmissionFull, "retry_after", return_value=3):
+        with patch.object(ProviderReservationRefused, "retry_after", return_value=3):
             result = await use_case.execute(command=make_command(stream=True))
 
         # Assert
@@ -271,7 +273,9 @@ class TestCreateChatCompletionsUseCaseExecute:
 
         # Assert
         assert result is error
-        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=TRACE_ID))
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=TRACE_ID)
+        )
         use_case.usage_repository.fail_record.assert_called_once_with(message="ProviderAdapterValidationRequestError", status_code=503)
         use_case.usage_repository.end_record.assert_called_once()
 
@@ -285,7 +289,9 @@ class TestCreateChatCompletionsUseCaseExecute:
             await use_case.execute(command=make_command(stream=True))
 
         # Assert
-        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=TRACE_ID))
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=TRACE_ID)
+        )
 
 
 class TestCreateChatCompletionsUseCaseFormatStream:
@@ -518,7 +524,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         await stream.aclose()
 
         # Assert
-        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID)
+        )
         use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
@@ -534,4 +542,6 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
-        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID)
+        )
