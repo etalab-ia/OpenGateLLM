@@ -1,7 +1,7 @@
 """add_router_qos_fields
 
 Revision ID: c8fef686d652
-Revises: d1e2f3a4b5c6
+Revises: bf92da1a3246
 Create Date: 2026-09-25 18:51:51.609524
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'c8fef686d652'
-down_revision: Union[str, None] = 'd1e2f3a4b5c6'
+down_revision: Union[str, None] = 'bf92da1a3246'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
