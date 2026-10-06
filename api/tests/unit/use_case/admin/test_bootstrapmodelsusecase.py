@@ -1,10 +1,12 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 import pytest
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import ProviderCapabilities
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.tests.unit.use_case.factories import (
@@ -14,23 +16,24 @@ from api.tests.unit.use_case.factories import (
     RouterFactory,
 )
 from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
+from api.use_cases.services import ProviderCapabilitiesProbe
 
 BOOTSTRAP_ADMIN_USER_ID = 1
 
 
 @pytest.fixture
 def router_repository():
-    return AsyncMock()
+    return create_autospec(RouterRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
 def provider_repository():
-    return AsyncMock()
+    return create_autospec(ProviderRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
 def provider_capabilities_probe():
-    return AsyncMock()
+    return create_autospec(ProviderCapabilitiesProbe, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -103,6 +106,7 @@ class TestBootstrapModelsUseCase:
             provider_type=model_provider.type,
             url=model_provider.url,
             key=model_provider.key,
+            basic_auth=model_provider.basic_auth,
             timeout=model_provider.timeout,
             qos_limit=model_provider.qos_limit,
             model_name=model_provider.model_name,
