@@ -1,13 +1,12 @@
 import asyncio
 from collections.abc import AsyncGenerator
-from contextlib import AsyncExitStack
 import gc
 from unittest.mock import create_autospec
 
 import pytest
 
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -59,15 +58,14 @@ def _provider_stream() -> AsyncGenerator[ProviderChunkResponse]:
     return stream()
 
 
-def _assemble(use_case, router, provider, reservation=None) -> StreamingResponseWithStatusCode:
+def _assemble(use_case, router, provider) -> StreamingResponseWithStatusCode:
     """Stack the layers exactly as the chat endpoint does — `_as_stream_chunks` is the endpoint's own adapter."""
     return StreamingResponseWithStatusCode(
         content=_as_stream_chunks(
             use_case._format_stream(
                 authenticated_user=AuthenticatedUserFactory(),
                 router=router,
-                provider=provider,
-                reservation=reservation if reservation is not None else AsyncExitStack(),
+                reservation=ProviderReservation(provider=provider, request_id="req-123"),
                 chunks=_provider_stream(),
                 prompt_tokens=1,
                 request_id="req-123",
@@ -84,12 +82,8 @@ class TestUsageRecordedOnClientDisconnect:
         as soon as it suspends. Observed in production: without a guard, no usage row is written at all."""
 
         # Arrange
-        async def release_raises_cancel():
-            raise asyncio.CancelledError()
-
-        reservation = AsyncExitStack()
-        reservation.push_async_callback(release_raises_cancel)
-        response = _assemble(use_case, router, provider, reservation=reservation)
+        use_case.provider_qos.release.side_effect = asyncio.CancelledError()
+        response = _assemble(use_case, router, provider)
 
         async def slow_client(message: dict) -> None:
             await asyncio.sleep(1)

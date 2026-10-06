@@ -1,6 +1,4 @@
 import asyncio
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -10,7 +8,7 @@ from api.domain import ForwardablePayload
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider import ProviderAdmissionFull, ProviderAdmissionResult, ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -19,7 +17,7 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import Router, RouterRateLimitState, RouterType
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import Usage
@@ -66,6 +64,7 @@ type ProviderRequestForwardingUseCaseResult[TData] = ProviderRequestForwardingUs
 class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     ROUTER_TYPE: ClassVar[RouterType]
     ENDPOINT: ClassVar[ProviderEndpoint]
+    RESERVATION_RETRY_DELAY_SECONDS: ClassVar[float] = 0.5
 
     def __init__(
         self,
@@ -214,16 +213,27 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=payload)
 
-        async with self._admit_provider(router=router, providers=providers, request_id=request_id) as admission:
-            match admission:
-                case Provider() as provider:
-                    pass
-                case error:
-                    return error
+        result = await self._reserve_provider(
+            providers=providers,
+            strategy=router.load_balancing_strategy,
+            retries_before_reject=router.qos_retries_before_reject,
+            request_id=request_id,
+        )
+        match result:
+            case ProviderReservation() as reservation:
+                provider = reservation.provider
+            case ProviderAdmissionFull() as admission_full:
+                return NoAvailableProviderError(
+                    router_id=router.id,
+                    retry_after=admission_full.retry_after(retries=router.qos_retries_before_reject),
+                )
 
+        try:
             self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
             result = await self.provider_client.forward(provider=provider, request=request)
             latency = self.usage_repository.compute_latency()
+        finally:
+            await self.provider_qos.release(reservation=reservation)
 
         match result:
             case ProviderResponse() as provider_response:
@@ -248,32 +258,30 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return provider_response
 
-    @asynccontextmanager
-    async def _admit_provider(
+    async def _reserve_provider(
         self,
-        router: Router,
         providers: list[Provider],
+        strategy: RouterLoadBalancingStrategy,
+        retries_before_reject: int | None,
         request_id: str,
-    ) -> AsyncIterator[Provider | NoAvailableProviderError]:
-        retries = router.qos_retries_before_reject
-        attempts = 1 if retries is None else retries + 1
+    ) -> ProviderAdmissionResult:
+        remaining_retries = retries_before_reject or 0
 
-        for attempt in range(attempts):
-            async with self.provider_qos.admit(
+        while True:
+            result = await self.provider_qos.reserve(
                 request_id=request_id,
                 providers=providers,
-                strategy=router.load_balancing_strategy,
-                enforce_limit=retries is not None,
-            ) as admission:
-                match admission:
-                    case Provider() as provider:
-                        yield provider
-                        return
-                    case ProviderAdmissionFull() as admission_full if attempt == attempts - 1:
-                        yield NoAvailableProviderError(router_id=router.id, retry_after=admission_full.retry_after(retries=retries))
-                        return
-
-            await asyncio.sleep(0.5)
+                strategy=strategy,
+                enforce_limit=retries_before_reject is not None,
+            )
+            match result:
+                case ProviderReservation():
+                    return result
+                case ProviderAdmissionFull() if remaining_retries == 0:
+                    return result
+                case ProviderAdmissionFull():
+                    remaining_retries -= 1
+                    await asyncio.sleep(self.RESERVATION_RETRY_DELAY_SECONDS)
 
     def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: float) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(

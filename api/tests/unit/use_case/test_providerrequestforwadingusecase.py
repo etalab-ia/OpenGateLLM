@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, Mock, create_autospec, patch
 from uuid import uuid4
@@ -9,7 +8,7 @@ from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import Limit, LimitType
@@ -56,14 +55,6 @@ class ForwardingTestPreconditionError:
 class ForwardingTestUseCase(ProviderRequestForwardingUseCase[ForwardingTestCommand, ProviderRequestForwardingUseCaseResult[ForwardingTestData]]):
     ROUTER_TYPE = RouterType.TEXT_GENERATION
     ENDPOINT = ProviderEndpoint.CHAT_COMPLETIONS
-
-
-def admission(result):
-    @asynccontextmanager
-    async def context():
-        yield result
-
-    return context()
 
 
 @pytest.fixture
@@ -331,7 +322,7 @@ class TestSendRequest:
     @pytest.fixture(autouse=True)
     def configure_provider_flow(self, use_case, provider, sample_data):
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
-        use_case.provider_qos.admit.side_effect = lambda **_: admission(provider)
+        use_case.provider_qos.reserve.return_value = ProviderReservation(provider=provider, request_id=REQUEST_ID)
         use_case.provider_client.forward.return_value = ProviderResponse(id=sample_data.id, data=sample_data)
 
     @pytest.mark.asyncio
@@ -375,19 +366,8 @@ class TestSendRequest:
         use_case.usage_context.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_exit_admission_context_when_the_provider_call_raises(self, use_case, router, provider, payload):
+    async def test_should_release_the_reservation_when_the_provider_call_raises(self, use_case, router, provider, payload):
         # Arrange
-        exited = False
-
-        @asynccontextmanager
-        async def tracked_admission():
-            nonlocal exited
-            try:
-                yield provider
-            finally:
-                exited = True
-
-        use_case.provider_qos.admit.side_effect = lambda **_: tracked_admission()
         use_case.provider_client.forward.side_effect = TypeError("adapter blew up while converting the response")
 
         # Act
@@ -397,13 +377,13 @@ class TestSendRequest:
             )
 
         # Assert
-        assert exited is True
+        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
 
     @pytest.mark.asyncio
     async def test_should_return_no_available_provider_after_immediate_rejection(self, use_case, router, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 0
-        use_case.provider_qos.admit.side_effect = lambda **_: admission(ProviderAdmissionFull(depth=4))
+        use_case.provider_qos.reserve.return_value = ProviderAdmissionFull(depth=4)
 
         # Act
         with patch.object(ProviderAdmissionFull, "retry_after", return_value=7) as mock_retry_after:
@@ -424,8 +404,11 @@ class TestSendRequest:
     async def test_should_retry_full_admission_with_same_request_id_then_forward(self, use_case, router, provider, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 2
-        admissions = [ProviderAdmissionFull(depth=2), ProviderAdmissionFull(depth=1), provider]
-        use_case.provider_qos.admit.side_effect = lambda **_: admission(admissions.pop(0))
+        use_case.provider_qos.reserve.side_effect = [
+            ProviderAdmissionFull(depth=2),
+            ProviderAdmissionFull(depth=1),
+            ProviderReservation(provider=provider, request_id=REQUEST_ID),
+        ]
 
         # Act
         with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
@@ -435,10 +418,10 @@ class TestSendRequest:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert use_case.provider_qos.admit.call_count == 3
-        request_ids = {call.kwargs["request_id"] for call in use_case.provider_qos.admit.call_args_list}
+        assert use_case.provider_qos.reserve.await_count == 3
+        request_ids = {call.kwargs["request_id"] for call in use_case.provider_qos.reserve.await_args_list}
         assert len(request_ids) == 1
-        assert all(call.kwargs["enforce_limit"] is True for call in use_case.provider_qos.admit.call_args_list)
+        assert all(call.kwargs["enforce_limit"] is True for call in use_case.provider_qos.reserve.await_args_list)
         assert [entry.args for entry in mock_sleep.await_args_list] == [(0.5,), (0.5,)]
         assert use_case.provider_client.forward.await_args.kwargs["request"].id == request_ids.pop()
 
@@ -446,7 +429,7 @@ class TestSendRequest:
     async def test_should_return_no_available_provider_after_retries_exhausted(self, use_case, router, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 4
-        use_case.provider_qos.admit.side_effect = lambda **_: admission(ProviderAdmissionFull(depth=100))
+        use_case.provider_qos.reserve.return_value = ProviderAdmissionFull(depth=100)
 
         # Act
         with (
@@ -464,7 +447,7 @@ class TestSendRequest:
         # Assert
         assert result == NoAvailableProviderError(router_id=router.id, retry_after=2)
         mock_retry_after.assert_called_once_with(retries=4)
-        assert use_case.provider_qos.admit.call_count == 5
+        assert use_case.provider_qos.reserve.await_count == 5
 
     @pytest.mark.asyncio
     async def test_should_enrich_usage_when_formatted_response_has_data(
@@ -490,12 +473,13 @@ class TestSendRequest:
         )
         use_case.provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=router.id)
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
-        use_case.provider_qos.admit.assert_called_once_with(
+        use_case.provider_qos.reserve.assert_awaited_once_with(
             request_id=forwarded_request.id,
             enforce_limit=False,
             strategy=router.load_balancing_strategy,
             providers=[provider],
         )
+        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
         assert forwarded_request.id == REQUEST_ID
