@@ -37,7 +37,3 @@ class ProviderConcurrencyLimiter(ABC):
     @abstractmethod
     async def release(self, reservation: ProviderReservation) -> None:
         pass
-
-    @abstractmethod
-    async def get_loads(self, provider_ids: list[int]) -> dict[int, int]:
-        pass
