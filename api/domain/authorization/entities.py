@@ -14,7 +14,6 @@ class AuthorizationObjectType(StrEnum):
 
 
 class PlatformRelation(StrEnum):
-    SUPERADMIN = "superadmin"
     ADMIN = "admin"
     CAN_CREATE_ORGANIZATION = "can_create_organization"
 
