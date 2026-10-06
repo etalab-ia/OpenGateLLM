@@ -97,7 +97,7 @@ def use_case(model_tokenizer, mock_usage_context, mock_usage_repository) -> Crea
         model_environmental_impacts_computer=MagicMock(),
         model_tokenizer=model_tokenizer,
         provider_client=AsyncMock(),
-        provider_qos=AsyncMock(),
+        provider_concurrency_limiter=AsyncMock(),
         provider_repository=AsyncMock(),
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
