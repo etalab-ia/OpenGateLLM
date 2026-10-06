@@ -1,15 +1,14 @@
 from collections.abc import AsyncGenerator
-from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import UTC, datetime
 import json
-from unittest.mock import AsyncMock, Mock, create_autospec, patch
+from unittest.mock import AsyncMock, create_autospec, patch
 
 import pytest
 
 from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
@@ -112,24 +111,11 @@ async def _chunk_stream(*contents: str, status_code: int = 200) -> AsyncGenerato
         yield ProviderChunkResponse(content=content, status_code=status_code)
 
 
-def _admission(result, mock_release=None):
-    @asynccontextmanager
-    async def context():
-        try:
-            yield result
-        finally:
-            if mock_release is not None:
-                mock_release()
-
-    return context()
-
-
-def _forward_stream_to_client(use_case, router, provider, provider_chunks, estimated_prompt_tokens=1, reservation=None):
+def _forward_stream_to_client(use_case, router, provider, provider_chunks, estimated_prompt_tokens=1):
     return use_case._forward_stream_to_client(
         authenticated_user=AuthenticatedUserFactory(without_permission=True),
         router=router,
-        provider=provider,
-        reservation=reservation or AsyncExitStack(),
+        reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID),
         provider_chunks=provider_chunks,
         estimated_prompt_tokens=estimated_prompt_tokens,
         request_id=REQUEST_ID,
@@ -151,7 +137,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case._get_remaining_rate_limits = AsyncMock(return_value=RouterRateLimitState.unlimited())
         use_case._forward_request_to_provider = AsyncMock(return_value=ProviderResponse(data=sample_completion))
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
-        use_case.provider_qos.admit.side_effect = lambda **_: _admission(provider)
+        use_case.provider_qos.reserve.return_value = ProviderReservation(provider=provider, request_id=REQUEST_ID)
         use_case.provider_client.forward_stream = AsyncMock(return_value=_chunk_stream())
 
     @pytest.mark.asyncio
@@ -177,8 +163,6 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Arrange
         command = make_command(stream=True)
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
-        mock_release = Mock()
-        use_case.provider_qos.admit.side_effect = lambda **_: _admission(provider, mock_release)
 
         # Act
         result = await use_case.execute(command=command)
@@ -189,15 +173,15 @@ class TestCreateChatCompletionsUseCaseExecute:
         forwarded_request = use_case.provider_client.forward_stream.call_args.kwargs["request"]
         assert forwarded_request.id == REQUEST_ID
         use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
-        mock_release.assert_not_called()
+        use_case.provider_qos.release.assert_not_awaited()
 
         [chunk async for chunk in result.chunks]
-        mock_release.assert_called_once()
+        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
 
     @pytest.mark.asyncio
     async def test_should_return_no_available_provider_when_the_stream_admission_is_full(self, use_case, make_command, router):
         # Arrange
-        use_case.provider_qos.admit.side_effect = lambda **_: _admission(ProviderAdmissionFull(depth=0))
+        use_case.provider_qos.reserve.return_value = ProviderAdmissionFull(depth=0)
 
         # Act
         with patch.object(ProviderAdmissionFull, "retry_after", return_value=3):
@@ -270,15 +254,25 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Arrange: forward_stream answers with a typed error instead of a generator
         error = ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
         use_case.provider_client.forward_stream.return_value = error
-        mock_release = Mock()
-        use_case.provider_qos.admit.side_effect = lambda **_: _admission(provider, mock_release)
 
         # Act
         result = await use_case.execute(command=make_command(stream=True))
 
         # Assert
         assert result is error
-        mock_release.assert_called_once()
+        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
+
+    @pytest.mark.asyncio
+    async def test_should_release_the_reservation_when_opening_the_stream_raises(self, use_case, make_command, provider):
+        # Arrange
+        use_case.provider_client.forward_stream.side_effect = TypeError("adapter blew up while building the request")
+
+        # Act
+        with pytest.raises(TypeError):
+            await use_case.execute(command=make_command(stream=True))
+
+        # Assert
+        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
 
 
 class TestCreateChatCompletionsUseCaseFormatStream:
@@ -585,33 +579,27 @@ class TestCreateChatCompletionsUseCaseFormatStream:
     async def test_should_release_the_reservation_when_the_consumer_abandons_the_stream(self, use_case, router, provider):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
-        mock_release = Mock()
-        reservation = AsyncExitStack()
-        reservation.callback(mock_release)
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": []}', "data: [DONE]")
-        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1, reservation=reservation)
+        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
 
         # Act: read one chunk, then drop the generator without exhausting it
         await stream.__anext__()
         await stream.aclose()
 
         # Assert
-        mock_release.assert_called_once()
+        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))
 
     @pytest.mark.asyncio
     async def test_should_release_the_reservation_when_the_stream_completes(self, use_case, router, provider):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
-        mock_release = Mock()
-        reservation = AsyncExitStack()
-        reservation.callback(mock_release)
         chunks = _chunk_stream(
             'data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}',
             "data: [DONE]",
         )
 
         # Act
-        await self._collect(_forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1, reservation=reservation))
+        await self._collect(_forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1))
 
         # Assert
-        mock_release.assert_called_once()
+        use_case.provider_qos.release.assert_awaited_once_with(reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID))

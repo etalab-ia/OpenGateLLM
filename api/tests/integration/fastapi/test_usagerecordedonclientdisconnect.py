@@ -1,6 +1,5 @@
 import asyncio
 from collections.abc import AsyncGenerator
-from contextlib import AsyncExitStack
 from datetime import UTC, datetime
 from unittest.mock import create_autospec
 
@@ -8,7 +7,7 @@ import pytest
 
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -96,15 +95,14 @@ def _provider_stream() -> AsyncGenerator[ProviderChunkResponse]:
     return stream()
 
 
-def _streaming_app(use_case, router, provider, reservation: AsyncExitStack | None = None):
+def _streaming_app(use_case, router, provider):
     async def app(scope, receive, send) -> None:
         response = StreamingResponseWithStatusCode(
             content=_as_stream_chunks(
                 use_case._forward_stream_to_client(
                     authenticated_user=_authenticated_user(),
                     router=router,
-                    provider=provider,
-                    reservation=reservation or AsyncExitStack(),
+                    reservation=ProviderReservation(provider=provider, request_id="req-123"),
                     provider_chunks=_provider_stream(),
                     estimated_prompt_tokens=1,
                     request_id="req-123",
@@ -153,9 +151,8 @@ class TestUsageRecordedOnClientDisconnect:
     ):
         # Arrange
         request_context.set(RequestContext(id="req-123", user=_authenticated_user(), usage_recorder=usage_recorder))
-        reservation = AsyncExitStack()
-        reservation.push_async_callback(_raise_cancelled_error)
-        middleware = RequestLogMiddleware(_streaming_app(use_case, router, provider, reservation=reservation))
+        use_case.provider_qos.release.side_effect = asyncio.CancelledError()
+        middleware = RequestLogMiddleware(_streaming_app(use_case, router, provider))
 
         async def slow_client(message: dict) -> None:
             await asyncio.sleep(1)
@@ -171,7 +168,3 @@ class TestUsageRecordedOnClientDisconnect:
         # Assert
         [saved] = [call.kwargs["record"] for call in mock_usage_repository.save_record.call_args_list]
         assert saved.usage.completion_tokens == 1
-
-
-async def _raise_cancelled_error() -> None:
-    raise asyncio.CancelledError()

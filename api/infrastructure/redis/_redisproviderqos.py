@@ -1,11 +1,11 @@
 import asyncio
-from contextlib import asynccontextmanager, suppress
+from contextlib import suppress
 import logging
 
 from redis.asyncio import Redis as AsyncRedis
 from redis.exceptions import RedisError
 
-from api.domain.provider._providerqos import ProviderAdmissionFull, ProviderQoS
+from api.domain.provider._providerqos import ProviderAdmissionFull, ProviderAdmissionResult, ProviderQoS, ProviderReservation
 from api.domain.provider.entities import Provider
 from api.domain.router.entities import RouterLoadBalancingStrategy
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # a load between the moment it is counted and the moment the reservation is written.
 # That is what prevents two requests from taking the last free place together.
 #
-# Inputs, in the order built by RedisProviderQoS.admit:
+# Inputs, in the order built by RedisProviderQoS.reserve:
 #   KEYS[i]    sorted set of the i-th provider
 #   ARGV[1]    request id, written as the reservation entry
 #   ARGV[2]    "shuffle" or "least_busy"
@@ -135,6 +135,7 @@ class RedisProviderQoS(ProviderQoS):
     def __init__(self, redis_client: AsyncRedis):
         self.redis_client = redis_client
         self._try_admit = redis_client.register_script(TRY_ADMIT_SCRIPT)
+        self._heartbeats: dict[str, asyncio.Task] = {}
 
     @classmethod
     def _load_key(cls, provider_id: int) -> str:
@@ -166,20 +167,13 @@ class RedisProviderQoS(ProviderQoS):
                     logger.exception("Failed to remove request %s after its QoS heartbeat failed.", request_id)
                 return
 
-    async def _release(self, provider_id: int, request_id: str) -> None:
-        try:
-            await self.redis_client.zrem(self._load_key(provider_id), request_id)
-        except RedisError:
-            logger.exception("Failed to release provider QoS reservation for request %s.", request_id)
-
-    @asynccontextmanager
-    async def admit(
+    async def reserve(
         self,
         request_id: str,
         providers: list[Provider],
         strategy: RouterLoadBalancingStrategy,
         enforce_limit: bool,
-    ):
+    ) -> ProviderAdmissionResult:
         # Layout documented above TRY_ADMIT_SCRIPT: four fixed values, then (id, limit) per provider.
         keys = [self._load_key(provider.id) for provider in providers]
         args = [request_id, strategy.value, int(enforce_limit), self.HEARTBEAT_TTL_MILLISECONDS]
@@ -190,22 +184,29 @@ class RedisProviderQoS(ProviderQoS):
         raw_result = await self._try_admit(keys=keys, args=args, client=self.redis_client)
         status = raw_result[0].decode() if isinstance(raw_result[0], bytes) else raw_result[0]
         if status == "FULL":
-            yield ProviderAdmissionFull(depth=int(raw_result[2]))
-            return
+            return ProviderAdmissionFull(depth=int(raw_result[2]))
 
         selected_provider_id = int(raw_result[1])
         provider = next(provider for provider in providers if provider.id == selected_provider_id)
-        # create_task schedules the refresh loop immediately. yield then suspends this
-        # context until the caller leaves the async with, so the task runs for the
-        # whole provider call and is cancelled in the finally below.
-        heartbeat = asyncio.create_task(self._heartbeat(provider_id=provider.id, request_id=request_id), name=f"qos-heartbeat-{request_id}")
-        try:
-            yield provider
-        finally:
+        # The heartbeat keeps the reservation alive for as long as the provider call lasts, release() cancels it.
+        # @TODO: bound the heartbeat lifetime (e.g. to provider.timeout): a caller that never calls release() keeps the place held until the worker stops.
+        self._heartbeats[request_id] = asyncio.create_task(
+            self._heartbeat(provider_id=provider.id, request_id=request_id),
+            name=f"qos-heartbeat-{request_id}",
+        )
+        return ProviderReservation(provider=provider, request_id=request_id)
+
+    async def release(self, reservation: ProviderReservation) -> None:
+        heartbeat = self._heartbeats.pop(reservation.request_id, None)
+        if heartbeat is not None:
             heartbeat.cancel()
             with suppress(asyncio.CancelledError):
                 await heartbeat
-            await self._release(provider_id=provider.id, request_id=request_id)
+
+        try:
+            await self.redis_client.zrem(self._load_key(reservation.provider.id), reservation.request_id)
+        except RedisError:
+            logger.exception("Failed to release provider QoS reservation for request %s.", reservation.request_id)
 
     async def get_loads(self, provider_ids: list[int]) -> dict[int, int]:
         if not provider_ids:
