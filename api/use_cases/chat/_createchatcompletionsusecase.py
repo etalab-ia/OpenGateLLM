@@ -77,10 +77,10 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             match result:
                 case ProviderReservation() as reservation:
                     provider = reservation.provider
-                case ProviderReservationRefused() as reservation_refused:
+                case ProviderReservationRefused():
                     return NoAvailableProviderError(
                         router_id=router.id,
-                        retry_after=reservation_refused.retry_after(retries=router.qos_retries_before_reject),
+                        retry_after=self._compute_retry_after(retries_before_reject=router.qos_retries_before_reject),
                     )
 
             self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
