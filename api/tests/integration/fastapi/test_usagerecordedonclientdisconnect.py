@@ -168,3 +168,26 @@ class TestUsageRecordedOnClientDisconnect:
         # Assert
         [saved] = [call.kwargs["record"] for call in mock_usage_repository.save_record.call_args_list]
         assert saved.usage.completion_tokens == 1
+
+    async def test_should_release_the_reservation_when_the_client_disconnects_before_the_first_chunk(self, use_case, router, provider):
+        """Below ASGI 2.4, Starlette schedules stream_response in a task and listens for the disconnect in the current one.
+        A client already gone cancels the scope before that task has run, but anyio only cancels a task once it has started:
+        the chain is entered, so its finally blocks run and the reservation is released."""
+
+        # Arrange
+        app = _streaming_app(use_case, router, provider)
+        scope = {"type": "http", "asgi": {"spec_version": "2.0"}}
+
+        async def receive() -> dict:
+            return {"type": "http.disconnect"}
+
+        async def slow_send(message: dict) -> None:
+            await asyncio.sleep(1)
+
+        # Act
+        await app(scope, receive, slow_send)
+
+        # Assert
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
+            reservation=ProviderReservation(provider=provider, request_id="req-123")
+        )
