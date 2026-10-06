@@ -1,5 +1,7 @@
 import asyncio
 from dataclasses import dataclass
+import math
+import random
 from typing import ClassVar
 
 from pydantic import BaseModel
@@ -229,10 +231,10 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         match result:
             case ProviderReservation() as reservation:
                 provider = reservation.provider
-            case ProviderReservationRefused() as reservation_refused:
+            case ProviderReservationRefused():
                 return NoAvailableProviderError(
                     router_id=router.id,
-                    retry_after=reservation_refused.retry_after(retries=router.qos_retries_before_reject),
+                    retry_after=self._compute_retry_after(retries_before_reject=router.qos_retries_before_reject),
                 )
 
         try:
@@ -289,6 +291,11 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 case ProviderReservationRefused():
                     remaining_retries -= 1
                     await asyncio.sleep(self.RESERVATION_RETRY_DELAY_SECONDS)
+
+    @classmethod
+    def _compute_retry_after(cls, retries_before_reject: int | None) -> int:
+        retry_window = max(1, math.ceil((retries_before_reject or 0) * cls.RESERVATION_RETRY_DELAY_SECONDS))
+        return random.randint(retry_window, 2 * retry_window)
 
     def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: float) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(

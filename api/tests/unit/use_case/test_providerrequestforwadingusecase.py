@@ -385,21 +385,21 @@ class TestSendRequest:
     async def test_should_return_no_available_provider_after_immediate_rejection(self, use_case, router, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 0
-        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused(total_load=4)
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused()
 
         # Act
-        with patch.object(ProviderReservationRefused, "retry_after", return_value=7) as mock_retry_after:
-            result = await use_case._send_request(
-                authenticated_user=user_with_router_access,
-                router=router,
-                prompt_tokens=1,
-                payload=payload,
-                request_id=REQUEST_ID,
-            )
+        result = await use_case._send_request(
+            authenticated_user=user_with_router_access,
+            router=router,
+            prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
+        )
 
         # Assert
-        assert result == NoAvailableProviderError(router_id=router.id, retry_after=7)
-        mock_retry_after.assert_called_once_with(retries=0)
+        assert isinstance(result, NoAvailableProviderError)
+        assert result.router_id == router.id
+        assert 1 <= result.retry_after <= 2
         use_case.provider_client.forward.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -407,8 +407,8 @@ class TestSendRequest:
         # Arrange
         router.qos_retries_before_reject = 2
         use_case.provider_concurrency_limiter.reserve.side_effect = [
-            ProviderReservationRefused(total_load=2),
-            ProviderReservationRefused(total_load=1),
+            ProviderReservationRefused(),
+            ProviderReservationRefused(),
             ProviderReservation(provider=provider, request_id=REQUEST_ID),
         ]
 
@@ -431,13 +431,10 @@ class TestSendRequest:
     async def test_should_return_no_available_provider_after_retries_exhausted(self, use_case, router, payload, user_with_router_access):
         # Arrange
         router.qos_retries_before_reject = 4
-        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused(total_load=100)
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused()
 
         # Act
-        with (
-            patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock),
-            patch.object(ProviderReservationRefused, "retry_after", return_value=2) as mock_retry_after,
-        ):
+        with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock):
             result = await use_case._send_request(
                 authenticated_user=user_with_router_access,
                 router=router,
@@ -446,9 +443,10 @@ class TestSendRequest:
                 request_id=REQUEST_ID,
             )
 
-        # Assert
-        assert result == NoAvailableProviderError(router_id=router.id, retry_after=2)
-        mock_retry_after.assert_called_once_with(retries=4)
+        # Assert: 4 retries spaced by 0.5 s, so the client waits between 2 and 4 s
+        assert isinstance(result, NoAvailableProviderError)
+        assert result.router_id == router.id
+        assert 2 <= result.retry_after <= 4
         assert use_case.provider_concurrency_limiter.reserve.await_count == 5
 
     @pytest.mark.asyncio

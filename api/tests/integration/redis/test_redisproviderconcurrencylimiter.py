@@ -78,7 +78,7 @@ class TestRedisProviderConcurrencyLimiter:
         )
         await provider_concurrency_limiter.release(reservation=first)
 
-        assert second == ProviderReservationRefused(total_load=1)
+        assert second == ProviderReservationRefused()
 
     async def test_over_reserves_when_limit_is_not_enforced(self, provider_concurrency_limiter):
         candidate = provider(1, qos_limit=1)
@@ -113,7 +113,7 @@ class TestRedisProviderConcurrencyLimiter:
             enforce_limit=False,
         )
 
-        assert result == ProviderReservationRefused(total_load=0)
+        assert result == ProviderReservationRefused()
 
     async def test_least_busy_uses_raw_load_when_any_provider_is_uncapped(self, provider_concurrency_limiter, redis_client):
         capped = provider(2, qos_limit=20)

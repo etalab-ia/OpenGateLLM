@@ -187,14 +187,15 @@ class TestCreateChatCompletionsUseCaseExecute:
     @pytest.mark.asyncio
     async def test_should_return_no_available_provider_when_the_stream_admission_is_full(self, use_case, make_command, router):
         # Arrange
-        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused(total_load=0)
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused()
 
         # Act
-        with patch.object(ProviderReservationRefused, "retry_after", return_value=3):
-            result = await use_case.execute(command=make_command(stream=True))
+        result = await use_case.execute(command=make_command(stream=True))
 
         # Assert
-        assert result == NoAvailableProviderError(router_id=router.id, retry_after=3)
+        assert isinstance(result, NoAvailableProviderError)
+        assert result.router_id == router.id
+        assert 1 <= result.retry_after <= 2
         use_case.provider_client.forward_stream.assert_not_awaited()
         use_case.usage_repository.fail_record.assert_called_once_with(message="NoAvailableProviderError", status_code=503)
         use_case.usage_repository.end_record.assert_called_once()
