@@ -9,7 +9,7 @@ rm -rf "${PROMETHEUS_MULTIPROC_DIR:?}"/*
 python -m alembic -c api/alembic.ini upgrade head
 
 # OpenFGA
-python -m scripts.openfga_config
+python -m scripts.configure_fga_cli
 
 published_model=$(mktemp)
 local_model=$(mktemp)
