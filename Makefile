@@ -29,11 +29,7 @@ FGA_DIR := api/infrastructure/openfga
 fga-test:
 	@fga model test --tests api/tests/store.fga.yaml
 
-# model.json is what the API pushes at startup; model.fga is the reviewed source.
-# Regenerate after every change to model.fga, and commit both.
 fga-model:
 	@fga model validate --file $(FGA_DIR)/model.fga
-	@fga model transform --file $(FGA_DIR)/model.fga | python -m json.tool --indent 2 > $(FGA_DIR)/model.json
-	@echo "$(FGA_DIR)/model.json regenerated"
 
 .PHONY: help quickstart dev lint test-unit create-api-key semgrep fga-test fga-model
