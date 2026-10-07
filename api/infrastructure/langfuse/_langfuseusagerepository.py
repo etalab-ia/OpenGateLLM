@@ -2,13 +2,11 @@ import asyncio
 from datetime import UTC, date, datetime, timedelta
 import json
 import logging
-from uuid import uuid4
 
 from langfuse import Langfuse, propagate_attributes
 
-from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage import UsageRepository
-from api.domain.usage.entities import EnvironmentalImpacts, Usage, UsageBucket, UsageBucketPage
+from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket, UsageBucketPage, UsageRecord
 
 logger = logging.getLogger(__name__)
 
@@ -19,104 +17,71 @@ _KGCO2EQ_SCORE_COLUMN = "kgCO2eq"
 class LangfuseUsageRepository(UsageRepository):
     def __init__(self, client: Langfuse) -> None:
         self.client = client
-        self.start_time: datetime | None = None
         self._observation = None
-        self._metadata: dict = {}
 
-    def compute_latency(self, end_time: datetime | None = None) -> int:
-        if self.start_time is None:
-            return 0
-
-        return round(((end_time or datetime.now(tz=UTC)) - self.start_time).total_seconds() * 1000)
-
-    def start_record(
-        self,
-        endpoint: ProviderEndpoint,
-        model: str,
-        user_id: int,
-        router_id: int,
-        router_name: str,
-        user_email: str,
-        key_id: int,
-        key_name: str,
-    ) -> str:
-        self.start_time = datetime.now(tz=UTC)
-        self._metadata = {
-            "router_id": router_id,
-            "router_name": router_name,
-            "user_email": user_email,
-            "key_id": str(key_id),
-            "key_name": key_name,
-            "provider_id": None,
-            "provider_model_name": None,
-        }
+    def open_record(self, record: UsageRecord) -> None:
+        """The observation is an OpenTelemetry span: it has to be open while the provider is called, so it starts here
+        and is filled in by save_record. The router is not resolved yet, hence no model until then."""
         try:
-            with propagate_attributes(user_id=str(user_id), tags=[self._key_tag(key_id)]):
+            with propagate_attributes(user_id=str(record.user_id), tags=[self._key_tag(record.key_id)]):
                 self._observation = self.client.start_observation(
+                    # the id the API answers in X-Request-ID, so a client can point at its own trace
+                    trace_context={"trace_id": record.request_id},
                     as_type="generation",
-                    name=f"/v1{endpoint}",
-                    model=model,
-                    metadata=self._metadata,
-                    completion_start_time=self.start_time,
+                    name=record.endpoint,
+                    metadata=self._metadata(record),
                 )
-            return self._observation.trace_id
         except Exception:
             logger.exception("Failed to start Langfuse observation")
             self._observation = None
-            self._metadata = {}
-            return uuid4().hex
 
-    def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
-        if self._observation is None:
-            logger.warning("Cannot update Langfuse observation: no active observation (start_observation likely failed)")
-            return
-
-        try:
-            self._metadata["provider_model_name"] = provider_model_name
-            self._metadata["provider_id"] = provider_id
-            update = {
-                # Langfuse sums every "input*" key into inputTokens, so "input" must exclude the cached tokens.
-                "usage_details": {
-                    "input": usage.prompt_tokens - usage.prompt_tokens_details.cached_tokens,
-                    "output": usage.completion_tokens,
-                    "input_cached_tokens": usage.prompt_tokens_details.cached_tokens,
-                },
-                "cost_details": {"total": usage.cost},
-                "metadata": self._metadata,
-            }
-            if first_token_at is not None:
-                update["completion_start_time"] = first_token_at
-            self._observation.update(**update)
-            self._observation.score(name="kWh", value=usage.impacts.kWh, data_type="NUMERIC")
-            self._observation.score(name="kgCO2eq", value=usage.impacts.kgCO2eq, data_type="NUMERIC")
-        except Exception:
-            logger.exception("Failed to update Langfuse observation")
-
-    def fail_record(self, message: str, status_code: int) -> None:
-        if self._observation is None:
-            return
-
-        try:
-            self._observation.update(level="ERROR", status_message=message)
-        except Exception:
-            logger.exception("Failed to mark Langfuse observation as error")
-
-    def record_response_status(self, status_code: int) -> None:
-        # Langfuse carries the outcome on the observation itself, set by update_record and fail_record.
-        return
-
-    def end_record(self) -> None:
+    async def save_record(self, record: UsageRecord) -> None:
         if self._observation is None:
             logger.warning("Cannot end Langfuse observation: no active observation (start_observation likely failed)")
             return
 
         try:
+            self._observation.update(**self._build_update(record))
+            if (usage := record.usage) is not None:
+                self._observation.score(name=_KWH_SCORE_COLUMN, value=usage.impacts.kWh, data_type="NUMERIC")
+                self._observation.score(name=_KGCO2EQ_SCORE_COLUMN, value=usage.impacts.kgCO2eq, data_type="NUMERIC")
             self._observation.end()
-        except Exception:
-            logger.exception("Failed to end Langfuse observation")
         finally:
             self._observation = None
-            self._metadata = {}
+
+    def _build_update(self, record: UsageRecord) -> dict:
+        update: dict = {"model": record.router_name, "metadata": self._metadata(record)}
+
+        if record.status is None or record.status // 100 != 2:
+            # get_usage_buckets_page filters on level == DEFAULT, so a failed request must not count as consumption
+            update["level"] = "ERROR"
+            update["status_message"] = record.error
+        if record.ttft is not None:
+            update["completion_start_time"] = record.created + timedelta(milliseconds=record.ttft)
+        if (usage := record.usage) is not None:
+            update["usage_details"] = {
+                # Langfuse sums every "input*" key into inputTokens, so "input" must exclude the cached tokens.
+                "input": usage.prompt_tokens - usage.prompt_tokens_details.cached_tokens,
+                "output": usage.completion_tokens,
+                "input_cached_tokens": usage.prompt_tokens_details.cached_tokens,
+            }
+            update["cost_details"] = {"total": usage.cost}
+
+        return update
+
+    @staticmethod
+    def _metadata(record: UsageRecord) -> dict:
+        return {
+            "router_id": record.router_id,
+            "router_name": record.router_name,
+            "user_email": record.user_email,
+            "key_id": str(record.key_id),
+            "key_name": record.key_name,
+            "provider_id": record.provider_id,
+            "provider_model_name": record.provider_model_name,
+            "status": record.status,
+            "latency": record.latency,
+        }
 
     async def get_usage_buckets_page(
         self,
@@ -157,7 +122,7 @@ class LangfuseUsageRepository(UsageRepository):
     def _context_filters(cls, user_id: int, endpoint: str | None, key_id: int | None) -> list[dict]:
         """Filters valid on both the observations and scores-numeric views, so both queries aggregate the same requests.
 
-        The scores views cannot filter on metadata, so the key is matched through the trace tag set in start_record.
+        The scores views cannot filter on metadata, so the key is matched through the trace tag set in open_record.
         """
         filters: list[dict] = [{"column": "userId", "operator": "=", "value": str(user_id), "type": "string"}]
         if endpoint is not None:
@@ -200,7 +165,7 @@ class LangfuseUsageRepository(UsageRepository):
 
     @classmethod
     def _build_impacts_query(cls, context_filters: list[dict], start_time: datetime, end_time: datetime) -> dict:
-        # kWh/kgCO2eq are emitted as numeric scores in update_record (only on successful requests).
+        # kWh/kgCO2eq are emitted as numeric scores in save_record, and only when the provider answered.
         filters = [
             *context_filters,
             {"column": "name", "operator": "any of", "value": [_KWH_SCORE_COLUMN, _KGCO2EQ_SCORE_COLUMN], "type": "stringOptions"},

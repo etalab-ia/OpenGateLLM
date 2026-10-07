@@ -7,6 +7,7 @@ from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from prometheus_fastapi_instrumentator.metrics import Info
 from starlette.responses import Response
 
+from api.domain.usage.entities import UsageRecord
 from api.infrastructure.configuration import configuration
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import request_context
@@ -15,6 +16,13 @@ from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 
 def _build_metric_name(namespace: str, name: str) -> str:
     return f"{namespace}_{name}" if namespace else name
+
+
+def _usage_record() -> UsageRecord | None:
+    """Only the model-forward routes open a record, so every metric below is skipped on the others."""
+    recorder = request_context.get().usage_recorder
+
+    return recorder.record if recorder else None
 
 
 def inference_requests_total(metric_namespace: str = "") -> Callable[[Info], None]:
@@ -27,8 +35,8 @@ def inference_requests_total(metric_namespace: str = "") -> Callable[[Info], Non
 
     def instrumentation(info: Info) -> None:
         try:
-            context = request_context.get()
-            model = context.router_name
+            record = _usage_record()
+            model = record.router_name if record else None
             endpoint = info.modified_handler
             if model and endpoint:
                 metric.labels(endpoint=endpoint, model=model, status_code=info.modified_status).inc()
@@ -87,10 +95,10 @@ def inference_requests_duration_seconds(metric_namespace: str = "") -> Callable[
 
     def instrumentation(info: Info) -> None:
         try:
-            context = request_context.get()
-            model = context.router_name
+            record = _usage_record()
+            model = record.router_name if record else None
             endpoint = info.modified_handler
-            latency = context.latency
+            latency = record.latency if record else None
             if model and endpoint and latency is not None:
                 metric.labels(
                     endpoint=endpoint,
@@ -152,10 +160,10 @@ def inference_ttft_milliseconds(metric_namespace: str = "") -> Callable[[Info], 
 
     def instrumentation(info: Info) -> None:
         try:
-            context = request_context.get()
-            model = context.router_name
+            record = _usage_record()
+            model = record.router_name if record else None
             endpoint = info.modified_handler
-            ttft = context.ttft
+            ttft = record.ttft if record else None
             if model and endpoint and ttft is not None:
                 metric.labels(endpoint=endpoint, model=model, status_code=info.modified_status).observe(ttft)
         except Exception:
@@ -175,11 +183,11 @@ def inference_output_tokens_per_second(metric_namespace: str = "") -> Callable[[
 
     def instrumentation(info: Info) -> None:
         try:
-            context = request_context.get()
-            model = context.router_name
+            record = _usage_record()
+            model = record.router_name if record else None
             endpoint = info.modified_handler
-            usage = context.usage
-            latency = context.latency
+            usage = record.usage if record else None
+            latency = record.latency if record else None
             if model and endpoint and usage and latency and usage.completion_tokens:
                 metric.labels(endpoint=endpoint, model=model).observe(usage.completion_tokens / (latency / 1000))
         except Exception:
@@ -198,10 +206,10 @@ def inference_tokens_total(metric_namespace: str = "") -> Callable[[Info], None]
 
     def instrumentation(info: Info) -> None:
         try:
-            context = request_context.get()
-            model = context.router_name
+            record = _usage_record()
+            model = record.router_name if record else None
             endpoint = info.modified_handler
-            usage = context.usage
+            usage = record.usage if record else None
             if model and endpoint and usage is not None:
                 if usage.prompt_tokens:
                     metric.labels(endpoint=endpoint, model=model, type="prompt").inc(usage.prompt_tokens)

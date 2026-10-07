@@ -1,113 +1,52 @@
-from datetime import UTC, datetime, timedelta
-from http import HTTPStatus
-import logging
-from uuid import uuid4
+from datetime import datetime, timedelta
 
-from fastapi import BackgroundTasks
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from api.domain.provider.entities import ProviderEndpoint
 from api.domain.usage import UsageRepository
-from api.domain.usage.entities import EnvironmentalImpacts, Usage, UsageBucket, UsageBucketPage
+from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket, UsageBucketPage, UsageRecord
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.models import Usage as UsageTable
 
-logger = logging.getLogger(__name__)
-
 
 class PostgresUsageRepository(UsageRepository):
-    def __init__(self, postgres_session: AsyncSession, background_tasks: BackgroundTasks) -> None:
+    def __init__(self, postgres_session: AsyncSession, session_factory: async_sessionmaker) -> None:
         self.postgres_session = postgres_session
-        self.background_tasks = background_tasks
-        self._row: UsageTable | None = None
-        self._queued_row: UsageTable | None = None
-        self.start_time: datetime | None = None
+        # save_record runs on a task that outlives the request — a client disconnecting mid-stream must still be
+        # billed — so it cannot borrow the request's session, which FastAPI has already closed by then
+        self.session_factory = session_factory
 
-    def compute_latency(self, end_time: datetime | None = None) -> int:
-        if self.start_time is None:
-            return 0
-        if end_time is None:
-            end_time = datetime.now(tz=UTC)
+    def open_record(self, record: UsageRecord) -> None:
+        return
 
-        return round((end_time - self.start_time).total_seconds() * 1000)
-
-    def start_record(
-        self,
-        endpoint: ProviderEndpoint,
-        model: str,
-        user_id: int,
-        router_id: int,
-        router_name: str,
-        user_email: str,
-        key_id: int,
-        key_name: str,
-    ) -> str:
-        self.start_time = datetime.now(tz=UTC)
-        request_id = uuid4().hex
-        self._row = UsageTable(
-            created=self.start_time,
-            request_id=request_id,
-            endpoint=f"/v1{endpoint}",
-            user_id=user_id,
-            user_email=user_email,
-            token_id=key_id,
-            token_name=key_name,
-            router_id=router_id,
-            router_name=router_name,
+    async def save_record(self, record: UsageRecord) -> None:
+        row = UsageTable(
+            created=record.created,
+            request_id=record.request_id,
+            endpoint=record.endpoint,
+            user_id=record.user_id,
+            user_email=record.user_email,
+            token_id=record.key_id,
+            token_name=record.key_name,
+            router_id=record.router_id,
+            router_name=record.router_name,
+            provider_id=record.provider_id,
+            provider_model_name=record.provider_model_name,
+            status=record.status,
+            latency=record.latency,
+            ttft=record.ttft,
         )
-        return request_id
+        if (usage := record.usage) is not None:
+            row.prompt_tokens = usage.prompt_tokens
+            row.completion_tokens = usage.completion_tokens
+            row.total_tokens = usage.total_tokens
+            row.cost = usage.cost
+            row.kwh = usage.impacts.kWh
+            row.kgco2eq = usage.impacts.kgCO2eq
 
-    def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
-        if self._row is None or self.start_time is None:
-            return
-
-        self._row.provider_id = provider_id
-        self._row.provider_model_name = provider_model_name
-        self._row.prompt_tokens = usage.prompt_tokens
-        self._row.completion_tokens = usage.completion_tokens
-        self._row.total_tokens = usage.total_tokens
-        self._row.cost = usage.cost
-        self._row.kwh = usage.impacts.kWh
-        self._row.kgco2eq = usage.impacts.kgCO2eq
-        self._row.status = 200
-        self._row.latency = self.compute_latency()
-        if first_token_at is not None:
-            self._row.ttft = self.compute_latency(end_time=first_token_at)
-
-    def fail_record(self, message: str, status_code: int) -> None:
-        if self._row is None:
-            return
-        self._row.status = status_code
-
-    def record_response_status(self, status_code: int) -> None:
-        # end_record may already have queued the row (non-streamed request): it stays mutable until the task runs.
-        row = self._row or self._queued_row
-        if row is None:
-            return
-        row.status = status_code
-
-    def end_record(self) -> None:
-        row = self._row
-        if row is None:
-            return
-
-        if row.status is None:
-            row.status = HTTPStatus.INTERNAL_SERVER_ERROR
-        if row.latency is None:
-            row.latency = self.compute_latency()
-
-        self._row = None
-        self._queued_row = row
-        self.start_time = None
-        self.background_tasks.add_task(self._persist, row)
-
-    async def _persist(self, row: UsageTable) -> None:
-        try:
-            self.postgres_session.add(row)
-            await self.postgres_session.commit()
-        except Exception:
-            logger.exception("Failed to persist usage row.")
+        async with self.session_factory() as postgres_session:
+            postgres_session.add(row)
+            await postgres_session.commit()
 
     @staticmethod
     def _utc_day_start():

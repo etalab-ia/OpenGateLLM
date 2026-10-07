@@ -1,17 +1,26 @@
+import asyncio
 from datetime import UTC, datetime
 import json
 import logging
 from unittest.mock import ANY, create_autospec
 
-from fastapi import BackgroundTasks
 from fastapi.exceptions import RequestValidationError
 import pytest
+import pytest_asyncio
 from starlette.requests import Request
 
 from api.domain.key.entities import Key
 from api.domain.usage import UsageRepository
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, _requestlogmiddleware, record_http_exception, record_validation_exception
+from api.infrastructure.fastapi import (
+    RequestContext,
+    RequestLogMiddleware,
+    UsageRecorder,
+    _requestlogmiddleware,
+    record_http_exception,
+    record_validation_exception,
+)
+from api.infrastructure.fastapi._usagerecorder import _pending_saves
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.endpoints.exceptions import OrganizationAlreadyExistsHTTPException
 
@@ -47,13 +56,34 @@ def mock_logger(monkeypatch):
     return mock_logger
 
 
-@pytest.fixture(autouse=True)
-def authenticated_request_context():
+@pytest.fixture
+def mock_usage_repository():
+    return create_autospec(UsageRepository, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def usage_recorder(mock_usage_repository) -> UsageRecorder:
+    recorder = UsageRecorder.open(
+        usage_repository=mock_usage_repository,
+        request_id="3f2a",
+        endpoint="/v1/chat/completions",
+        user=None,
+        key=None,
+    )
+    recorder.record_router(router_id=1, router_name="my-router")
+
+    return recorder
+
+
+@pytest_asyncio.fixture(loop_scope="function", autouse=True)
+async def authenticated_request_context(usage_recorder):
     user = AuthenticatedUserView(id=42, email="alice@example.com", name="Alice", organization_id=1, permissions=[], limits=[], expires=None)
     key = Key(id=5, name="my-key", user_id=42, value="sk-...", expires=None, created=datetime.now(tz=UTC))
-    token = request_context.set(RequestContext(id="3f2a", user=user, key=key, router_name="my-router"))
+    token = request_context.set(RequestContext(id="3f2a", user=user, key=key, usage_recorder=usage_recorder))
     yield
     request_context.reset(token)
+    if _pending_saves:
+        await asyncio.gather(*tuple(_pending_saves))
 
 
 @pytest.fixture
@@ -192,48 +222,8 @@ async def test_should_report_the_unhandled_exception_to_sentry_as_a_crash(monkey
 
 
 @pytest.mark.asyncio
-async def test_should_carry_the_background_tasks_over_to_the_generic_500(mock_logger, send, sent_messages):
-    # Arrange: FastAPI only runs its queue on the handler's response, and the handler raised
-    executed = []
-    tasks = BackgroundTasks()
-    tasks.add_task(executed.append, "usage row")
-    request_context.get().background_tasks = tasks
-
-    async def failing_app(scope, receive, send):
-        raise RuntimeError("database is gone")
-
-    # Act
-    await RequestLogMiddleware(failing_app)(SCOPE, receive, send)
-
-    # Assert
-    assert sent_messages[0]["status"] == 500
-    assert executed == ["usage row"]
-
-
-@pytest.mark.asyncio
-async def test_should_carry_the_background_tasks_over_to_a_mapped_error():
-    # Arrange: ExceptionMiddleware builds the 409, so FastAPI attached the queue to nothing
-    executed = []
-    tasks = BackgroundTasks()
-    tasks.add_task(executed.append, "usage row")
-    context = request_context.get()
-    context.background_tasks = tasks
-    request = Request({"type": "http", "method": "POST", "path": "/v1/chat/completions", "headers": []})
-
-    # Act
-    response = await record_http_exception(request, OrganizationAlreadyExistsHTTPException("my-org"))
-
-    # Assert
-    assert response.status_code == 409
-    assert response.background is tasks
-
-
-@pytest.mark.asyncio
-async def test_should_stamp_the_answered_status_on_the_usage_row(mock_logger, send):
-    # Arrange: only the HTTP layer knows the status, so the middleware writes it when the response starts
-    mock_usage_repository = create_autospec(UsageRepository, instance=True, spec_set=True)
-    request_context.get().usage_repository = mock_usage_repository
-
+async def test_should_close_the_usage_record_on_the_status_the_api_answered(mock_logger, send, usage_recorder, mock_usage_repository):
+    # Arrange: only the HTTP layer knows the status, and the record must be saved once the body is out
     async def app(scope, receive, send):
         await send({"type": "http.response.start", "status": 201, "headers": []})
         await send({"type": "http.response.body", "body": b"{}"})
@@ -242,15 +232,15 @@ async def test_should_stamp_the_answered_status_on_the_usage_row(mock_logger, se
     await RequestLogMiddleware(app)(SCOPE, receive, send)
 
     # Assert
-    mock_usage_repository.record_response_status.assert_called_once_with(status_code=201)
+    assert usage_recorder.record.status == 201
+    assert usage_recorder.is_closed
+    await asyncio.gather(*tuple(_pending_saves))
+    mock_usage_repository.save_record.assert_awaited_once_with(usage_recorder.record)
 
 
 @pytest.mark.asyncio
-async def test_should_stamp_500_on_the_usage_row_when_the_app_raises(mock_logger, send):
-    # Arrange: the provider call may have succeeded and recorded 200 before the failure
-    mock_usage_repository = create_autospec(UsageRepository, instance=True, spec_set=True)
-    request_context.get().usage_repository = mock_usage_repository
-
+async def test_should_close_the_usage_record_on_the_generic_500_when_the_app_raises(mock_logger, send, usage_recorder):
+    # Arrange
     async def failing_app(scope, receive, send):
         raise RuntimeError("database is gone")
 
@@ -258,4 +248,22 @@ async def test_should_stamp_500_on_the_usage_row_when_the_app_raises(mock_logger
     await RequestLogMiddleware(failing_app)(SCOPE, receive, send)
 
     # Assert
-    mock_usage_repository.record_response_status.assert_called_once_with(status_code=500)
+    assert usage_recorder.record.status == 500
+    assert usage_recorder.record.error == "RuntimeError"
+
+
+@pytest.mark.asyncio
+async def test_should_close_the_usage_record_of_a_stream_the_client_abandoned(mock_logger, send, usage_recorder, mock_usage_repository):
+    # Arrange: Starlette cancels the request scope on a disconnect — the tokens already delivered must still be saved
+    async def disconnecting_app(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        raise asyncio.CancelledError()
+
+    # Act
+    with pytest.raises(asyncio.CancelledError):
+        await RequestLogMiddleware(disconnecting_app)(SCOPE, receive, send)
+
+    # Assert
+    assert usage_recorder.record.status == 200
+    await asyncio.gather(*tuple(_pending_saves))
+    mock_usage_repository.save_record.assert_awaited_once_with(usage_recorder.record)

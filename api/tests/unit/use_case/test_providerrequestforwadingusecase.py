@@ -7,20 +7,18 @@ import pytest
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
 from api.domain.provider.errors import (
-    NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
     ProviderAdapterValidationResponseError,
-    UnsupportedProviderEndpointError,
 )
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContext, UsageRepository
+from api.domain.usage import UsageContext
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
@@ -107,15 +105,10 @@ def router_repository():
 
 
 @pytest.fixture
-def usage_repository():
-    return create_autospec(UsageContext, instance=True, spec_set=True)
-
-
-@pytest.fixture
-def trace_recorder():
-    recorder = create_autospec(UsageRepository, instance=True, spec_set=True)
-    recorder.start_record.return_value = REQUEST_ID
-    return recorder
+def mock_usage_context():
+    usage_context = create_autospec(UsageContext, instance=True, spec_set=True)
+    usage_context.get_request_id.return_value = REQUEST_ID
+    return usage_context
 
 
 @pytest.fixture
@@ -173,8 +166,7 @@ def use_case(
     provider_repository,
     router_rate_limiter,
     router_repository,
-    usage_repository,
-    trace_recorder,
+    mock_usage_context,
 ) -> ForwardingTestUseCase:
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -185,8 +177,7 @@ def use_case(
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
-        usage_context=usage_repository,
-        usage_repository=trace_recorder,
+        usage_context=mock_usage_context,
     )
 
 
@@ -360,7 +351,6 @@ class TestSendRequest:
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
         use_case.usage_context.record_usage.assert_not_called()
-        use_case.usage_repository.update_record.assert_not_called()
         use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
 
     @pytest.mark.asyncio
@@ -419,7 +409,7 @@ class TestSendRequest:
         self, use_case, router, provider, sample_data, payload, model_tokenizer, model_environmental_impacts_computer, user_with_router_access
     ):
         # Arrange
-        use_case.usage_repository.compute_latency.return_value = 12000
+        use_case.usage_context.elapsed_ms.return_value = 12000
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
             # Act
             result = await use_case._send_request(
@@ -462,7 +452,6 @@ class TestSendRequest:
             cost_completion_tokens=router.cost_completion_tokens,
         )
         use_case.usage_context.record_usage.assert_called_once_with(
-            request_id=REQUEST_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -470,17 +459,7 @@ class TestSendRequest:
                 cost=0.03,
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
-        )
-        use_case.usage_repository.update_record.assert_called_once_with(
-            usage=Usage(
-                prompt_tokens=1,
-                completion_tokens=1,
-                total_tokens=2,
-                cost=0.03,
-                impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
-            ),
-            provider_id=provider.id,
-            provider_model_name=provider.model_name,
+            latency=12000,
         )
         use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
             user_id=user_with_router_access.id,
@@ -496,7 +475,7 @@ class TestSendRequest:
     ):
         # Arrange
         use_case.provider_client.forward.return_value = ProviderResponse(text="hello world")
-        use_case.usage_repository.compute_latency.return_value = 12000
+        use_case.usage_context.elapsed_ms.return_value = 12000
         # Act
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
             result = await use_case._send_request(
@@ -507,7 +486,6 @@ class TestSendRequest:
         assert isinstance(result, ProviderResponse)
         assert result.data is None
         use_case.usage_context.record_usage.assert_called_once_with(
-            request_id=REQUEST_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -515,6 +493,7 @@ class TestSendRequest:
                 cost=0.03,
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
+            latency=12000,
         )
 
     @pytest.mark.asyncio
@@ -555,8 +534,6 @@ class TestExecute:
         use_case.model_tokenizer.compute_tokens.assert_not_called()
         use_case._check_rate_limits.assert_not_awaited()
         use_case._send_request.assert_not_awaited()
-        use_case.usage_repository.start_record.assert_not_called()
-        use_case.usage_repository.end_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_resolve_router_error_without_checking_rate_limits_or_sending(self, use_case, command, admin_user):
@@ -603,18 +580,6 @@ class TestExecute:
         use_case._send_request.assert_awaited_once_with(
             authenticated_user=command.authenticated_user, router=router, prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID
         )
-        use_case.usage_repository.start_record.assert_called_once_with(
-            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
-            model=router.name,
-            user_id=command.authenticated_user.id,
-            router_id=router.id,
-            router_name=router.name,
-            user_email=command.authenticated_user.email,
-            key_id=command.authenticated_key.id,
-            key_name=command.authenticated_key.name,
-        )
-        use_case.usage_repository.fail_record.assert_called_once_with(message="TooBusyModelError", status_code=503)
-        use_case.usage_repository.end_record.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_success_with_formatted_data_and_rate_limit_headers(self, use_case, command, sample_data):
@@ -629,25 +594,3 @@ class TestExecute:
         assert isinstance(result, ProviderRequestForwardingUseCaseSuccess)
         assert result.data is sample_data
         assert result.headers == rate_limit_state.build_limit_headers
-        use_case.usage_repository.start_record.assert_called_once()
-        use_case.usage_repository.fail_record.assert_not_called()
-        use_case.usage_repository.end_record.assert_called_once()
-
-
-class TestFailureStatus:
-    """usage.status must match the status the endpoint answers, not a hardcoded 503."""
-
-    @pytest.mark.parametrize(
-        "error,expected_status",
-        [
-            (StatusCodeModelError(status_code=429, detail="provider throttled"), 429),
-            (ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=[]), 422),
-            (ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=[]), 422),
-            (UnknownModelError(status_code=500, detail="unknown"), 500),
-            (UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.CHAT_COMPLETIONS, provider_type=ProviderType.VLLM), 500),
-            (TooBusyModelError(status_code=503, detail="busy"), 503),
-            (NoAvailableProviderError(router_id=1), 503),
-        ],
-    )
-    def test_should_return_the_status_the_endpoint_answers(self, error, expected_status):
-        assert ProviderRequestForwardingUseCase._failure_status(error) == expected_status

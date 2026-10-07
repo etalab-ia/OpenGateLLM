@@ -1,46 +1,19 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from api.domain.usage.entities import Usage, UsageBucketPage
-from api.infrastructure.fastapi.routes import EndpointRoute
+from api.domain.usage.entities import UsageBucketPage, UsageRecord
 
 
 class UsageRepository(ABC):
     @abstractmethod
-    def start_record(
-        self,
-        endpoint: EndpointRoute,
-        model: str,
-        user_id: int,
-        router_id: int,
-        router_name: str,
-        user_email: str,
-        key_id: int,
-        key_name: str,
-    ) -> str:
-        """Start a record and return the request id."""
+    def open_record(self, record: UsageRecord) -> None:
+        """Called when the request arrives, before any use case runs. Postgres has nothing to do until the record is
+        complete; Langfuse opens the span the provider call will be measured in."""
         pass
 
     @abstractmethod
-    def compute_latency(self, end_time: datetime | None = None) -> int:
-        pass
-
-    @abstractmethod
-    def update_record(self, usage: Usage, provider_id: int, provider_model_name: str, first_token_at: datetime | None = None) -> None:
-        pass
-
-    @abstractmethod
-    def fail_record(self, message: str, status_code: int) -> None:
-        pass
-
-    @abstractmethod
-    def record_response_status(self, status_code: int) -> None:
-        """The status the API answered. Only the HTTP layer knows it: a use case returns a domain error, and the
-        endpoint decides what it becomes."""
-        pass
-
-    @abstractmethod
-    def end_record(self) -> None:
+    async def save_record(self, record: UsageRecord) -> None:
+        """Called once the response has been sent, so `status` and `latency` are final."""
         pass
 
     @abstractmethod

@@ -39,6 +39,28 @@ class Usage(BaseModel):
         return round(number=prompt_tokens_cost + completion_tokens_cost, ndigits=6)
 
 
+class UsageRecord(BaseModel):
+    """What one forwarded request consumed. Opened by the HTTP layer when the request arrives, enriched by the use
+    case as it resolves the router and calls the provider, then persisted once the response has been sent."""
+
+    request_id: str
+    endpoint: str
+    created: UtcDatetime
+    user_id: int | None = None
+    user_email: str | None = None
+    key_id: int | None = None
+    key_name: str | None = None
+    router_id: int | None = None
+    router_name: str | None = None
+    provider_id: int | None = None
+    provider_model_name: str | None = None
+    usage: Usage | None = None
+    status: int | None = None
+    error: str | None = None
+    latency: int | None = None
+    ttft: int | None = None
+
+
 class UsageBucket(BaseModel):
     start_time: UtcDatetime
     end_time: UtcDatetime

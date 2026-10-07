@@ -116,11 +116,11 @@ Three enums address the API surface, and they are **not the same concept**:
 |------|----------|-------|---------|
 | `RouterName` | `api/infrastructure/fastapi/routes.py` | the 14 routers + their `module_path` | `_register_routers`, `disabled_routers` / `hidden_routers`, `tags=[...]` |
 | `EndpointRoute` | `api/infrastructure/fastapi/routes.py` | the 22 mount paths | `@router.<verb>(path=...)` only |
-| `ProviderEndpoint` | `api/domain/provider/entities.py` | the 7 **capabilities** a provider request targets | `ProviderRequest.endpoint`, `UnsupportedProviderEndpointError`, `UsageRecorder.start_record`, `HttpProviderAdapter.SOURCE_ENDPOINT`, `ADAPTER_REGISTRY`, the use cases' `ENDPOINT` |
+| `ProviderEndpoint` | `api/domain/provider/entities.py` | the 7 **capabilities** a provider request targets | `ProviderRequest.endpoint`, `UnsupportedProviderEndpointError`, `HttpProviderAdapter.SOURCE_ENDPOINT`, `ADAPTER_REGISTRY`, the use cases' `ENDPOINT` |
 
 A new route needs an `EndpointRoute` member. A new **model-forward** capability also needs a `ProviderEndpoint` member — they are declared separately on purpose.
 
-Their 7 common members carry the **same string** today, and that is a contract, not a coincidence: `PostgresUsageRecorder` persists `f"/v1{endpoint}"` in `usage.endpoint` (a plain `str` column) and `EndpointUsage` exposes those values through the public `GET /v1/usage` filter. Changing a `ProviderEndpoint` value means a data migration on `usage` **and** a breaking API change.
+Their 7 common members carry the **same string** today, and that is a contract, not a coincidence: `usage.endpoint` (a plain `str` column) holds the matched route — `/v1` + the `EndpointRoute` value — and `EndpointUsage` exposes those values through the public `GET /v1/usage` filter, while `LangfuseUsageRepository` filters its traces on `f"/v1{ProviderEndpoint}"`. Changing either value means a data migration on `usage` **and** a breaking API change.
 
 Do not merge them back, and do not reintroduce `f"/{RouterName.X}/..."` inside `EndpointRoute`: the first would make the domain import `api/infrastructure/fastapi/`, the second would let a router rename silently move a public API path.
 
@@ -452,27 +452,37 @@ Rules:
 | first — nothing written yet | the raw content, unframed | `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, so this one becomes the body the client parses; framing it would corrupt it |
 | after the first byte | `event: error\ndata: <content>\n\n` | the status is already fixed and the client is reading an event stream, so the failure can only reach it as an event — same shape the class emits when it catches an exception mid-stream |
 - A non-2xx chunk ends the stream immediately and is forwarded as-is. Record the usage first when chunks were already delivered: the client received those tokens, and nothing downstream will bill them. A stream that fails before delivering anything records none, like a failed non-streamed forward.
-- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage`, `usage_repository.update_record` and `_charge_rate_limits` there — that is the only point where a stream's usage is known.
-- `usage_repository.end_record()` runs in the stream generator's `finally`, so a client disconnect still closes the record. `PostgresUsageRecorder` schedules the `usage` row on FastAPI `BackgroundTasks` from that call.
-- **The chain closes top-down, and the order is load-bearing.** A client that disconnects leaves every generator parked on its `yield`; `async for` does not close the iterator it consumes, so each level closes the next explicitly: `stream_response`'s `finally` closes its body iterator, `_as_stream_chunks` holds the use case's stream in `aclosing`, and the use case holds the provider's stream in `aclosing`. The use case's `finally` therefore runs inside the request task, where the `ContextVar` is still the request's, and records the tokens already delivered before `end_record`. Never let a finalizer do this work: the GC schedules it as a task, and a task copies whatever context is current at creation.
-- **A `CancelledError` escaping the cleanup is expected, not a bug.** Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises as soon as it suspends — measured: the `DECR` still reaches Redis (the command is written before the cancellation lands on the reply), the usage row is still written, and the provider connection is still closed. Do not "fix" it by detaching that call: it would touch all five forwarding use cases to chase a leak that does not exist.
-- **The usage row is written whatever the cleanup does.** Draining the chain happens under a cancelled scope, so the first `await` that suspends raises. `_format_stream`'s `finally` records the delivered tokens and calls `end_record` without awaiting anything, so both complete before the `_inflight` exit reaches Redis. Keep it that way: an `await` placed before `end_record` would lose the row on every disconnect.
+- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage` and `_charge_rate_limits` there — that is the only point where a stream's usage is known. It does **not** close the usage record; `RequestLogMiddleware` does, after the body (see [Usage recording](#usage-recording)).
+- **The chain closes top-down, and the order is load-bearing.** A client that disconnects leaves every generator parked on its `yield`; `async for` does not close the iterator it consumes, so each level closes the next explicitly: `stream_response`'s `finally` closes `_as_stream_chunks`, which holds its own stream in `aclosing`, which closes the use case's generator, whose `finally` records the tokens already delivered. All of it runs inside the request task, where the `ContextVar` is still the request's; the middleware's `finally` then closes the record and schedules its write. Never let a finalizer do this work: the GC schedules it as a task, and a task copies whatever context is current at creation.
+- **A `CancelledError` escaping the cleanup is expected, not a bug.** Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises as soon as it suspends — measured: the `DECR` still reaches Redis (the command is written before the cancellation lands on the reply) and the provider connection is still closed. Do not "fix" it by detaching that call: it would touch all five forwarding use cases to chase a leak that does not exist.
+- **The usage record survives the disconnect** because the middleware's `finally` schedules its write on an `asyncio` task rather than on FastAPI `BackgroundTasks`, which the cancelled response never reaches. `api/tests/integration/fastapi/test_usagerecordedonclientdisconnect.py` pins the whole chain.
 - Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommitsession.py`.
 
 ### Usage recording
 
-Model-forward use cases call `UsageRecorder` (`start_record` / `update_record` / `fail_record` / `end_record`). `_usage_recorder` in `api/dependencies.py` picks the adapter:
+A model-forward request's usage is a record the **HTTP layer owns**. `_usage_recorder` (`api/dependencies.py`) opens a `UsageRecorder` (`api/infrastructure/fastapi/_usagerecorder.py`) when the request arrives and publishes it on `RequestContext`; `RequestLogMiddleware` closes it in its `finally`, once the response has been sent. A use case never opens, closes or saves a record: it is injected the recorder under the narrower `UsageContext` port and records only what it alone knows.
 
-| When | Adapter |
-|------|---------|
-| `dependencies.langfuse` is configured | `LangfuseUsageRecorder` |
-| otherwise (default) | `PostgresUsageRecorder` — writes the `usage` table via FastAPI `BackgroundTasks` after `end_record` |
+| Port | Called by | Methods |
+|------|-----------|---------|
+| `UsageContext` | the use case | `get_request_id`, `elapsed_ms`, `record_router`, `record_provider`, `record_usage` |
+| `UsageRepository` | `UsageRecorder` only | `open_record`, `save_record` (plus `get_usage_buckets_page`, the unrelated read of `GET /v1/usage`) |
+
+- The **request id comes from the HTTP layer**: the `X-Request-ID` header, the request log line, `usage.request_id`, the provider request and the ids of the streamed chunks all carry the same `RequestContext.id`.
+- `usage.status` is the status the API **answered**, taken from the ASGI `http.response.start` the middleware saw. A use case returns a domain error and the endpoint decides what it becomes, so the use case never guesses a status — do not reintroduce a `fail_record`. `UsageRecord.error` carries the name of the exception the answer was mapped from.
+- `latency` is set by `record_usage` when the provider was reached, and by `close` otherwise: how long a request took to fail is what an incident needs.
+- The write runs on an `asyncio` task, **not** on FastAPI `BackgroundTasks` — those run inside the response, which a client disconnecting mid-stream never reaches, and the tokens it already received still have to be billed.
+- Because that task outlives the request, `PostgresUsageRepository.save_record` opens a session from an `async_sessionmaker` instead of borrowing the request's, which FastAPI has closed by then. Integration tests bind the session factories to the test session (`CurrentDbSessionFactory`, `api/tests/integration/conftest.py`).
+
+| When | `UsageRepository` adapter |
+|------|---------------------------|
+| `dependencies.langfuse` is configured | `LangfuseUsageRepository` — `open_record` starts the observation, since an OTel span must be open while the provider is called; `save_record` fills it in and ends it |
+| otherwise (default) | `PostgresUsageRepository` — `save_record` inserts the `usage` row |
 
 ### Rate-limit charging
 
-Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `usage_recorder.update_record`: in `_send_request`, and in chat's `_record_stream_usage` for streams. Only successful requests are charged (never a 429); admins are skipped.
+Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `usage_context.record_usage`: in `_send_request`, and in chat's `_record_stream_usage` for streams. Only successful requests are charged (never a 429); admins are skipped.
 
-`RedisRouterRateLimiter.update_rate_limit_state` queues the Redis write on FastAPI `BackgroundTasks`, like `PostgresUsageRecorder`. FastAPI drops those tasks when the endpoint raises an `HTTPException`: anything queued on a failed request never runs.
+`RedisRouterRateLimiter.update_rate_limit_state` queues the Redis write on FastAPI `BackgroundTasks`. FastAPI drops those tasks when the endpoint raises an `HTTPException`: anything queued on a failed request never runs. That is why the usage record is not written that way.
 
 ---
 
