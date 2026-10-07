@@ -6,7 +6,7 @@ mkdir -p "$PROMETHEUS_MULTIPROC_DIR"
 rm -rf "${PROMETHEUS_MULTIPROC_DIR:?}"/*
 
 # OpenFGA
-python -m scripts.openfga_config
+python -m scripts.configure_fga_cli
 
 published_model=$(mktemp)
 local_model=$(mktemp)
