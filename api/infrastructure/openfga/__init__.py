@@ -1,13 +1,11 @@
 from api.infrastructure.openfga._openfgaauthorizationclient import OpenFgaAuthorizationClient
-from api.infrastructure.openfga._openfgaauthorizationprovisioner import (
-    AuthorizationModelNotProvisionedError,
-    OpenFgaAuthorizationProvisioner,
-)
 from api.infrastructure.openfga._openfgabootstrapauthorization import OpenFgaBootstrapAuthorization
+from api.infrastructure.openfga._store import (
+    resolve_store_id,
+)
 
 __all__ = [
-    "AuthorizationModelNotProvisionedError",
     "OpenFgaAuthorizationClient",
-    "OpenFgaAuthorizationProvisioner",
     "OpenFgaBootstrapAuthorization",
+    "resolve_store_id",
 ]
