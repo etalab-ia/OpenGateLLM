@@ -50,8 +50,6 @@ class RequestLogMiddleware:
         finally:
             context = request_context.get()
             if context.usage_recorder is not None:
-                # the response is fully sent by now — streamed or not — so this is the first moment the answered status
-                # and the real duration are both known, and the last one where the request's context still applies
                 context.usage_recorder.close(status_code=status_code, error=context.error)
 
             duration_ms = round((perf_counter() - started_at) * 1000, 1)

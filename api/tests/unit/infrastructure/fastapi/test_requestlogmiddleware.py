@@ -223,7 +223,7 @@ async def test_should_report_the_unhandled_exception_to_sentry_as_a_crash(monkey
 
 @pytest.mark.asyncio
 async def test_should_close_the_usage_record_on_the_status_the_api_answered(mock_logger, send, usage_recorder, mock_usage_repository):
-    # Arrange: only the HTTP layer knows the status, and the record must be saved once the body is out
+    # Arrange
     async def app(scope, receive, send):
         await send({"type": "http.response.start", "status": 201, "headers": []})
         await send({"type": "http.response.body", "body": b"{}"})
@@ -254,7 +254,7 @@ async def test_should_close_the_usage_record_on_the_generic_500_when_the_app_rai
 
 @pytest.mark.asyncio
 async def test_should_close_the_usage_record_of_a_stream_the_client_abandoned(mock_logger, send, usage_recorder, mock_usage_repository):
-    # Arrange: Starlette cancels the request scope on a disconnect — the tokens already delivered must still be saved
+    # Arrange
     async def disconnecting_app(scope, receive, send):
         await send({"type": "http.response.start", "status": 200, "headers": []})
         raise asyncio.CancelledError()

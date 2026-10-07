@@ -23,8 +23,6 @@ from api.use_cases.chat import CreateChatCompletionsUseCase
 
 DATA_LINE = 'data: {"id": "chat-1", "object": "chat.completion.chunk", "created": 1, "model": "provider-internal", "choices": [{"index": 0, "delta": {"content": "Hello"}}]}'  # noqa: E501
 USER_ID = 42
-# spec_version 2.3 is what uvicorn advertises, and it is what makes StreamingResponse watch for the disconnect in a
-# task group of its own — the shape the cancellation actually travels through in production
 SCOPE = {
     "type": "http",
     "asgi": {"version": "3.0", "spec_version": "2.3"},
@@ -94,8 +92,6 @@ def _provider_stream() -> AsyncGenerator[ProviderChunkResponse]:
 
 
 def _streaming_app(use_case, router, provider):
-    """The layers production stacks: the endpoint's own SSE adapter over the use case's stream."""
-
     async def app(scope, receive, send) -> None:
         response = StreamingResponseWithStatusCode(
             content=_as_stream_chunks(
@@ -116,7 +112,6 @@ def _streaming_app(use_case, router, provider):
 
 
 async def _receive() -> dict:
-    # a real server blocks here until the client says something; returning at once would starve the event loop
     await asyncio.Event().wait()
     raise AssertionError("unreachable")
 
@@ -124,8 +119,6 @@ async def _receive() -> dict:
 @pytest.mark.asyncio(loop_scope="function")
 class TestUsageRecordedOnClientDisconnect:
     async def test_should_save_the_usage_record_when_the_client_disconnects(self, use_case, usage_recorder, mock_usage_repository, router, provider):
-        """Starlette cancels the request scope on a disconnect. The chain closes top-down inside the request task, so
-        the tokens already delivered are on the record by the time RequestLogMiddleware closes it."""
         # Arrange: a slow client, so the chain sits parked on its yields when the disconnect lands
         request_context.set(RequestContext(id="req-123", user=_authenticated_user(), usage_recorder=usage_recorder))
         middleware = RequestLogMiddleware(_streaming_app(use_case, router, provider))
@@ -150,8 +143,6 @@ class TestUsageRecordedOnClientDisconnect:
     async def test_should_save_the_usage_record_when_releasing_the_provider_fails(
         self, use_case, usage_recorder, mock_usage_repository, router, provider
     ):
-        """The Redis call releasing the inflight counter raises as soon as it suspends under a cancelled scope.
-        Observed in production: without a guard, no usage row is written at all."""
         # Arrange
         request_context.set(RequestContext(id="req-123", user=_authenticated_user(), usage_recorder=usage_recorder))
         use_case.provider_metrics_logger.increment_inflight.return_value = True

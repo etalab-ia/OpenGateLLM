@@ -149,9 +149,6 @@ def pytest_addoption(parser):
 
 
 class CurrentDbSessionFactory:
-    """Stands in for an `async_sessionmaker`: the adapters that open their own session — the deferred usage write —
-    must land in the test's savepoint, not in a session of their own that cannot see what the test seeded."""
-
     def __call__(self) -> "CurrentDbSessionFactory":
         return self
 
@@ -187,8 +184,6 @@ async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSessi
             try:
                 yield session
             finally:
-                # the usage record is written on a task of its own, after the response: let it land while the session
-                # it borrows is still open, or it fails against a closed one and poisons the next test's connection
                 if _pending_saves:
                     await asyncio.gather(*tuple(_pending_saves), return_exceptions=True)
                 _current_db_session.reset(token)

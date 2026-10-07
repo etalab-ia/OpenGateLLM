@@ -116,7 +116,7 @@ class TestSaveRecord:
         assert await _persisted_rows(db_session) == []
 
     async def test_persists_a_stream_that_answered_200_then_broke(self, repository, db_session):
-        # Arrange: the status is fixed by the first chunk, and the tokens already delivered must be counted
+        # Arrange
         key, provider = await _seed(db_session)
         record = _record(key, provider, status=200, error="ProviderNotReachableError")
 
@@ -128,7 +128,7 @@ class TestSaveRecord:
         assert (row.status, row.completion_tokens) == (200, 5)
 
     async def test_persists_nothing_when_the_record_is_only_opened(self, repository, db_session):
-        # Arrange: Postgres has nothing to write until the record is complete
+        # Arrange
         key, provider = await _seed(db_session)
 
         # Act
@@ -138,7 +138,7 @@ class TestSaveRecord:
         assert await _persisted_rows(db_session) == []
 
     async def test_raises_when_the_row_breaks_a_foreign_key(self, repository, db_session):
-        # Arrange: the caller logs it — the adapter must not swallow an unknown integrity failure
+        # Arrange
         key, provider = await _seed(db_session)
 
         # Act / Assert

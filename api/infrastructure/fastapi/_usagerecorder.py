@@ -9,15 +9,10 @@ from api.domain.user.views import AuthenticatedUserView
 
 logger = logging.getLogger(__name__)
 
-# asyncio only holds a weak reference to a running task, so an unreferenced one may be collected mid-flight
 _pending_saves: set[asyncio.Task] = set()
 
 
 class UsageRecorder(UsageContext):
-    """One request's usage record. The HTTP layer opens it before the use case runs and closes it once the response
-    has been sent, which is the only moment the answered status and the real duration are both known. In between the
-    use case fills in what it alone knows, through the narrower `UsageContext` port."""
-
     @classmethod
     def open(
         cls,
@@ -46,7 +41,6 @@ class UsageRecorder(UsageContext):
         self.record = record
         self.is_closed = False
 
-    # UsageContext — what the use case records
     def get_request_id(self) -> str:
         return self.record.request_id
 
@@ -67,7 +61,6 @@ class UsageRecorder(UsageContext):
         if ttft is not None:
             self.record.ttft = ttft
 
-    # HTTP layer — the lifecycle
     def close(self, status_code: int | None, error: str | None = None) -> None:
         if self.is_closed:
             return
@@ -77,7 +70,6 @@ class UsageRecorder(UsageContext):
             self.record.status = status_code
         self.record.error = error
         if self.record.latency is None:
-            # the request never reached the provider: what an incident needs is how long it took to fail
             self.record.latency = self.elapsed_ms()
 
         task = asyncio.create_task(self._save(), name=f"usage-save-{self.record.request_id}")

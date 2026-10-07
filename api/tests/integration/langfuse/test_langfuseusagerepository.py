@@ -167,7 +167,7 @@ class TestLangfuseUsageRepositoryRecording:
         assert datetime.fromisoformat(exported.replace("Z", "+00:00")) == CREATED + timedelta(milliseconds=50)
 
     async def test_marks_the_generation_as_error_when_the_api_answered_a_failure(self, repository, langfuse_client, span_exporter, mock_langfuse_api):
-        # Arrange: get_usage_buckets_page filters on level == DEFAULT, so a failure must not count as consumption
+        # Arrange
         record = _record(status=503, error="TooBusyModelError", usage=None, provider_id=None, provider_model_name=None)
 
         # Act
@@ -194,7 +194,7 @@ class TestLangfuseUsageRepositoryRecording:
         assert _ingested_scores(langfuse_client, mock_langfuse_api) == []
 
     async def test_releases_the_observation_when_ending_it_fails(self, repository):
-        # Arrange: the caller logs it — swallowing here would leave the observation open for the next request
+        # Arrange
         record = _record()
         repository.open_record(record)
 

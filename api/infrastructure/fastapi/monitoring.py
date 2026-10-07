@@ -19,7 +19,6 @@ def _build_metric_name(namespace: str, name: str) -> str:
 
 
 def _usage_record() -> UsageRecord | None:
-    """Only the model-forward routes open a record, so every metric below is skipped on the others."""
     recorder = request_context.get().usage_recorder
 
     return recorder.record if recorder else None

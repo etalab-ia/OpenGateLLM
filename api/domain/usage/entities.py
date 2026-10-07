@@ -40,9 +40,6 @@ class Usage(BaseModel):
 
 
 class UsageRecord(BaseModel):
-    """What one forwarded request consumed. Opened by the HTTP layer when the request arrives, enriched by the use
-    case as it resolves the router and calls the provider, then persisted once the response has been sent."""
-
     request_id: str
     endpoint: str
     created: UtcDatetime

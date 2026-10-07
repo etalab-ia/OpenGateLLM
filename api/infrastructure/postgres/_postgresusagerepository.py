@@ -12,16 +12,12 @@ from api.infrastructure.postgres.models import Usage as UsageTable
 class PostgresUsageRepository(UsageRepository):
     def __init__(self, postgres_session: AsyncSession, session_factory: async_sessionmaker) -> None:
         self.postgres_session = postgres_session
-        # save_record runs on a task that outlives the request — a client disconnecting mid-stream must still be
-        # billed — so it cannot borrow the request's session, which FastAPI has already closed by then
         self.session_factory = session_factory
 
     def open_record(self, record: UsageRecord) -> None:
         return
 
     async def save_record(self, record: UsageRecord) -> None:
-        # the usage table holds consumption only: a request the API did not answer with a 2xx consumed nothing. A stream
-        # that answered 200 then broke is kept, the tokens it delivered are owed. Langfuse still traces the failures.
         if record.status is None or record.status // 100 != 2:
             return
 

@@ -125,9 +125,7 @@ class TestCreateOCR:
 
     @respx.mock
     async def test_saves_the_usage_row_of_the_answered_request(self, client: AsyncClient, db_session):
-        """The record is opened by a dependency and closed by RequestLogMiddleware, so this pins the whole chain:
-        AccessController runs before the record is opened, and the write survives the end of the response."""
-        # Arrange: the limits are what give the user access to the router
+        # Arrange
         limits = {LimitType.RPM: 100, LimitType.RPD: 200, LimitType.TPM: 1000, LimitType.TPD: 2000}
         router = await self._create_router_with_limits(db_session, limits=limits)
         mock_ocr_responses(
