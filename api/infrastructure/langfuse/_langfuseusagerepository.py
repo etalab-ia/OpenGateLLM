@@ -20,12 +20,9 @@ class LangfuseUsageRepository(UsageRepository):
         self._observation = None
 
     def open_record(self, record: UsageRecord) -> None:
-        """The observation is an OpenTelemetry span: it has to be open while the provider is called, so it starts here
-        and is filled in by save_record. The router is not resolved yet, hence no model until then."""
         try:
             with propagate_attributes(user_id=str(record.user_id), tags=[self._key_tag(record.key_id)]):
                 self._observation = self.client.start_observation(
-                    # the id the API answers in X-Request-ID, so a client can point at its own trace
                     trace_context={"trace_id": record.request_id},
                     as_type="generation",
                     name=record.endpoint,
@@ -53,7 +50,6 @@ class LangfuseUsageRepository(UsageRepository):
         update: dict = {"model": record.router_name, "metadata": self._metadata(record)}
 
         if record.status is None or record.status // 100 != 2:
-            # get_usage_buckets_page filters on level == DEFAULT, so a failed request must not count as consumption
             update["level"] = "ERROR"
             update["status_message"] = record.error
         if record.ttft is not None:
@@ -165,7 +161,6 @@ class LangfuseUsageRepository(UsageRepository):
 
     @classmethod
     def _build_impacts_query(cls, context_filters: list[dict], start_time: datetime, end_time: datetime) -> dict:
-        # kWh/kgCO2eq are emitted as numeric scores in save_record, and only when the provider answered.
         filters = [
             *context_filters,
             {"column": "name", "operator": "any of", "value": [_KWH_SCORE_COLUMN, _KGCO2EQ_SCORE_COLUMN], "type": "stringOptions"},

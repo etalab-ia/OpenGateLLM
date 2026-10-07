@@ -52,7 +52,7 @@ class TestOpen:
         mock_usage_repository.open_record.assert_called_once_with(recorder.record)
 
     def test_should_share_its_request_id_with_the_use_case(self, recorder):
-        # Assert: the provider request and the usage record carry the same id as the X-Request-ID header
+        # Assert
         assert recorder.get_request_id() == "3f2a"
 
     def test_should_measure_from_the_moment_the_record_was_opened(self, recorder):
@@ -99,7 +99,7 @@ class TestClose:
         mock_usage_repository.save_record.assert_awaited_once_with(recorder.record)
 
     async def test_should_keep_how_long_a_failed_request_took_when_the_provider_was_never_reached(self, recorder):
-        # Act: no use case recorded anything — what an incident needs is how long it took to fail
+        # Act
         recorder.close(status_code=503, error="NoAvailableProviderError")
         await _drain_saves()
 
@@ -122,7 +122,7 @@ class TestClose:
 @pytest.mark.asyncio
 class TestWaitForPendingSaves:
     async def test_should_wait_until_the_pending_saves_are_written(self, recorder, mock_usage_repository):
-        # Arrange: a save still in flight when the shutdown starts
+        # Arrange
         release = asyncio.Event()
         saved = []
 
@@ -142,7 +142,7 @@ class TestWaitForPendingSaves:
         assert not _pending_saves
 
     async def test_should_give_up_after_the_timeout(self, recorder, mock_usage_repository, monkeypatch):
-        # Arrange: a save that never completes must not hold the shutdown forever
+        # Arrange
         mock_logger = create_autospec(logging.Logger, instance=True, spec_set=True)
         monkeypatch.setattr(_usagerecorder, "logger", mock_logger)
 

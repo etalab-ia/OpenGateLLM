@@ -212,13 +212,10 @@ def _usage_repository(
 
 
 def _usage_recorder(request: Request, usage_repository: UsageRepository = Depends(_usage_repository)) -> UsageContext:
-    """Opens the usage record of a model-forward request. RequestLogMiddleware closes it, and the use case only ever
-    sees the narrower UsageContext port."""
     context = request_context.get()
     recorder = UsageRecorder.open(
         usage_repository=usage_repository,
         request_id=context.id,
-        # the matched route, so usage.endpoint keeps the value GET /v1/usage filters on
         endpoint=request.scope["route"].path,
         user=context.user,
         key=context.key,
