@@ -3,7 +3,9 @@ import logging
 
 from fastapi import FastAPI
 from langfuse import Langfuse
+from openfga_sdk import ClientConfiguration
 from openfga_sdk.client import OpenFgaClient
+from openfga_sdk.credentials import CredentialConfiguration, Credentials
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 import tiktoken
@@ -17,7 +19,11 @@ from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaAuthorizationProvisioner, OpenFgaBootstrapAuthorization
+from api.infrastructure.openfga import (
+    OpenFgaAuthorizationClient,
+    OpenFgaBootstrapAuthorization,
+    resolve_store_id,
+)
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -199,11 +205,26 @@ def create_langfuse(configuration: Configuration) -> Langfuse | None:
 
 
 async def create_openfga_client(configuration: Configuration) -> OpenFgaClient:
-    openfga = configuration.dependencies.openfga
-    provisioner = OpenFgaAuthorizationProvisioner(
-        url=openfga.url,
-        store_name=openfga.store_name,
-        api_token=openfga.api_token,
+    openfga_config = configuration.dependencies.openfga
+    client = OpenFgaClient(
+        configuration=ClientConfiguration(
+            api_url=openfga_config.url,
+            credentials=Credentials(method="api_token", configuration=CredentialConfiguration(api_token=openfga_config.api_token)),
+        )
     )
 
-    return await provisioner.connect()
+    store_id = await resolve_store_id(client=client, store_name=openfga_config.store_name)
+    if store_id is None:
+        await client.close()
+        raise RuntimeError(f"OpenFGA store '{openfga_config.store_name}' does not exist.")
+
+    client.set_store_id(store_id)
+
+    latest = await client.read_latest_authorization_model()
+    if latest.authorization_model is None:
+        await client.close()
+        raise RuntimeError(f"OpenFGA store '{openfga_config.store_name}' has no authorization model.")
+
+    client.set_authorization_model_id(latest.authorization_model.id)
+
+    return client
