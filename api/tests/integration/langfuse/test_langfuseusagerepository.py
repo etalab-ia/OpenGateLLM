@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import json
 from unittest.mock import patch
 
@@ -9,11 +9,13 @@ import pytest
 import respx
 
 from api.domain.provider.entities import ProviderEndpoint
-from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
+from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage, UsageRecord
 from api.infrastructure.fastapi.schemas.usage import EndpointUsage
 from api.infrastructure.langfuse import LangfuseUsageRepository
 
 LANGFUSE_URL = "http://langfuse.test"
+REQUEST_ID = "a1b2" * 8
+CREATED = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
 START_TIME = datetime(2026, 9, 1, tzinfo=UTC)
 END_TIME = datetime(2026, 9, 30, tzinfo=UTC)
 USAGE = Usage(
@@ -77,18 +79,24 @@ def repository(langfuse_client, mock_langfuse_api):
     return LangfuseUsageRepository(client=langfuse_client)
 
 
-def _start_record(repository, **overrides):
-    arguments = {
-        "endpoint": ProviderEndpoint.CHAT_COMPLETIONS,
-        "model": "chat-router",
+def _record(**overrides) -> UsageRecord:
+    fields = {
+        "request_id": REQUEST_ID,
+        "endpoint": f"/v1{ProviderEndpoint.CHAT_COMPLETIONS}",
+        "created": CREATED,
         "user_id": 42,
-        "router_id": 3,
-        "router_name": "chat-router",
         "user_email": "alice@example.com",
         "key_id": 7,
         "key_name": "my-key",
+        "router_id": 3,
+        "router_name": "chat-router",
+        "provider_id": 9,
+        "provider_model_name": "vllm-model",
+        "usage": USAGE,
+        "status": 200,
+        "latency": 250,
     }
-    return repository.start_record(**(arguments | overrides))
+    return UsageRecord(**(fields | overrides))
 
 
 def _exported_spans(langfuse_client, span_exporter):
@@ -101,15 +109,19 @@ def _ingested_scores(langfuse_client, mock_langfuse_api) -> list[dict]:
     return [event["body"] for request in mock_langfuse_api["ingestion"].calls for event in json.loads(request.request.content)["batch"]]
 
 
+@pytest.mark.asyncio(loop_scope="function")
 class TestLangfuseUsageRepositoryRecording:
-    def test_exports_a_generation_with_the_request_identity(self, repository, langfuse_client, span_exporter):
+    async def test_exports_a_generation_with_the_request_identity(self, repository, langfuse_client, span_exporter):
+        # Arrange
+        record = _record()
+
         # Act
-        request_id = _start_record(repository)
-        repository.end_record()
+        repository.open_record(record)
+        await repository.save_record(record)
 
         # Assert
         [span] = _exported_spans(langfuse_client, span_exporter)
-        assert request_id == format(span.context.trace_id, "032x")
+        assert format(span.context.trace_id, "032x") == REQUEST_ID, "the trace is addressable by the id the API answered"
         assert span.name == "/v1/chat/completions"
         assert span.attributes["langfuse.observation.type"] == "generation"
         assert span.attributes["langfuse.observation.model.name"] == "chat-router"
@@ -120,14 +132,16 @@ class TestLangfuseUsageRepositoryRecording:
         assert span.attributes["langfuse.observation.metadata.user_email"] == "alice@example.com"
         assert span.attributes["langfuse.observation.metadata.key_id"] == "7"
         assert span.attributes["langfuse.observation.metadata.key_name"] == "my-key"
+        assert span.attributes["langfuse.observation.metadata.status"] == 200
+        assert span.attributes["langfuse.observation.metadata.latency"] == 250
 
-    def test_exports_usage_and_impact_scores_on_update(self, repository, langfuse_client, span_exporter, mock_langfuse_api):
+    async def test_exports_usage_and_impact_scores(self, repository, langfuse_client, span_exporter, mock_langfuse_api):
         # Arrange
-        _start_record(repository)
+        record = _record()
 
         # Act
-        repository.update_record(usage=USAGE, provider_id=9, provider_model_name="vllm-model")
-        repository.end_record()
+        repository.open_record(record)
+        await repository.save_record(record)
 
         # Assert
         [span] = _exported_spans(langfuse_client, span_exporter)
@@ -139,26 +153,26 @@ class TestLangfuseUsageRepositoryRecording:
         assert {(score["name"], score["value"], score["dataType"]) for score in scores} == {("kWh", 1.5, "NUMERIC"), ("kgCO2eq", 2.5, "NUMERIC")}
         assert {score["observationId"] for score in scores} == {format(span.context.span_id, "016x")}
 
-    def test_sets_completion_start_time_when_first_token_at_is_given(self, repository, langfuse_client, span_exporter):
+    async def test_sets_the_completion_start_time_from_the_recorded_ttft(self, repository, langfuse_client, span_exporter):
         # Arrange
-        _start_record(repository)
-        first_token_at = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
+        record = _record(ttft=50)
 
         # Act
-        repository.update_record(usage=USAGE, provider_id=9, provider_model_name="vllm-model", first_token_at=first_token_at)
-        repository.end_record()
+        repository.open_record(record)
+        await repository.save_record(record)
 
         # Assert
         [span] = _exported_spans(langfuse_client, span_exporter)
-        assert json.loads(span.attributes["langfuse.observation.completion_start_time"]) == "2026-09-18T15:00:00Z"
+        exported = json.loads(span.attributes["langfuse.observation.completion_start_time"])
+        assert datetime.fromisoformat(exported.replace("Z", "+00:00")) == CREATED + timedelta(milliseconds=50)
 
-    def test_marks_the_generation_as_error_on_fail(self, repository, langfuse_client, span_exporter, mock_langfuse_api):
-        # Arrange
-        _start_record(repository)
+    async def test_marks_the_generation_as_error_when_the_api_answered_a_failure(self, repository, langfuse_client, span_exporter, mock_langfuse_api):
+        # Arrange: get_usage_buckets_page filters on level == DEFAULT, so a failure must not count as consumption
+        record = _record(status=503, error="TooBusyModelError", usage=None, provider_id=None, provider_model_name=None)
 
         # Act
-        repository.fail_record(message="TooBusyModelError", status_code=503)
-        repository.end_record()
+        repository.open_record(record)
+        await repository.save_record(record)
 
         # Assert
         [span] = _exported_spans(langfuse_client, span_exporter)
@@ -166,27 +180,28 @@ class TestLangfuseUsageRepositoryRecording:
         assert span.attributes["langfuse.observation.status_message"] == "TooBusyModelError"
         assert _ingested_scores(langfuse_client, mock_langfuse_api) == []
 
-    def test_returns_a_fallback_id_and_exports_nothing_when_start_fails(self, repository, langfuse_client, span_exporter, mock_langfuse_api):
+    async def test_exports_nothing_when_opening_the_observation_fails(self, repository, langfuse_client, span_exporter, mock_langfuse_api):
         # Arrange
+        record = _record()
+
+        # Act
         with patch.object(langfuse_client, "start_observation", side_effect=RuntimeError("langfuse down")):
-            # Act
-            request_id = _start_record(repository)
-        repository.update_record(usage=USAGE, provider_id=9, provider_model_name="vllm-model")
-        repository.fail_record(message="TooBusyModelError", status_code=503)
-        repository.end_record()
+            repository.open_record(record)
+        await repository.save_record(record)
 
         # Assert
-        assert len(request_id) == 32
         assert _exported_spans(langfuse_client, span_exporter) == ()
         assert _ingested_scores(langfuse_client, mock_langfuse_api) == []
 
-    def test_swallows_end_errors(self, repository):
-        # Arrange
-        _start_record(repository)
+    async def test_releases_the_observation_when_ending_it_fails(self, repository):
+        # Arrange: the caller logs it — swallowing here would leave the observation open for the next request
+        record = _record()
+        repository.open_record(record)
 
         # Act / Assert
         with patch.object(repository._observation, "end", side_effect=RuntimeError("flush failed")):
-            repository.end_record()
+            with pytest.raises(RuntimeError):
+                await repository.save_record(record)
         assert repository._observation is None
 
 

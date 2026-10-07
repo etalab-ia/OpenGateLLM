@@ -11,5 +11,13 @@ The modules below are safe to re-export: they depend on the domain only, never o
 from ._requestcontext import RequestContext
 from ._requestlogmiddleware import RequestLogMiddleware, record_http_exception, record_validation_exception
 from ._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
+from ._usagerecorder import UsageRecorder
 
-__all__ = ["RequestContext", "RequestLogMiddleware", "StreamingResponseWithStatusCode", "record_http_exception", "record_validation_exception"]
+__all__ = [
+    "RequestContext",
+    "RequestLogMiddleware",
+    "StreamingResponseWithStatusCode",
+    "UsageRecorder",
+    "record_http_exception",
+    "record_validation_exception",
+]

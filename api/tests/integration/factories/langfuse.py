@@ -1,11 +1,14 @@
+from datetime import UTC, datetime
+from uuid import uuid4
+
 from langfuse import Langfuse
 
 from api.domain.provider.entities import ProviderEndpoint
-from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
+from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage, UsageRecord
 from api.infrastructure.langfuse import LangfuseUsageRepository
 
 
-def record_langfuse_usage(
+async def record_langfuse_usage(
     client: Langfuse,
     user_id: int,
     key_id: int = 7,
@@ -15,21 +18,25 @@ def record_langfuse_usage(
     usage: Usage | None = None,
 ) -> str:
     """Write one request through the production write path: Langfuse has no transaction to seed rows into."""
-    repository = LangfuseUsageRepository(client=client)
-    request_id = repository.start_record(
-        endpoint=endpoint,
-        model=model,
+    record = UsageRecord(
+        request_id=uuid4().hex,
+        endpoint=f"/v1{endpoint}",
+        created=datetime.now(tz=UTC),
         user_id=user_id,
-        router_id=1,
-        router_name=model,
         user_email=f"user-{user_id}@example.com",
         key_id=key_id,
         key_name=f"key-{key_id}",
+        router_id=1,
+        router_name=model,
     )
     if failed:
-        repository.fail_record(message="TooBusyModelError", status_code=503)
+        record.status = 503
+        record.error = "TooBusyModelError"
     else:
-        usage = usage or Usage(
+        record.status = 200
+        record.provider_id = 1
+        record.provider_model_name = f"{model}-provider"
+        record.usage = usage or Usage(
             prompt_tokens=3,
             completion_tokens=5,
             total_tokens=8,
@@ -37,6 +44,9 @@ def record_langfuse_usage(
             cost=0.01,
             impacts=EnvironmentalImpacts(kWh=1.5, kgCO2eq=2.5),
         )
-        repository.update_record(usage=usage, provider_id=1, provider_model_name=f"{model}-provider")
-    repository.end_record()
-    return request_id
+
+    repository = LangfuseUsageRepository(client=client)
+    repository.open_record(record)
+    await repository.save_record(record)
+
+    return record.request_id

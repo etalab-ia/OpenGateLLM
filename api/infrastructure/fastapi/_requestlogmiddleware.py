@@ -33,9 +33,6 @@ class RequestLogMiddleware:
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message["status"]
-                # the row is still mutable here: the queued task only runs once the body has been sent
-                if (usage_repository := request_context.get().usage_repository) is not None:
-                    usage_repository.record_response_status(status_code=status_code)
             await send(message)
 
         try:
@@ -49,12 +46,14 @@ class RequestLogMiddleware:
             logger.exception("Unhandled exception while processing request", extra=self._request_fields(scope, request_context.get()))
             status_code = InternalServerHTTPException.status_code
             response = JSONResponse(status_code=status_code, content={"detail": InternalServerHTTPException.detail})
-            # FastAPI attaches its BackgroundTasks to the response the handler returns, and the handler raised: carry
-            # the queue over to ours, or the usage row the use case queued is dropped.
-            response.background = request_context.get().background_tasks
-            # through the spy, so the 500 is stamped on the row like any other answered status
             await response(scope, receive, capture_status_and_send)
         finally:
+            context = request_context.get()
+            if context.usage_recorder is not None:
+                # the response is fully sent by now — streamed or not — so this is the first moment the answered status
+                # and the real duration are both known, and the last one where the request's context still applies
+                context.usage_recorder.close(status_code=status_code, error=context.error)
+
             duration_ms = round((perf_counter() - started_at) * 1000, 1)
             logger.info(
                 "%s %s %s %.1fms",
@@ -62,7 +61,7 @@ class RequestLogMiddleware:
                 scope["path"],
                 status_code,
                 duration_ms,
-                extra={**self._request_fields(scope, request_context.get()), "status_code": status_code, "duration_ms": duration_ms},
+                extra={**self._request_fields(scope, context), "status_code": status_code, "duration_ms": duration_ms},
             )
 
     def _request_fields(self, scope: Scope, context: RequestContext) -> dict:
@@ -74,7 +73,7 @@ class RequestLogMiddleware:
             "client_addr": client[0] if client else None,
             "authenticated_user_id": context.user.id if context.user else None,
             "key_id": context.key.id if context.key else None,
-            "router_name": context.router_name,
+            "router_name": context.usage_recorder.record.router_name if context.usage_recorder else None,
             "error": context.error,
         }
         return {
@@ -99,18 +98,12 @@ class RequestLogMiddleware:
 
 
 async def record_http_exception(request: Request, exception: HTTPException) -> Response:
-    context = request_context.get()
-    context.error = type(exception).__name__
-    response = await http_exception_handler(request, exception)
-    response.background = context.background_tasks
+    request_context.get().error = type(exception).__name__
 
-    return response
+    return await http_exception_handler(request, exception)
 
 
 async def record_validation_exception(request: Request, exception: RequestValidationError) -> Response:
-    context = request_context.get()
-    context.error = type(exception).__name__
-    response = await request_validation_exception_handler(request, exception)
-    response.background = context.background_tasks
+    request_context.get().error = type(exception).__name__
 
-    return response
+    return await request_validation_exception_handler(request, exception)

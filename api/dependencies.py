@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import BackgroundTasks, Depends
+from fastapi import BackgroundTasks, Depends, Request
 import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +23,8 @@ from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, get_configuration
 from api.infrastructure.context import global_context
-from api.infrastructure.contextvars import ContextVarsUsageContext
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
+from api.infrastructure.fastapi import UsageRecorder
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
@@ -161,10 +161,6 @@ def _router_rate_limiter(background_tasks: BackgroundTasks, configuration: Confi
     )
 
 
-def _usage_context() -> UsageContext:
-    return ContextVarsUsageContext(request_context=request_context)
-
-
 # repositories
 def _authentication_key_repository(
     key_encoder: KeyEncoder = Depends(_key_encoder),
@@ -206,22 +202,30 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
 
 
 def _usage_repository(
-    background_tasks: BackgroundTasks,
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     configuration: Configuration = Depends(get_configuration),
 ) -> UsageRepository:
-    # the middleware reads both from the shared context: the queue, to survive an exception, and the repository, to
-    # stamp the answered status on the row
-    context = request_context.get()
-    context.background_tasks = background_tasks
-    repository = (
-        LangfuseUsageRepository(client=global_context.langfuse)
-        if configuration.dependencies.langfuse is not None
-        else PostgresUsageRepository(postgres_session=postgres_session, background_tasks=background_tasks)
-    )
-    context.usage_repository = repository
+    if configuration.dependencies.langfuse is not None:
+        return LangfuseUsageRepository(client=global_context.langfuse)
 
-    return repository
+    return PostgresUsageRepository(postgres_session=postgres_session, session_factory=global_context.autocommit_postgres_session_factory)
+
+
+def _usage_recorder(request: Request, usage_repository: UsageRepository = Depends(_usage_repository)) -> UsageContext:
+    """Opens the usage record of a model-forward request. RequestLogMiddleware closes it, and the use case only ever
+    sees the narrower UsageContext port."""
+    context = request_context.get()
+    recorder = UsageRecorder.open(
+        usage_repository=usage_repository,
+        request_id=context.id,
+        # the matched route, so usage.endpoint keeps the value GET /v1/usage filters on
+        endpoint=request.scope["route"].path,
+        user=context.user,
+        key=context.key,
+    )
+    context.usage_recorder = recorder
+
+    return recorder
 
 
 # audio use cases
@@ -232,7 +236,7 @@ def create_audio_transcriptions_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
     configuration: Configuration = Depends(get_configuration),
 ) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
@@ -244,8 +248,7 @@ def create_audio_transcriptions_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
     )
 
@@ -258,7 +261,7 @@ def create_chat_completions_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateChatCompletionsUseCase:
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -269,8 +272,7 @@ def create_chat_completions_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 
@@ -329,7 +331,7 @@ def create_embeddings_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateEmbeddingsUseCase:
     return CreateEmbeddingsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -340,8 +342,7 @@ def create_embeddings_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 
@@ -413,7 +414,7 @@ def create_ocr_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateOCRUseCase:
     return CreateOCRUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -424,8 +425,7 @@ def create_ocr_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 
@@ -479,7 +479,7 @@ def create_rerank_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -490,8 +490,7 @@ def create_rerank_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 
