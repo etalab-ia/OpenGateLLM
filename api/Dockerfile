@@ -38,6 +38,12 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install the OpenFGA CLI
+ARG FGA_CLI_VERSION=0.8.1
+ARG TARGETARCH
+RUN curl -fsSL "https://github.com/openfga/cli/releases/download/v${FGA_CLI_VERSION}/fga_${FGA_CLI_VERSION}_linux_${TARGETARCH}.tar.gz" \
+    | tar -xz -C /usr/local/bin fga
+
 # Set a non-root user
 USER opengatellm
 WORKDIR /
