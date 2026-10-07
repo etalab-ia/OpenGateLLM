@@ -470,6 +470,7 @@ A model-forward request's usage is a record the **HTTP layer owns**. `_usage_rec
 - The **request id comes from the HTTP layer**: the `X-Request-ID` header, the request log line, `usage.request_id`, the provider request and the ids of the streamed chunks all carry the same `RequestContext.id`.
 - `usage.status` is the status the API **answered**, taken from the ASGI `http.response.start` the middleware saw. A use case returns a domain error and the endpoint decides what it becomes, so the use case never guesses a status — do not reintroduce a `fail_record`. `UsageRecord.error` carries the name of the exception the answer was mapped from.
 - `latency` is set by `record_usage` when the provider was reached, and by `close` otherwise: how long a request took to fail is what an incident needs.
+- **The `usage` table holds consumption only.** `PostgresUsageRepository.save_record` drops a record whose answered status is not 2xx (or missing): a failed request consumed nothing, and the team does not want it in the table. A stream that answered 200 and broke afterwards is kept, since the tokens it delivered are owed. Langfuse still traces failures, as `level=ERROR` observations.
 - The write runs on an `asyncio` task, **not** on FastAPI `BackgroundTasks` — those run inside the response, which a client disconnecting mid-stream never reaches, and the tokens it already received still have to be billed.
 - Because that task outlives the request, `PostgresUsageRepository.save_record` opens a session from an `async_sessionmaker` instead of borrowing the request's, which FastAPI has closed by then. Integration tests bind the session factories to the test session (`CurrentDbSessionFactory`, `api/tests/integration/conftest.py`).
 - Uvicorn waits for in-flight requests only, so the lifespan awaits `UsageRecorder.wait_for_pending_saves` before closing Postgres and Redis. The wait is bounded (`USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS`, `api/lifespan.py`): a save still running at the deadline is logged as lost rather than holding the shutdown.
@@ -477,7 +478,7 @@ A model-forward request's usage is a record the **HTTP layer owns**. `_usage_rec
 | When | `UsageRepository` adapter |
 |------|---------------------------|
 | `dependencies.langfuse` is configured | `LangfuseUsageRepository` — `open_record` starts the observation, since an OTel span must be open while the provider is called; `save_record` fills it in and ends it |
-| otherwise (default) | `PostgresUsageRepository` — `save_record` inserts the `usage` row |
+| otherwise (default) | `PostgresUsageRepository` — `save_record` inserts the `usage` row of a request answered 2xx, and nothing for a failure |
 
 ### Rate-limit charging
 

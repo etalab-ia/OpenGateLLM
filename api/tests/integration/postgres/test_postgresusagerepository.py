@@ -103,20 +103,29 @@ class TestSaveRecord:
         assert row.ttft == 50
         assert row.created.tzinfo is not None
 
-    async def test_persists_a_failed_record_without_provider_or_tokens(self, repository, db_session):
-        # Arrange: the request never reached a provider, so only what was known is on the record
+    @pytest.mark.parametrize("status", [503, 429, None], ids=["provider-failure", "rate-limited", "no-response"])
+    async def test_persists_nothing_for_a_request_that_did_not_succeed(self, repository, db_session, status):
+        # Arrange
         key, provider = await _seed(db_session)
-        record = _record(key, provider, provider_id=None, provider_model_name=None, usage=None, status=503, error="NoAvailableProviderError")
+        record = _record(key, provider, provider_id=None, provider_model_name=None, usage=None, status=status, error="NoAvailableProviderError")
+
+        # Act
+        await repository.save_record(record)
+
+        # Assert
+        assert await _persisted_rows(db_session) == []
+
+    async def test_persists_a_stream_that_answered_200_then_broke(self, repository, db_session):
+        # Arrange: the status is fixed by the first chunk, and the tokens already delivered must be counted
+        key, provider = await _seed(db_session)
+        record = _record(key, provider, status=200, error="ProviderNotReachableError")
 
         # Act
         await repository.save_record(record)
 
         # Assert
         [row] = await _persisted_rows(db_session)
-        assert row.status == 503
-        assert row.latency == 250, "how long it took to fail is what an incident needs"
-        assert row.provider_id is None
-        assert row.prompt_tokens is None
+        assert (row.status, row.completion_tokens) == (200, 5)
 
     async def test_persists_nothing_when_the_record_is_only_opened(self, repository, db_session):
         # Arrange: Postgres has nothing to write until the record is complete

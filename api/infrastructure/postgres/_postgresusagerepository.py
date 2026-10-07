@@ -20,6 +20,11 @@ class PostgresUsageRepository(UsageRepository):
         return
 
     async def save_record(self, record: UsageRecord) -> None:
+        # the usage table holds consumption only: a request the API did not answer with a 2xx consumed nothing. A stream
+        # that answered 200 then broke is kept, the tokens it delivered are owed. Langfuse still traces the failures.
+        if record.status is None or record.status // 100 != 2:
+            return
+
         row = UsageTable(
             created=record.created,
             request_id=record.request_id,
