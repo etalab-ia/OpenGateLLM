@@ -15,6 +15,7 @@ from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
 from api.infrastructure.context import global_context
+from api.infrastructure.fastapi import UsageRecorder
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.postgres import (
     AutocommitSession,
@@ -37,6 +38,8 @@ from api.use_cases.services import ProviderCapabilitiesProbe
 
 logger = logging.getLogger(__name__)
 
+USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS = 10
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -56,6 +59,8 @@ async def lifespan(_: FastAPI):
     global_context.tokenizer = initialize_tokenizer(configuration=configuration)
 
     yield
+
+    await UsageRecorder.wait_for_pending_saves(timeout=USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS)
 
     if global_context.redis_pool:
         await global_context.redis_pool.aclose()

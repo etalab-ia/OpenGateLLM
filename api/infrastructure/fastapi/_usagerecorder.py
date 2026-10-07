@@ -80,8 +80,6 @@ class UsageRecorder(UsageContext):
             # the request never reached the provider: what an incident needs is how long it took to fail
             self.record.latency = self.elapsed_ms()
 
-        # not a FastAPI BackgroundTask: those run inside the response, and a client that disconnects mid-stream never
-        # gets there — the tokens it already received would go unbilled
         task = asyncio.create_task(self._save(), name=f"usage-save-{self.record.request_id}")
         _pending_saves.add(task)
         task.add_done_callback(_pending_saves.discard)
@@ -91,3 +89,12 @@ class UsageRecorder(UsageContext):
             await self.usage_repository.save_record(self.record)
         except Exception:
             logger.exception("Failed to save the usage record.")
+
+    @staticmethod
+    async def wait_for_pending_saves(timeout: float) -> None:
+        if not _pending_saves:
+            return
+
+        _, unfinished = await asyncio.wait(tuple(_pending_saves), timeout=timeout)
+        if unfinished:
+            logger.warning(f"{len(unfinished)} usage records were still being saved at shutdown and are lost.")

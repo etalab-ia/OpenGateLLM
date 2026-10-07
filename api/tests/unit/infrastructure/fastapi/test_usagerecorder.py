@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
+import logging
 from unittest.mock import create_autospec
 
 import pytest
@@ -8,7 +9,7 @@ from api.domain.key.entities import Key
 from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import UsageRecorder
+from api.infrastructure.fastapi import UsageRecorder, _usagerecorder
 from api.infrastructure.fastapi._usagerecorder import _pending_saves
 
 USER_ID = 42
@@ -116,3 +117,46 @@ class TestClose:
         # Assert
         assert recorder.record.status == 200
         mock_usage_repository.save_record.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+class TestWaitForPendingSaves:
+    async def test_should_wait_until_the_pending_saves_are_written(self, recorder, mock_usage_repository):
+        # Arrange: a save still in flight when the shutdown starts
+        release = asyncio.Event()
+        saved = []
+
+        async def slow_save(record):
+            await release.wait()
+            saved.append(record)
+
+        mock_usage_repository.save_record.side_effect = slow_save
+        recorder.close(status_code=200)
+        asyncio.get_running_loop().call_soon(release.set)
+
+        # Act
+        await UsageRecorder.wait_for_pending_saves(timeout=1)
+
+        # Assert
+        assert saved == [recorder.record]
+        assert not _pending_saves
+
+    async def test_should_give_up_after_the_timeout(self, recorder, mock_usage_repository, monkeypatch):
+        # Arrange: a save that never completes must not hold the shutdown forever
+        mock_logger = create_autospec(logging.Logger, instance=True, spec_set=True)
+        monkeypatch.setattr(_usagerecorder, "logger", mock_logger)
+
+        async def stuck_save(record):
+            await asyncio.Event().wait()
+
+        mock_usage_repository.save_record.side_effect = stuck_save
+        recorder.close(status_code=200)
+
+        # Act
+        await UsageRecorder.wait_for_pending_saves(timeout=0.01)
+
+        # Assert
+        mock_logger.warning.assert_called_once_with("1 usage records were still being saved at shutdown and are lost.")
+        for task in tuple(_pending_saves):
+            task.cancel()
+        await asyncio.gather(*tuple(_pending_saves), return_exceptions=True)

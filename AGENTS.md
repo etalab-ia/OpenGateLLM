@@ -472,6 +472,7 @@ A model-forward request's usage is a record the **HTTP layer owns**. `_usage_rec
 - `latency` is set by `record_usage` when the provider was reached, and by `close` otherwise: how long a request took to fail is what an incident needs.
 - The write runs on an `asyncio` task, **not** on FastAPI `BackgroundTasks` — those run inside the response, which a client disconnecting mid-stream never reaches, and the tokens it already received still have to be billed.
 - Because that task outlives the request, `PostgresUsageRepository.save_record` opens a session from an `async_sessionmaker` instead of borrowing the request's, which FastAPI has closed by then. Integration tests bind the session factories to the test session (`CurrentDbSessionFactory`, `api/tests/integration/conftest.py`).
+- Uvicorn waits for in-flight requests only, so the lifespan awaits `UsageRecorder.wait_for_pending_saves` before closing Postgres and Redis. The wait is bounded (`USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS`, `api/lifespan.py`): a save still running at the deadline is logged as lost rather than holding the shutdown.
 
 | When | `UsageRepository` adapter |
 |------|---------------------------|
@@ -627,7 +628,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
 | Rate-limit charging | `api/tests/integration/endpoints/test_ocr.py`, `api/tests/integration/endpoints/test_chatcompletions.py` (`*charge*_the_router_limits`) | Redis counters after a real request; a 429 is not charged | The other model-forward endpoints (same non-streaming path) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
-| Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and API queries (real SDK), round trips against a real Langfuse | Use-case policy |
+| Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and API queries (real SDK, mocked HTTP) | Use-case policy |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).
 
@@ -724,10 +725,9 @@ When adding a use case that calls a provider (OCR, embeddings, rerank, audio, ch
 
 ### Langfuse adapter
 
-Never mock the Langfuse SDK objects: a bare mock accepts any call, and a hand-written metrics response accepts any query. Two tiers:
+Never mock the Langfuse SDK objects: a bare mock accepts any call, and a hand-written metrics response accepts any query.
 
-- `test_langfuseusagerepository.py` runs the real SDK: `Langfuse(span_exporter=InMemorySpanExporter())` captures the exported spans, `respx` answers `/api/public/ingestion` (scores) and `/api/public/v2/metrics` with the shape a real Langfuse returns.
-- `test_langfuseusagerepository_roundtrip.py` (`@pytest.mark.langfuse`) writes through `record_langfuse_usage` (`api/tests/integration/factories/langfuse.py`) and polls the real API until ingested. It is the only check that Langfuse accepts a filter column. ClickHouse has no transaction to roll back: each test isolates itself with a fresh `user_id`. Skipped when Langfuse is not reachable — start it with `docker compose --file compose.example.yml --profile langfuse up --detach --wait`.
+`test_langfuseusagerepository.py` runs the real SDK: `Langfuse(span_exporter=InMemorySpanExporter())` captures the exported spans, `respx` answers `/api/public/ingestion` (scores) and `/api/public/v2/metrics` with the shape a real Langfuse returns. The metrics mock answers 400 on a filter column the view does not accept, from `ALLOWED_FILTER_COLUMNS` (copied from Langfuse's error message for `scores-numeric`, from the metrics client docstring for `observations`) — no test runs against a real Langfuse, so that list is the only guard on filter columns.
 
 The SDK caches its resources per public key: a second `Langfuse(...)` with the same key silently reuses the first one's exporter.
 
