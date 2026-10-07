@@ -9,8 +9,8 @@ import asyncio
 import logging
 import sys
 
+from api.infrastructure.configuration import get_configuration
 from api.infrastructure.openfga import OpenFgaAuthorizationProvisioner
-from api.utils.configuration import get_configuration
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger("provision_openfga")
