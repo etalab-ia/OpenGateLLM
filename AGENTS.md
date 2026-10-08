@@ -603,14 +603,39 @@ inconsistency is a bug.
 | `AccessController` | authentication, key validity, account expiry, and `only_admin` | `Security(...)` on the endpoint |
 | OpenFGA            | whether this user may act on this object                       | inside the use case             |
 
-Today **only `POST /v1/admin/organizations` asks OpenFGA**. Every other route, including the four other organization
-routes, still decides on `user.is_admin` through `AccessController(only_admin=True)`. Never put both on one route: two
+`AccessController` (`api/infrastructure/fastapi/accesscontroller.py`) takes `only_admin` and `allow_expired`, both
+`False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
+
+Today **only `POST /v1/admin/organizations` asks OpenFGA**. It is the one organization route guarded by a bare
+`AccessController()`; the four others still carry `AccessController(only_admin=True)`. Never put both on one route: two
 sources of truth for the same decision drift, and `only_admin` short-circuits any rule that would let a non-admin
 through (an organization member reading their own organization, for one).
 
-**A use case asks a business question, never composes a tuple.** It depends on a narrow port named after the aggregate
-it protects — `OrganizationAuthorization` in `api/domain/organization/` — whose methods are questions returning a plain
-`bool`:
+**What is actually wired.** Three of the nine relations the model declares are reached by code:
+
+| Relation                                  | Written by                                    | Checked by                  |
+|-------------------------------------------|-----------------------------------------------|-----------------------------|
+| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up    | — (only via the rule below) |
+| `platform:api#can_create_organization`    | computed from `admin`, never written          | `CreateOrganizationUseCase` |
+| `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase`, on each creation | —                           |
+
+`member`, `can_read`, `can_update`, `can_delete`, `can_add_member` and `can_remove_member` exist in `model.fga` **and**
+in `OrganizationRelation`, and nothing reads or writes them yet. The schema is ahead of the code on purpose: adding the
+route that needs one is the work, not the modelling.
+
+**Three layers, narrowest first.**
+
+| Layer                           | Lives in                                                                          | Speaks                                                       |
+|---------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------|
+| Intent port (domain)            | `api/domain/<aggregate>/` — `OrganizationAuthorization`, `BootstrapAuthorization` | business questions returning a `bool`, or an intent          |
+| Adapter (infrastructure)        | `api/infrastructure/openfga/` — `OpenFga<PortName>`                               | objects, relations, tuples                                   |
+| Generic client (infrastructure) | `AuthorizationClient` / `OpenFgaAuthorizationClient`                              | the raw triple: `check`, `write_relation`, `delete_relation` |
+
+An intent port lives next to the aggregate it protects, not in `api/domain/authorization/` — that package holds only the
+generic client port and the entities. Each port is named for what it is *for*, so the one that grants the bootstrap
+admin is `BootstrapAuthorization` in `api/domain/user/`, with a single `attach_bootstrap_admin_to_platform(user_id)`.
+
+**A use case asks a business question, never composes a tuple.**
 
 ```python
 is_authorized = await self.organization_authorization.can_create_organization(user_id=command.authenticated_user_id)
@@ -618,29 +643,37 @@ if not is_authorized:
     return UserCannotCreateOrganizationError(user_id=command.authenticated_user_id)
 ```
 
-The OpenFGA vocabulary — `AuthorizationObject`, the relation enums, `RelationTuple` — lives entirely in the adapter
-`OpenFgaOrganizationAuthorization`. A use case importing `api.domain.authorization.entities` is doing the adapter's job.
-The port grows one method per permission; that is the intended trade. Denials return a specific domain error carrying
-the business fact (`UserCannotCreateOrganizationError(user_id)`), like `UserIsNotAdminError` and
-`UserHasNoAccessToRouterError` before it.
+The OpenFGA vocabulary — `AuthorizationObject`, the relation enums, `RelationTuple` — lives entirely in the adapter. A
+use case importing `api.domain.authorization.entities` is doing the adapter's job. The port grows one method per
+permission; that is the intended trade. Denials return a specific domain error carrying the business fact
+(`UserCannotCreateOrganizationError(user_id)`), which the endpoint maps to `UnauthorizedActionHTTPException` — a 403.
 
-`AuthorizationClient` / `OpenFgaAuthorizationClient` sits under those adapters and speaks the raw triple: `check`,
-`write_relation`, `delete_relation`, one relation per call. No use case depends on it any more — treat it as
-infrastructure, not as the port a use case should reach for.
+No use case depends on `AuthorizationClient` any more — treat it as infrastructure, not as the port a use case should
+reach for. `api/dependencies.py` chains the three layers as dependencies (`_authorization_client` →
+`_get_organization_authorization` → `create_organization_use_case_factory`) so each is built once per request and stays
+overridable in tests; `api/lifespan.py` builds the bootstrap adapter directly, having no request to hang it on.
 
-**The model is schema, and it ships here.** OpenFGA runs on its own machine, deployed separately — but
-`api/infrastructure/openfga/model.fga` lives in this repo for the same reason the Alembic revisions do: it has to change
-in the same commit as the code that reads it, or a renamed relation turns every check into a silent `false`. The
-deployment repo owns the server; this repo owns the schema.
+**The model is schema, and it ships here.** OpenFGA is deployed by the deployment repo — it runs in the API's compose,
+backed by its own `openfga` database on the shared Postgres — but `api/infrastructure/openfga/model.fga` lives in this
+repo for the same reason the Alembic revisions do: it has to change in the same commit as the code that reads it, or a
+renamed relation turns every check into a silent `false`. The deployment repo owns the server; this repo owns the schema.
 
-`model.fga` is the reviewed source, `model.json` is generated from it. Change the DSL, run `make fga-model`, commit
-both, and add the case to `api/tests/store.fga.yaml` (`make fga-test`).
+`model.fga` is the only source — there is no generated `model.json`. After changing the DSL, run `make fga-model`
+(`fga model validate`).
 
-**Publishing the model is a deploy step, never a start-up step.** `scripts/provision_openfga.py` runs once in
-`scripts/startup_api.sh`, right next to `alembic upgrade head`, before gunicorn forks. Workers only *read* the published
-model (`create_openfga_client`) and fail loudly if there is none, exactly as the API fails on an unmigrated Postgres.
-Writing it from the lifespan instead appends one model version per worker — eight in production — and pins each worker
-to a different one, so during a rolling deploy workers of the same container answer checks against different models.
+**Publishing the model is a start-up step, but it happens once, before the workers fork.** `scripts/startup_api.sh`
+runs it right next to `alembic upgrade head`: `python -m scripts.configure_fga_cli` resolves (or creates) the store and
+writes `~/.fga.yaml`, then the `fga` CLI compares the published model with `model.fga` and writes a new version **only
+when they differ**. Workers then only *read* the published model — `create_openfga_client` resolves the store and the
+latest model and raises if either is missing, exactly as the API fails on an unmigrated Postgres.
+
+That ordering is load-bearing. Publishing from the lifespan instead appends one model version per worker and pins each
+worker to a different one, so during a rolling deploy workers of the same container answer checks against different
+models. The diff is what makes a restart free: an authorization model is immutable and append-only, never pruned.
+
+`resolve_store_id` (`api/infrastructure/openfga/_storeresolution.py`) is shared by that script and the lifespan. It
+paginates `list_stores` and raises rather than guess when two stores share a name — `fga store import` is not
+idempotent and will happily create the duplicate.
 
 **Only relations with brackets can be written.** `define member: [user]` is a fact you store; `define can_read: member
 or admin from platform` is a question you ask, and writing it returns a 400. In this model the `can_*` prefix marks
@@ -648,10 +681,11 @@ exactly the non-writable relations. A check, by contrast, accepts any relation.
 
 **Objects are typed; tuple direction is on you.** Build each side through `AuthorizationObject.platform()` /
 `.organization(id)` / `.user(id)`, never as a formatted string — a typo in a hand-written `"organization:42"` yields a
-silent `false`, not an error. `RelationTuple` carries no factories, so getting the direction right is the adapter's job:
-a relation is declared inside the type block of its *object*, and the brackets list its *subject* types. `define
-platform: [platform]` under `type organization` therefore means `organization:42#platform@platform:api`, and writing it
-the other way round is a 400 (`relation 'platform#platform' not found`).
+silent `false`, not an error. The platform is a singleton, `platform:api` (`PLATFORM_ID`). `RelationTuple` carries no
+factories and no validator, so getting the direction right is the adapter's job: a relation is declared inside the type
+block of its *object*, and the brackets list its *subject* types. `define platform: [platform]` under `type
+organization` therefore means `organization:42#platform@platform:api`, and writing it the other way round is a 400
+(`relation 'platform#platform' not found`).
 
 **Creation is checked on the platform.** A permission is checked against an object, and the object does not exist yet
 when it is being created — so `can_create_organization` lives on `platform:api`. Anything acting on an existing
@@ -666,18 +700,31 @@ deliberately unhandled for now, but never swallowed into a `False`, which would 
 Mapping it to a domain error and a 503 — a permission that could not be evaluated is not a permission that was denied —
 is the next step, once that failure mode is worth covering.
 
-**Granting the bootstrap admin is the one authorization step that stays in the lifespan.** `bootstrap_authorization`
-(`api/utils/lifespan.py`) writes `platform:api#admin@user:<id>` for the bootstrap admin, so a fresh store has someone who
-holds `can_create_organization`. It cannot move to `scripts/provision_openfga.py` like the model does, because it needs
-the admin that `bootstrap_admin_role_and_user` may have just created. It therefore runs once per worker, and
-`OpenFgaBootstrapAuthorization` checks before writing: a duplicate write is a 400, OpenFGA having no upsert.
+**Granting the bootstrap admin belongs to the use case, like the organization attachment.** `BootstrapAdminUseCase`
+takes a `BootstrapAuthorization` port and writes `platform:api#admin@user:<id>` before returning, so a fresh store has
+someone who holds `can_create_organization`. It cannot move to a deploy step like the model does, because it needs the
+admin the use case may have just created.
+
+Both branches that carry a user write it, and both matter: `Success` (this worker created or promoted the admin) and
+`Skipped(user_id=...)` (an admin already existed in Postgres). The second is the upgrade path — an existing deployment
+has admins from before OpenFGA, and a store that knows none of them. The `Skipped()` branches with no `user_id`, where
+another worker won the Postgres race, return before writing.
+
+It therefore runs once per worker, and `OpenFgaBootstrapAuthorization` checks before writing: a duplicate write is a
+400, OpenFGA having no upsert. On a fresh store every worker reads "absent" before any of them writes, so the losers get
+a 400 or a 409; the adapter re-checks the relation and only re-raises if it does not hold, because that same 400 also
+covers a genuinely invalid tuple — a relation renamed in `model.fga` without `PlatformRelation` following, say.
+Measured: with five workers on an empty store, four lose. Since the write happens inside the use case, a re-raise rolls
+the Postgres transaction back, so a failed grant cannot leave an admin nobody can use.
 
 Only users holding a Postgres admin role at *bootstrap* get the relation. Promoting an existing user to admin through
-`PATCH /roles` writes no tuple, so OpenFGA will not see it until something projects Postgres roles onto relations — still
-missing.
+`PATCH /roles` writes no tuple, so OpenFGA will not see it until something projects Postgres roles onto relations —
+still missing. The deployment repo's `openfga_migrations` role backfills the admins present when it runs
+(`m001_platform_admins.py`): a photograph, not a projection.
 
-**Not enforced by CI yet.** The authorization test suite (`store.fga.yaml`, the model drift test, the use-case tests) is
-currently stashed, so none of the rules above is covered.
+**Nothing above is covered by tests, with one exception.** `api/tests/store.fga.yaml` does not exist yet, so `make fga-test`
+fails for the moment; CI does not validate `model.fga` either (issue #1209). The exception is
+`BootstrapAdminUseCase`'s own unit tests, which do cover the grant: which branches write it, and which must not.
 
 ---
 
