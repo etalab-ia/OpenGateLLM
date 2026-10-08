@@ -1,15 +1,14 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
 
-from fastapi import BackgroundTasks
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from api.domain import EntitiesPage
-from api.domain.provider.entities import ProviderEndpoint
-from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage, UsageBucket
+from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage, UsageBucket, UsageRecord
 from api.infrastructure.postgres import PostgresUsageRepository
 from api.infrastructure.postgres.models import Usage as UsageTable
+from api.tests.integration.conftest import CurrentDbSessionFactory
 from api.tests.integration.factories.sql import KeySQLFactory, ProviderSQLFactory, UsageSQLFactory, UserSQLFactory
 
 CHAT_COMPLETIONS = "/v1/chat/completions"
@@ -17,6 +16,7 @@ EMBEDDINGS = "/v1/embeddings"
 DAY = datetime(2026, 8, 1, tzinfo=UTC)
 NEXT_DAY = datetime(2026, 8, 2, tzinfo=UTC)
 THIRD_DAY = datetime(2026, 8, 3, tzinfo=UTC)
+CREATED = datetime(2026, 9, 21, 10, 0, tzinfo=UTC)
 
 
 def _usage() -> Usage:
@@ -31,13 +31,8 @@ def _usage() -> Usage:
 
 
 @pytest.fixture
-def background_tasks():
-    return BackgroundTasks()
-
-
-@pytest.fixture
-def repository(db_session, background_tasks):
-    return PostgresUsageRepository(postgres_session=db_session, background_tasks=background_tasks)
+def repository(db_session):
+    return PostgresUsageRepository(postgres_session=db_session, session_factory=CurrentDbSessionFactory())
 
 
 async def _seed(db_session):
@@ -47,18 +42,24 @@ async def _seed(db_session):
     return key, provider
 
 
-def _start_record(repository, key, provider, **overrides):
-    arguments = {
-        "endpoint": ProviderEndpoint.CHAT_COMPLETIONS,
-        "model": provider.router.name,
+def _record(key, provider, **overrides) -> UsageRecord:
+    fields = {
+        "request_id": "3f2a",
+        "endpoint": CHAT_COMPLETIONS,
+        "created": CREATED,
         "user_id": key.user.id,
-        "router_id": provider.router.id,
-        "router_name": provider.router.name,
         "user_email": key.user.email,
         "key_id": key.id,
         "key_name": key.name,
+        "router_id": provider.router.id,
+        "router_name": provider.router.name,
+        "provider_id": provider.id,
+        "provider_model_name": provider.model_name,
+        "usage": _usage(),
+        "status": 200,
+        "latency": 250,
     }
-    return repository.start_record(**(arguments | overrides))
+    return UsageRecord(**(fields | overrides))
 
 
 async def _persisted_rows(db_session) -> list[UsageTable]:
@@ -70,21 +71,19 @@ def _window():
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestRecordUsage:
-    async def test_persists_the_recorded_row_on_end_record(self, repository, background_tasks, db_session):
+class TestSaveRecord:
+    async def test_persists_every_field_of_the_record(self, repository, db_session):
         # Arrange
         key, provider = await _seed(db_session)
-        request_id = _start_record(repository, key, provider)
-        repository.update_record(usage=_usage(), provider_id=provider.id, provider_model_name=provider.model_name)
 
         # Act
-        repository.end_record()
-        await background_tasks()
+        await repository.save_record(_record(key, provider, ttft=50))
 
         # Assert
         [row] = await _persisted_rows(db_session)
-        assert row.request_id == request_id
+        assert row.request_id == "3f2a"
         assert row.endpoint == CHAT_COMPLETIONS
+        assert row.created == CREATED
         assert row.user_id == key.user.id
         assert row.user_email == key.user.email
         assert row.token_id == key.id
@@ -100,80 +99,51 @@ class TestRecordUsage:
         assert row.kwh == 1.5
         assert row.kgco2eq == 2.5
         assert row.status == 200
-        assert row.ttft is None
+        assert row.latency == 250
+        assert row.ttft == 50
         assert row.created.tzinfo is not None
 
-    async def test_persists_latency_and_ttft(self, repository, background_tasks, db_session):
+    @pytest.mark.parametrize("status", [503, 429, None], ids=["provider-failure", "rate-limited", "no-response"])
+    async def test_persists_nothing_for_a_request_that_did_not_succeed(self, repository, db_session, status):
         # Arrange
         key, provider = await _seed(db_session)
-        start = datetime(2026, 9, 21, 10, 0, 0, tzinfo=UTC)
-        first_token_at = datetime(2026, 9, 21, 10, 0, 0, 50000, tzinfo=UTC)
-        end = datetime(2026, 9, 21, 10, 0, 0, 250000, tzinfo=UTC)
-        with patch("api.infrastructure.postgres._postgresusagerepository.datetime") as mock_datetime:
-            mock_datetime.now.side_effect = [start, end]
-            _start_record(repository, key, provider)
-            repository.update_record(usage=_usage(), provider_id=provider.id, provider_model_name=provider.model_name, first_token_at=first_token_at)
+        record = _record(key, provider, provider_id=None, provider_model_name=None, usage=None, status=status, error="NoAvailableProviderError")
 
         # Act
-        repository.end_record()
-        await background_tasks()
+        await repository.save_record(record)
 
         # Assert
-        [row] = await _persisted_rows(db_session)
-        assert row.created == start
-        assert row.ttft == 50
-        assert row.latency == 250
-
-    async def test_persists_the_failure_status(self, repository, background_tasks, db_session):
-        # Arrange
-        key, provider = await _seed(db_session)
-        _start_record(repository, key, provider)
-        repository.fail_record(message="TooBusyModelError", status_code=503)
-
-        # Act
-        repository.end_record()
-        await background_tasks()
-
-        # Assert
-        [row] = await _persisted_rows(db_session)
-        assert row.status == 503
-        assert row.provider_id is None
-        assert row.prompt_tokens is None
-
-    async def test_persists_nothing_when_start_was_not_called(self, repository, background_tasks, db_session):
-        # Act
-        repository.update_record(usage=_usage(), provider_id=9, provider_model_name="vllm-model")
-        repository.fail_record(message="TooBusyModelError", status_code=503)
-        repository.end_record()
-        await background_tasks()
-
-        # Assert
-        assert background_tasks.tasks == []
         assert await _persisted_rows(db_session) == []
 
-    async def test_persists_one_row_per_record(self, repository, background_tasks, db_session):
+    async def test_persists_a_stream_that_answered_200_then_broke(self, repository, db_session):
+        # Arrange
+        key, provider = await _seed(db_session)
+        record = _record(key, provider, status=200, error="ProviderNotReachableError")
+
+        # Act
+        await repository.save_record(record)
+
+        # Assert
+        [row] = await _persisted_rows(db_session)
+        assert (row.status, row.completion_tokens) == (200, 5)
+
+    async def test_persists_nothing_when_the_record_is_only_opened(self, repository, db_session):
         # Arrange
         key, provider = await _seed(db_session)
 
         # Act
-        first_request_id = _start_record(repository, key, provider)
-        repository.end_record()
-        second_request_id = _start_record(repository, key, provider)
-        repository.end_record()
-        await background_tasks()
+        repository.open_record(_record(key, provider))
 
         # Assert
-        rows = await _persisted_rows(db_session)
-        assert sorted(row.request_id for row in rows) == sorted([first_request_id, second_request_id])
+        assert await _persisted_rows(db_session) == []
 
-    async def test_swallows_persist_errors(self, repository, background_tasks, db_session):
+    async def test_raises_when_the_row_breaks_a_foreign_key(self, repository, db_session):
         # Arrange
         key, provider = await _seed(db_session)
-        _start_record(repository, key, provider, user_id=key.user.id + 1_000_000)
-        repository.end_record()
 
         # Act / Assert
-        await background_tasks()
+        with pytest.raises(IntegrityError):
+            await repository.save_record(_record(key, provider, user_id=key.user.id + 1_000_000))
 
 
 @pytest.mark.asyncio(loop_scope="session")

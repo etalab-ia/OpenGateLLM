@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -16,6 +17,7 @@ from api.dependencies import get_autocommit_postgres_session, get_postgres_sessi
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.infrastructure.configuration import configuration as global_configuration
 from api.infrastructure.context import GlobalContext, global_context
+from api.infrastructure.fastapi._usagerecorder import _pending_saves
 from api.infrastructure.postgres.models import Base
 from api.tests.integration import factories
 
@@ -146,6 +148,24 @@ def pytest_addoption(parser):
     )
 
 
+class CurrentDbSessionFactory:
+    def __call__(self) -> "CurrentDbSessionFactory":
+        return self
+
+    async def __aenter__(self) -> AsyncSession:
+        return _current_db_session.get()
+
+    async def __aexit__(self, *_) -> bool:
+        return False
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def _bind_session_factories_to_the_test_session() -> AsyncGenerator[None]:
+    factory = CurrentDbSessionFactory()
+    with override_global_context(postgres_session_factory=factory, autocommit_postgres_session_factory=factory):
+        yield
+
+
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSession]:
     async with test_postgres_engine.connect() as connection:
@@ -164,6 +184,8 @@ async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSessi
             try:
                 yield session
             finally:
+                if _pending_saves:
+                    await asyncio.gather(*tuple(_pending_saves), return_exceptions=True)
                 _current_db_session.reset(token)
                 event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
                 await session.close()

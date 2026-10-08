@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from json import dumps
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
-from api.domain.model.errors import StatusCodeModelError
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.usage.entities import Usage
@@ -59,7 +58,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             case error:
                 return error
 
-        request_id = self._start_record_usage(command=command, router=router)
+        request_id = self.usage_context.get_request_id()
 
         if command.stream:
             provider = await self._select_provider(router=router)
@@ -69,8 +68,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 case AsyncGenerator() as chunks:
                     pass
                 case error:
-                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
-                    self.usage_repository.end_record()
                     return error
 
             return CreateChatCompletionsStreamUseCaseSuccess(
@@ -85,24 +82,20 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 headers=rate_limit_state.build_limit_headers,
             )
 
-        try:
-            result = await self._send_request(
-                authenticated_user=authenticated_user,
-                router=router,
-                prompt_tokens=prompt_tokens,
-                payload=command.payload,
-                request_id=request_id,
-            )
-            match result:
-                case ProviderResponse() as provider_response:
-                    pass
-                case error:
-                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
-                    return error
+        result = await self._send_request(
+            authenticated_user=authenticated_user,
+            router=router,
+            prompt_tokens=prompt_tokens,
+            payload=command.payload,
+            request_id=request_id,
+        )
+        match result:
+            case ProviderResponse() as provider_response:
+                pass
+            case error:
+                return error
 
-            return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
-        finally:
-            self.usage_repository.end_record()
+        return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
 
     async def _format_stream(
         self,
@@ -122,7 +115,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 try:
                     async for chunk in chunks:
                         if chunk.status_code // 100 != 2:
-                            self.usage_repository.fail_record(message=StatusCodeModelError.__name__, status_code=chunk.status_code)
                             yield chunk
                             return
 
@@ -148,7 +140,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                         provider=provider,
                         buffer=buffer,
                         prompt_tokens=prompt_tokens,
-                        latency=self.usage_repository.compute_latency(),
+                        latency=self.usage_context.elapsed_ms(),
                         request_id=request_id,
                         first_token_at=first_token_at,
                     )
@@ -163,11 +155,9 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                             provider=provider,
                             buffer=buffer,
                             prompt_tokens=prompt_tokens,
-                            latency=self.usage_repository.compute_latency(),
-                            request_id=request_id,
+                            latency=self.usage_context.elapsed_ms(),
                             first_token_at=first_token_at,
                         )
-                    self.usage_repository.end_record()
 
     def _build_usage_line(
         self,
@@ -176,7 +166,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         buffer: list[dict],
         prompt_tokens: int,
-        latency: float,
+        latency: int,
         request_id: str,
         first_token_at: datetime | None,
     ) -> str:
@@ -187,7 +177,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             buffer=buffer,
             prompt_tokens=prompt_tokens,
             latency=latency,
-            request_id=request_id,
             first_token_at=first_token_at,
         )
         usage_chunk = ChatCompletionChunk.build_usage_chunk(
@@ -205,20 +194,14 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         buffer: list[dict],
         prompt_tokens: int,
-        latency: float,
-        request_id: str,
+        latency: int,
         first_token_at: datetime | None,
     ) -> Usage:
         completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
         completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
         usage = self._build_usage(provider=provider, router=router, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, latency=latency)
-        self.usage_context.record_usage(request_id=request_id, usage=usage)
-        self.usage_repository.update_record(
-            usage=usage,
-            provider_id=provider.id,
-            provider_model_name=provider.model_name,
-            first_token_at=first_token_at,
-        )
+        ttft = self.usage_context.elapsed_ms(at=first_token_at) if first_token_at is not None else None
+        self.usage_context.record_usage(usage=usage, latency=latency, ttft=ttft)
         self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return usage

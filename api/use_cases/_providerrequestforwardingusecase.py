@@ -20,7 +20,7 @@ from api.domain.provider.errors import (
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContext, UsageRepository
+from api.domain.usage import UsageContext
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
@@ -77,7 +77,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_context: UsageContext,
-        usage_repository: UsageRepository,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
@@ -90,7 +89,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self.router_repository = router_repository
 
         self.usage_context = usage_context
-        self.usage_repository = usage_repository
 
     async def execute(self, command: TCommand) -> TResult:
         authenticated_user = command.authenticated_user
@@ -114,25 +112,20 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        request_id = self._start_record_usage(command=command, router=router)
-        try:
-            result = await self._send_request(
-                authenticated_user=authenticated_user,
-                router=router,
-                prompt_tokens=prompt_tokens,
-                payload=command.payload,
-                request_id=request_id,
-            )
-            match result:
-                case ProviderResponse() as provider_response:
-                    pass
-                case error:
-                    self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
-                    return error
+        result = await self._send_request(
+            authenticated_user=authenticated_user,
+            router=router,
+            prompt_tokens=prompt_tokens,
+            payload=command.payload,
+            request_id=self.usage_context.get_request_id(),
+        )
+        match result:
+            case ProviderResponse() as provider_response:
+                pass
+            case error:
+                return error
 
-            return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
-        finally:
-            self.usage_repository.end_record()
+        return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
 
     def _check_command(self, command: TCommand) -> TResult | None:
         return None
@@ -183,18 +176,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return rate_limit_state
 
-    def _start_record_usage(self, command: TCommand, router: Router) -> str:
-        return self.usage_repository.start_record(
-            endpoint=self.ENDPOINT,
-            model=router.name,
-            user_id=command.authenticated_user.id,
-            router_id=router.id,
-            router_name=router.name,
-            user_email=command.authenticated_user.email,
-            key_id=command.authenticated_key.id,
-            key_name=command.authenticated_key.name,
-        )
-
     async def _send_request(
         self,
         authenticated_user: AuthenticatedUserView,
@@ -216,7 +197,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         async with self._inflight(provider=provider):
             result = await self.provider_client.forward(provider=provider, request=request)
-            latency = self.usage_repository.compute_latency()
+            latency = self.usage_context.elapsed_ms()
 
         match result:
             case ProviderResponse() as provider_response:
@@ -235,8 +216,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        self.usage_context.record_usage(request_id=request_id, usage=usage)
-        self.usage_repository.update_record(usage=usage, provider_id=provider.id, provider_model_name=provider.model_name)
+        self.usage_context.record_usage(usage=usage, latency=latency)
         self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return provider_response
@@ -257,7 +237,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             if is_incremented:
                 await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
 
-    def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: float) -> Usage:
+    def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: int) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(
             model_active_params=provider.model_active_params,
             model_total_params=provider.model_total_params,

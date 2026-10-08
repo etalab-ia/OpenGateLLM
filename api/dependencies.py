@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import BackgroundTasks, Depends
+from fastapi import BackgroundTasks, Depends, Request
 import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +23,8 @@ from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import configuration
 from api.infrastructure.context import global_context
-from api.infrastructure.contextvars import ContextVarsUsageContext
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
+from api.infrastructure.fastapi import UsageRecorder
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
@@ -158,10 +158,6 @@ def _router_rate_limiter(background_tasks: BackgroundTasks) -> RouterRateLimiter
     )
 
 
-def _usage_context() -> UsageContext:
-    return ContextVarsUsageContext(request_context=request_context)
-
-
 # repositories
 def _authentication_key_repository(
     key_encoder: KeyEncoder = Depends(_key_encoder),
@@ -202,13 +198,25 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
 
-def _usage_repository(
-    background_tasks: BackgroundTasks,
-    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
-) -> UsageRepository:
+def _usage_repository(postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session)) -> UsageRepository:
     if configuration.dependencies.langfuse is not None:
         return LangfuseUsageRepository(client=global_context.langfuse)
-    return PostgresUsageRepository(postgres_session=postgres_session, background_tasks=background_tasks)
+
+    return PostgresUsageRepository(postgres_session=postgres_session, session_factory=global_context.autocommit_postgres_session_factory)
+
+
+def _usage_recorder(request: Request, usage_repository: UsageRepository = Depends(_usage_repository)) -> UsageContext:
+    context = request_context.get()
+    recorder = UsageRecorder.open(
+        usage_repository=usage_repository,
+        request_id=context.id,
+        endpoint=request.scope["route"].path,
+        user=context.user,
+        key=context.key,
+    )
+    context.usage_recorder = recorder
+
+    return recorder
 
 
 # audio use cases
@@ -219,7 +227,7 @@ def create_audio_transcriptions_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -230,8 +238,7 @@ def create_audio_transcriptions_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
     )
 
@@ -244,7 +251,7 @@ def create_chat_completions_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateChatCompletionsUseCase:
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -255,8 +262,7 @@ def create_chat_completions_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 
@@ -312,7 +318,7 @@ def create_embeddings_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateEmbeddingsUseCase:
     return CreateEmbeddingsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -323,8 +329,7 @@ def create_embeddings_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 
@@ -390,7 +395,7 @@ def create_ocr_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateOCRUseCase:
     return CreateOCRUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -401,8 +406,7 @@ def create_ocr_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 
@@ -456,7 +460,7 @@ def create_rerank_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    usage_repository: UsageRepository = Depends(_usage_repository),
+    usage_context: UsageContext = Depends(_usage_recorder),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -467,8 +471,7 @@ def create_rerank_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
-        usage_context=_usage_context(),
-        usage_repository=usage_repository,
+        usage_context=usage_context,
     )
 
 

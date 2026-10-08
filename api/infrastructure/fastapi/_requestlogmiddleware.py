@@ -46,8 +46,12 @@ class RequestLogMiddleware:
             logger.exception("Unhandled exception while processing request", extra=self._request_fields(scope, request_context.get()))
             status_code = InternalServerHTTPException.status_code
             response = JSONResponse(status_code=status_code, content={"detail": InternalServerHTTPException.detail})
-            await response(scope, receive, send)
+            await response(scope, receive, capture_status_and_send)
         finally:
+            context = request_context.get()
+            if context.usage_recorder is not None:
+                context.usage_recorder.close(status_code=status_code, error=context.error)
+
             duration_ms = round((perf_counter() - started_at) * 1000, 1)
             logger.info(
                 "%s %s %s %.1fms",
@@ -55,7 +59,7 @@ class RequestLogMiddleware:
                 scope["path"],
                 status_code,
                 duration_ms,
-                extra={**self._request_fields(scope, request_context.get()), "status_code": status_code, "duration_ms": duration_ms},
+                extra={**self._request_fields(scope, context), "status_code": status_code, "duration_ms": duration_ms},
             )
 
     def _request_fields(self, scope: Scope, context: RequestContext) -> dict:
@@ -67,7 +71,7 @@ class RequestLogMiddleware:
             "client_addr": client[0] if client else None,
             "authenticated_user_id": context.user.id if context.user else None,
             "key_id": context.key.id if context.key else None,
-            "router_name": context.router_name,
+            "router_name": context.usage_recorder.record.router_name if context.usage_recorder else None,
             "error": context.error,
         }
         return {
@@ -93,9 +97,11 @@ class RequestLogMiddleware:
 
 async def record_http_exception(request: Request, exception: HTTPException) -> Response:
     request_context.get().error = type(exception).__name__
+
     return await http_exception_handler(request, exception)
 
 
 async def record_validation_exception(request: Request, exception: RequestValidationError) -> Response:
     request_context.get().error = type(exception).__name__
+
     return await request_validation_exception_handler(request, exception)
