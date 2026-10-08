@@ -59,7 +59,6 @@ async def lifespan(_: FastAPI):
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
         if bootstrap_admin_user_id is not None:
-            await bootstrap_authorization(bootstrap_admin_user_id=bootstrap_admin_user_id)
             await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     global_context.langfuse = create_langfuse(configuration=configuration)
@@ -105,6 +104,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
     limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
     permission_repository = PostgresPermissionRepository(postgres_session=postgres_session)
     organization_repository = PostgresOrganizationRepository(postgres_session=postgres_session)
+    bootstrap_authorization = OpenFgaBootstrapAuthorization(openfga_client=OpenFgaAuthorizationClient(client=global_context.openfga_client))
 
     result = await BootstrapAdminUseCase(
         user_repository=user_repository,
@@ -113,6 +113,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
         permission_repository=permission_repository,
         organization_repository=organization_repository,
         user_password_encoder=BcryptUserPasswordEncoder(),
+        bootstrap_authorization=bootstrap_authorization,
     ).execute(
         BootstrapAdminCommand(email=configuration.settings.auth_bootsrap_admin_username, password=configuration.settings.auth_bootsrap_admin_password)
     )
@@ -133,13 +134,6 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
             logger.info(f"user ID: {skipped.user_id}")
             logger.info(f"role ID: {skipped.role_id}")
             return skipped.user_id
-
-
-async def bootstrap_authorization(bootstrap_admin_user_id: int) -> None:
-    authorization = OpenFgaBootstrapAuthorization(openfga_client=OpenFgaAuthorizationClient(client=global_context.openfga_client))
-    await authorization.attach_bootstrap_admin_to_platform(user_id=bootstrap_admin_user_id)
-
-    logger.info(f"Bootstrap admin holds the platform admin relation (user ID: {bootstrap_admin_user_id}).")
 
 
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
