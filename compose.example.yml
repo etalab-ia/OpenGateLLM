@@ -42,11 +42,38 @@ services:
       redis:
         condition: service_healthy
 
+  openfga-init-db:
+    image: postgres:16.5
+    environment:
+      - "PGPASSWORD=${POSTGRES_PASSWORD:-changeme}"
+    entrypoint:
+      - sh
+      - -c
+      - >
+        psql -h postgres -U ${POSTGRES_USER:-postgres} -d postgres -tc
+        "SELECT 1 FROM pg_database WHERE datname = 'openfga'" | grep -q 1
+        || psql -h postgres -U ${POSTGRES_USER:-postgres} -d postgres -c "CREATE DATABASE openfga"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  openfga-migrate:
+    image: openfga/openfga:v1.20.0
+    environment:
+      - "OPENFGA_DATASTORE_ENGINE=postgres"
+      - "OPENFGA_DATASTORE_URI=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/openfga?sslmode=disable"
+    command: migrate
+    restart: on-failure
+    depends_on:
+      openfga-init-db:
+        condition: service_completed_successfully
+
   openfga:
     image: openfga/openfga:v1.20.0
     restart: always
     environment:
-      - "OPENFGA_DATASTORE_ENGINE=memory"
+      - "OPENFGA_DATASTORE_ENGINE=postgres"
+      - "OPENFGA_DATASTORE_URI=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/openfga?sslmode=disable"
       - "OPENFGA_AUTHN_METHOD=preshared"
       - "OPENFGA_AUTHN_PRESHARED_KEYS=${OPENFGA_API_TOKEN:-changeme}"
       - "OPENFGA_LOG_FORMAT=json"
@@ -59,6 +86,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:16.5
