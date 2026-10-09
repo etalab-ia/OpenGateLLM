@@ -10,9 +10,9 @@ dependencies:
       command_timeout: 60
 
   openfga: # required
-    url: http://${OPENFGA_HOST:-openfga}:${OPENFGA_PORT:-8080}
-    store_name: opengatellm
-    api_token: ${OPENFGA_API_TOKEN:-changeme}
+    url: ${FGA_API_URL:-http://openfga:8080}
+    store_name: ${FGA_STORE_NAME:-opengatellm}
+    api_token: ${FGA_API_TOKEN:-changeme}
 
   redis: # required
     url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
