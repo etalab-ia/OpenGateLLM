@@ -215,12 +215,12 @@ class RedisDependency(ConfigBaseModel):
 class OpenFgaDependency(ConfigBaseModel):
     """
     OpenFGA is a required dependency of OpenGateLLM. OpenFGA stores the authorization relationships that decide who can act on an OpenGateLLM resource.
-    The store is created if missing and the authorization model is published by `scripts/startup_api.sh`, once, before the API workers fork.
+    The store is created if missing and the authorization model is published by `scripts/setup_openfga.sh`, which `scripts/startup_api.sh` runs once, before the API workers fork. That script reads `FGA_API_URL`, `FGA_API_TOKEN` and `FGA_STORE_NAME` from the environment: they must match `url`, `api_token` and `store_name`.
     """
 
     url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., pattern=r"^https?://", description="OpenFGA API url.", examples=["http://localhost:8080"])  # fmt: off
-    store_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="opengatellm", description="Name of the OpenFGA store. Resolved to its ID at startup, and created if missing.", examples=["opengatellm"])  # fmt: off
-    api_token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Pre-shared key sent as a Bearer token.", examples=["${OPENFGA_API_TOKEN}"])  # fmt: off
+    store_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="opengatellm", description="Name of the OpenFGA store, resolved to its ID at startup. Must match the `FGA_STORE_NAME` environment variable read by `scripts/setup_openfga.sh`.", examples=["opengatellm"])  # fmt: off
+    api_token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Pre-shared key sent as a Bearer token.", examples=["${FGA_API_TOKEN}"])  # fmt: off
 
 
 @custom_validation_error()

@@ -662,18 +662,20 @@ renamed relation turns every check into a silent `false`. The deployment repo ow
 (`fga model validate`).
 
 **Publishing the model is a start-up step, but it happens once, before the workers fork.** `scripts/startup_api.sh`
-runs it right next to `alembic upgrade head`: `python -m scripts.configure_fga_cli` resolves (or creates) the store and
-writes `~/.fga.yaml`, then the `fga` CLI compares the published model with `model.fga` and writes a new version **only
-when they differ**. Workers then only *read* the published model — `create_openfga_client` resolves the store and the
-latest model and raises if either is missing, exactly as the API fails on an unmigrated Postgres.
+runs `scripts/setup_openfga.sh` right next to `alembic upgrade head`; it can also be run on its own. It uses the `fga`
+CLI alone: it looks the store up by name (creating it if missing), then compares the published model with `model.fga` and writes a new version **only when they differ**. The CLI
+takes its connection from `FGA_API_URL`, `FGA_API_TOKEN` and `FGA_STORE_ID`; the script derives the last one from
+`FGA_STORE_NAME`. Those variables are a second source next to `dependencies.openfga` in the config file, so
+`config.example.yml` reads the same `FGA_*` variables to keep them in step. Workers then only *read* the published
+model — `create_openfga_client` looks the store up by name and loads the latest model, and raises if either is missing,
+exactly as the API fails on an unmigrated Postgres.
 
 That ordering is load-bearing. Publishing from the lifespan instead appends one model version per worker and pins each
 worker to a different one, so during a rolling deploy workers of the same container answer checks against different
 models. The diff is what makes a restart free: an authorization model is immutable and append-only, never pruned.
 
-`resolve_store_id` (`api/infrastructure/openfga/_storeresolution.py`) is shared by that script and the lifespan. It
-paginates `list_stores` and raises rather than guess when two stores share a name — `fga store import` is not
-idempotent and will happily create the duplicate.
+Both the script and the lifespan refuse to guess when two stores share a name — `fga store import` is not idempotent
+and will happily create the duplicate.
 
 **Only relations with brackets can be written.** `define member: [user]` is a fact you store; `define can_read: member
 or admin from platform` is a question you ask, and writing it returns a 400. In this model the `can_*` prefix marks

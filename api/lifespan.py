@@ -19,11 +19,7 @@ from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.openfga import (
-    OpenFgaAuthorizationClient,
-    OpenFgaBootstrapAuthorization,
-    resolve_store_id,
-)
+from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaBootstrapAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -207,12 +203,12 @@ async def create_openfga_client(configuration: Configuration) -> OpenFgaClient:
         )
     )
 
-    store_id = await resolve_store_id(client=client, store_name=openfga_config.store_name)
-    if store_id is None:
+    stores = (await client.list_stores(options={"name": openfga_config.store_name})).stores
+    if len(stores) != 1:
         await client.close()
-        raise RuntimeError(f"OpenFGA store '{openfga_config.store_name}' does not exist.")
+        raise RuntimeError(f"Expected one OpenFGA store named '{openfga_config.store_name}', found {len(stores)}.")
 
-    client.set_store_id(store_id)
+    client.set_store_id(stores[0].id)
 
     latest = await client.read_latest_authorization_model()
     if latest.authorization_model is None:
