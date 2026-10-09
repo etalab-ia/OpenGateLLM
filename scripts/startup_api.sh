@@ -9,23 +9,7 @@ rm -rf "${PROMETHEUS_MULTIPROC_DIR:?}"/*
 python -m alembic -c api/alembic.ini upgrade head
 
 # OpenFGA
-python -m scripts.configure_fga_cli
-
-published_model=$(mktemp)
-local_model=$(mktemp)
-
-fga model get --format fga > "$published_model" 2>/dev/null || true
-fga model transform --file api/infrastructure/openfga/model.fga --output-format fga > "$local_model"
-
-if diff -q "$published_model" "$local_model" > /dev/null 2>&1; then
-    echo "OpenFGA authorization model unchanged, skipping publication..."
-else
-    echo "OpenFGA authorization model changed, publishing new version..."
-    fga model write --file api/infrastructure/openfga/model.fga
-    echo "OpenFGA authorization model published successfully."
-fi
-
-rm -f "$published_model" "$local_model"
+bash scripts/setup_openfga.sh
 
 # Gunicorn
 GUNICORN_CMD_ARGS=${GUNICORN_CMD_ARGS:-""} # ex: --log-config app/log.conf
