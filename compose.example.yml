@@ -6,6 +6,10 @@ services:
     restart: always
     ports:
       - "${API_PORT:-8000}:8000"
+    environment:
+      - "FGA_API_URL=http://openfga:8080"
+      - "FGA_API_TOKEN=${FGA_API_TOKEN:-changeme}"
+      - "FGA_STORE_NAME=${FGA_STORE_NAME:-opengatellm}"
     volumes:
       - "${CONFIG_FILE:-./config.yml}:/config.yml:ro"
     healthcheck:
@@ -18,6 +22,8 @@ services:
       redis:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      openfga:
         condition: service_healthy
 
   playground:
@@ -39,6 +45,56 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  openfga-init-db:
+    image: postgres:16.5
+    environment:
+      - "PGPASSWORD=${POSTGRES_PASSWORD:-changeme}"
+    entrypoint:
+      - sh
+      - -c
+      - >
+        psql -h postgres -U ${POSTGRES_USER:-postgres} -d postgres -tc
+        "SELECT 1 FROM pg_database WHERE datname = 'openfga'" | grep -q 1
+        || psql -h postgres -U ${POSTGRES_USER:-postgres} -d postgres -c "CREATE DATABASE openfga"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  openfga-migrate:
+    image: openfga/openfga:v1.20.0
+    environment:
+      - "OPENFGA_DATASTORE_ENGINE=postgres"
+      - "OPENFGA_DATASTORE_URI=postgres://${POSTGRES_USER:-postgres}@postgres:5432/openfga?sslmode=disable"
+      - "OPENFGA_DATASTORE_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
+    command: migrate
+    restart: on-failure
+    depends_on:
+      openfga-init-db:
+        condition: service_completed_successfully
+
+  openfga:
+    image: openfga/openfga:v1.20.0
+    restart: always
+    environment:
+      - "OPENFGA_DATASTORE_ENGINE=postgres"
+      - "OPENFGA_DATASTORE_URI=postgres://${POSTGRES_USER:-postgres}@postgres:5432/openfga?sslmode=disable"
+      - "OPENFGA_DATASTORE_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
+      - "OPENFGA_AUTHN_METHOD=preshared"
+      - "OPENFGA_AUTHN_PRESHARED_KEYS=${FGA_API_TOKEN:-changeme}"
+      - "OPENFGA_LOG_FORMAT=json"
+    command: run
+    ports:
+      - "${FGA_PORT:-8080}:8080"
+    healthcheck:
+      test: [ "CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:16.5

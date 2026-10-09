@@ -15,3 +15,8 @@ class OrganizationNotFoundError:
 @dataclass
 class OrganizationHasUsersError:
     id: int
+
+
+@dataclass
+class UserCannotCreateOrganizationError:
+    user_id: int
