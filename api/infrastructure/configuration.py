@@ -215,7 +215,7 @@ class RedisDependency(ConfigBaseModel):
 class OpenFgaDependency(ConfigBaseModel):
     """
     OpenFGA is a required dependency of OpenGateLLM. OpenFGA stores the authorization relationships that decide who can act on an OpenGateLLM resource.
-    The authorization model is published by `scripts/provision_openfga.py` at deploy time, which also creates the store if it does not exist.
+    The store is created if missing and the authorization model is published by `scripts/startup_api.sh`, once, before the API workers fork.
     """
 
     url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., pattern=r"^https?://", description="OpenFGA API url.", examples=["http://localhost:8080"])  # fmt: off
