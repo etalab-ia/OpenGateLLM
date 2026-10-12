@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import BackgroundTasks, Depends
+from fastapi import BackgroundTasks, Depends, Request
 import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,7 @@ from api.domain.router import RouterRateLimiter
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
-from api.infrastructure.configuration import Configuration, get_configuration
+from api.infrastructure.configuration import Configuration
 from api.infrastructure.context import global_context
 from api.infrastructure.contextvars import ContextVarsUsageContext
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
@@ -77,6 +77,10 @@ from api.use_cases.usage import GetUsagesUseCase
 
 
 # infrastructure
+async def get_app_configuration(request: Request) -> Configuration:
+    return request.app.state.configuration
+
+
 async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
     session_factory = global_context.postgres_session_factory
     async with session_factory() as postgres_session:
@@ -112,11 +116,11 @@ def _model_query(session: AsyncSession) -> ModelQuery:
 
 
 # helpers
-def _auth_sso_session_validator(configuration: Configuration = Depends(get_configuration)) -> AuthSsoSessionValidator:
+def _auth_sso_session_validator(configuration: Configuration = Depends(get_app_configuration)) -> AuthSsoSessionValidator:
     return HttpAuthSsoSessionValidator(auth_playground_url=configuration.settings.auth_playground_url)
 
 
-def _key_encoder(configuration: Configuration = Depends(get_configuration)) -> KeyEncoder:
+def _key_encoder(configuration: Configuration = Depends(get_app_configuration)) -> KeyEncoder:
     return JwtKeyEncoder(secret_key=configuration.settings.auth_secret_key)
 
 
@@ -152,7 +156,7 @@ def _user_password_encoder() -> UserPasswordEncoder:
     return BcryptUserPasswordEncoder()
 
 
-def _router_rate_limiter(background_tasks: BackgroundTasks, configuration: Configuration = Depends(get_configuration)) -> RouterRateLimiter:
+def _router_rate_limiter(background_tasks: BackgroundTasks, configuration: Configuration = Depends(get_app_configuration)) -> RouterRateLimiter:
     return RedisRouterRateLimiter(
         background_tasks=background_tasks, redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy
     )
@@ -205,7 +209,7 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
 def _usage_repository(
     background_tasks: BackgroundTasks,
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
-    configuration: Configuration = Depends(get_configuration),
+    configuration: Configuration = Depends(get_app_configuration),
 ) -> UsageRepository:
     if configuration.dependencies.langfuse is not None:
         return LangfuseUsageRepository(client=global_context.langfuse)
@@ -221,7 +225,7 @@ def create_audio_transcriptions_use_case_factory(
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
     usage_repository: UsageRepository = Depends(_usage_repository),
-    configuration: Configuration = Depends(get_configuration),
+    configuration: Configuration = Depends(get_app_configuration),
 ) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -267,7 +271,7 @@ def auth_login_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     key_encoder: KeyEncoder = Depends(_key_encoder),
     password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
-    configuration: Configuration = Depends(get_configuration),
+    configuration: Configuration = Depends(get_app_configuration),
 ) -> AuthLoginUseCase:
     return AuthLoginUseCase(
         key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
@@ -282,7 +286,7 @@ def auth_sso_login_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     key_encoder: KeyEncoder = Depends(_key_encoder),
     auth_sso_session_validator: AuthSsoSessionValidator = Depends(_auth_sso_session_validator),
-    configuration: Configuration = Depends(get_configuration),
+    configuration: Configuration = Depends(get_app_configuration),
 ) -> AuthSsoLoginUseCase:
     return AuthSsoLoginUseCase(
         key_repository=_key_repository(key_encoder=key_encoder, session=postgres_session),
@@ -336,7 +340,7 @@ def create_embeddings_use_case_factory(
 # keys use cases
 def create_key_use_case_factory(
     key_repository: KeyRepository = Depends(_key_repository),
-    configuration: Configuration = Depends(get_configuration),
+    configuration: Configuration = Depends(get_app_configuration),
 ) -> CreateKeyUseCase:
     return CreateKeyUseCase(
         key_repository=key_repository,
@@ -346,7 +350,7 @@ def create_key_use_case_factory(
 
 def create_me_key_use_case_factory(
     key_repository: KeyRepository = Depends(_key_repository),
-    configuration: Configuration = Depends(get_configuration),
+    configuration: Configuration = Depends(get_app_configuration),
 ) -> CreateKeyUseCase:
     return CreateKeyUseCase(
         key_repository=key_repository,

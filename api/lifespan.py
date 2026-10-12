@@ -13,7 +13,7 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
-from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
+from api.infrastructure.configuration import Configuration, Tokenizer
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.postgres import (
@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    configuration = get_configuration()
+async def lifespan(app: FastAPI):
+    configuration = app.state.configuration
 
     global_context.redis_pool = await create_redis_pool(configuration)
     global_context.postgres_engine = create_postgres_engine(configuration)
