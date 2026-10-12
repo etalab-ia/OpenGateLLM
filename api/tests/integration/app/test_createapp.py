@@ -7,6 +7,7 @@ import pytest_asyncio
 from api.app import create_app
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
+from api.tests.helpers import create_key
 
 
 @pytest.fixture(scope="session")
@@ -95,6 +96,31 @@ class TestCreateApp:
         # Assert
         hidden_router_path = f"/v1/{createapp_configuration.settings.hidden_routers[0]}"
         assert hidden_router_path not in response.json()["paths"], f"Hidden route {hidden_router_path} is exposed in OpenAPI schema"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestCreateAppRequestDependencies:
+    async def test_accepts_a_key_signed_with_the_secret_of_the_configuration_given_to_create_app(
+        self, client: AsyncClient, db_session, test_configuration: Configuration
+    ):
+        # Arrange
+        key = await create_key(db_session, secret_key=test_configuration.settings.auth_secret_key, never_expires=True)
+
+        # Act
+        response = await client.get(url=f"/v1{EndpointRoute.ME}", headers={"Authorization": f"Bearer {key.token}"})
+
+        # Assert
+        assert response.status_code == 200, response.text
+
+    async def test_rejects_a_key_signed_with_another_secret(self, client: AsyncClient, db_session):
+        # Arrange
+        key = await create_key(db_session, secret_key="another-secret", never_expires=True)
+
+        # Act
+        response = await client.get(url=f"/v1{EndpointRoute.ME}", headers={"Authorization": f"Bearer {key.token}"})
+
+        # Assert
+        assert response.status_code == 401, response.text
 
 
 if __name__ == "__main__":

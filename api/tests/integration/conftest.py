@@ -16,7 +16,7 @@ from sqlalchemy.pool import NullPool
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
 from api.domain.router import RouterRateLimiter
-from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
+from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.infrastructure.context import GlobalContext, global_context
 from api.infrastructure.postgres.models import Base
 from api.infrastructure.redis import RedisRouterRateLimiter
@@ -223,7 +223,6 @@ async def app(test_configuration, test_redis_pool):
         finally:
             await client.aclose()
 
-    app.dependency_overrides[get_configuration] = lambda: test_configuration
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_redis_client] = override_get_redis_client
