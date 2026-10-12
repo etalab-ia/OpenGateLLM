@@ -7,7 +7,6 @@ from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from prometheus_fastapi_instrumentator.metrics import Info
 from starlette.responses import Response
 
-from api.infrastructure.configuration import configuration
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
@@ -213,7 +212,7 @@ def inference_tokens_total(metric_namespace: str = "") -> Callable[[Info], None]
     return instrumentation
 
 
-def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
+def setup_prometheus(app: FastAPI, prometheus_multiproc_dir: str, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
     app.instrumentator = (
         Instrumentator()
         .instrument(app=app)
@@ -235,7 +234,7 @@ def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_sch
         include_in_schema=include_in_schema,
     )
     def get_metrics() -> Response:
-        if configuration.prometheus_multiproc_dir:
+        if prometheus_multiproc_dir:
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)
         else:

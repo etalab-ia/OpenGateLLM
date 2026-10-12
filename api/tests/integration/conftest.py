@@ -1,53 +1,61 @@
 from collections.abc import AsyncGenerator
 from contextlib import contextmanager
 from contextvars import ContextVar
+import os
 
 import asyncpg
+from fastapi import BackgroundTasks
 from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
 import redis.asyncio as redis
-from sqlalchemy import event
+from sqlalchemy import event, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
-from api.infrastructure.configuration import Configuration, Dependencies, Settings
-from api.infrastructure.configuration import configuration as global_configuration
+from api.domain.router import RouterRateLimiter
+from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
 from api.infrastructure.context import GlobalContext, global_context
 from api.infrastructure.postgres.models import Base
+from api.infrastructure.redis import RedisRouterRateLimiter
+from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration import factories
 
-TEST_POSTGRES_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
-TEST_REDIS_URL = "redis://:changeme@localhost:6379/1"
+TEST_POSTGRES_URL = os.getenv("TEST_POSTGRES_URL", "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db")
+TEST_REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://:changeme@localhost:6379/1")
 _current_db_session: ContextVar[AsyncSession | None] = ContextVar("_current_db_session", default=None)
 
 
 @pytest.fixture(scope="session")
 def test_configuration():
-    configuration = Configuration.model_construct(
-        settings=Settings.model_construct(
-            app_title="test",
-            swagger_summary=None,
-            swagger_version="0.0.0",
-            swagger_description=None,
-            swagger_terms_of_service=None,
-            swagger_contact=None,
-            swagger_license_info=None,
-            swagger_openapi_tags=[],
-            swagger_docs_url=None,
-            swagger_redoc_url=None,
-            disabled_routers=[],
-            hidden_routers=[],
-            monitoring_prometheus_enabled=False,
-            auth_secret_key="test-secret-key",
-            auth_key_max_expiration_days=None,
-        ),
-        dependencies=Dependencies.model_construct(sentry=None),
+    return Configuration.model_construct(settings=_test_settings(), dependencies=Dependencies.model_construct(sentry=None))
+
+
+def _test_settings() -> Settings:
+    test_config_file = os.getenv("TEST_CONFIG_FILE")
+    if test_config_file:
+        settings = Configuration(config_file=test_config_file).settings
+        return settings.model_copy(update={"auth_secret_key": TEST_AUTH_SECRET_KEY, "monitoring_prometheus_enabled": False})
+
+    return Settings.model_construct(
+        app_title="test",
+        swagger_summary=None,
+        swagger_version="0.0.0",
+        swagger_description=None,
+        swagger_terms_of_service=None,
+        swagger_contact=None,
+        swagger_license_info=None,
+        swagger_openapi_tags=[],
+        swagger_docs_url=None,
+        swagger_redoc_url=None,
+        disabled_routers=[],
+        hidden_routers=[],
+        monitoring_prometheus_enabled=False,
+        auth_secret_key=TEST_AUTH_SECRET_KEY,
+        auth_key_max_expiration_days=None,
     )
-    global_configuration.settings = configuration.settings
-    return configuration
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -75,11 +83,22 @@ async def _reset_redis_between_tests(test_redis_pool):
         await client.aclose()
 
 
+@pytest.fixture
+def router_rate_limiter(test_redis_pool, test_configuration) -> RouterRateLimiter:
+    return RedisRouterRateLimiter(
+        background_tasks=BackgroundTasks(), redis_pool=test_redis_pool, strategy=test_configuration.settings.rate_limiting_strategy
+    )
+
+
 @pytest_asyncio.fixture(scope="session")
 async def test_postgres_engine():
-    conn = await asyncpg.connect("postgresql://postgres:changeme@localhost:5432/postgres")
+    test_postgres_url = make_url(TEST_POSTGRES_URL)
+    if not test_postgres_url.database:
+        raise ValueError(f"TEST_POSTGRES_URL must name a database: {test_postgres_url}")
+    maintenance_url = test_postgres_url.set(drivername="postgresql", database="postgres", query={})
+    conn = await asyncpg.connect(maintenance_url.render_as_string(hide_password=False))
     try:
-        await conn.execute("CREATE DATABASE test_db")
+        await conn.execute(f'CREATE DATABASE "{test_postgres_url.database}"')
     except asyncpg.exceptions.DuplicateDatabaseError:
         pass
     finally:
@@ -204,6 +223,7 @@ async def app(test_configuration, test_redis_pool):
         finally:
             await client.aclose()
 
+    app.dependency_overrides[get_configuration] = lambda: test_configuration
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_redis_client] = override_get_redis_client

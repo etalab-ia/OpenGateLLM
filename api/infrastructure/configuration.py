@@ -420,6 +420,3 @@ class Configuration(BaseSettings):
 @lru_cache
 def get_configuration() -> Configuration:
     return Configuration()
-
-
-configuration = get_configuration()

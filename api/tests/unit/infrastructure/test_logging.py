@@ -7,7 +7,7 @@ from gunicorn.config import Config as GunicornConfig
 import pytest
 from uvicorn.config import LOGGING_CONFIG as UVICORN_LOGGING_CONFIG
 
-from api.infrastructure.configuration import get_configuration
+from api.infrastructure.configuration import Settings
 from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.logging import JsonGunicornLogger, configure_logging
@@ -17,7 +17,7 @@ EXAMPLE_LOG_CONFIG = Path(__file__).parents[4] / "logging.example.yml"
 
 @pytest.fixture
 def settings():
-    return get_configuration().settings.model_copy(update={"log_level": "INFO", "log_config": None})
+    return Settings(log_level="INFO", log_config=None, auth_secret_key="logging-test-secret")
 
 
 @pytest.fixture(autouse=True)

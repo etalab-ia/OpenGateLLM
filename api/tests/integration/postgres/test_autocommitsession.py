@@ -17,6 +17,7 @@ from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.router.entities import RouterType
+from api.infrastructure.configuration import get_configuration
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres import AutocommitSession, TransactionRequiredError
 from api.infrastructure.postgres.models import Base
@@ -218,6 +219,7 @@ class TestModelForwardReleasesConnection:
             finally:
                 await client.aclose()
 
+        app.dependency_overrides[get_configuration] = lambda: test_configuration
         app.dependency_overrides[get_postgres_session] = override_get_postgres_session
         app.dependency_overrides[get_autocommit_postgres_session] = override_get_autocommit_postgres_session
         app.dependency_overrides[get_redis_client] = override_get_redis_client

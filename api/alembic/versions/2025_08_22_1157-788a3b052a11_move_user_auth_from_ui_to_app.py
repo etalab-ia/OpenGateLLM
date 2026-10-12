@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from sqlalchemy import MetaData, Table, create_engine
 from sqlalchemy import select as sa_select
 
-from api.infrastructure.configuration import configuration
+from api.infrastructure.configuration import get_configuration
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ def upgrade() -> None:
     op.add_column("user", sa.Column("password", sa.String(), nullable=True))
     # ### end Alembic commands ###
 
+    configuration = get_configuration()
     if not hasattr(configuration, "playground"):
         logging.warning("Playground configuration not found in the config file; skipping user password migration")
         return
