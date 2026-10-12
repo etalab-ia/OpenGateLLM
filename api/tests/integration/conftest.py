@@ -8,7 +8,7 @@ import redis.asyncio as redis
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
-from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
+from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration.postgresfixtures import db_session, shared_test_session, test_postgres_engine  # noqa: F401
 from api.tests.integration.redisfixtures import (  # noqa: F401
@@ -80,7 +80,6 @@ async def app(test_configuration, test_redis_pool):  # noqa: F811
         finally:
             await client.aclose()
 
-    app.dependency_overrides[get_configuration] = lambda: test_configuration
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_redis_client] = override_get_redis_client
