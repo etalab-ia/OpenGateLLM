@@ -4,6 +4,7 @@ from contextvars import ContextVar
 import os
 
 import asyncpg
+from fastapi import BackgroundTasks
 from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
@@ -14,9 +15,11 @@ from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
+from api.domain.router import RouterRateLimiter
 from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
 from api.infrastructure.context import GlobalContext, global_context
 from api.infrastructure.postgres.models import Base
+from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration import factories
 
@@ -78,6 +81,13 @@ async def _reset_redis_between_tests(test_redis_pool):
         await client.flushdb()
     finally:
         await client.aclose()
+
+
+@pytest.fixture
+def router_rate_limiter(test_redis_pool, test_configuration) -> RouterRateLimiter:
+    return RedisRouterRateLimiter(
+        background_tasks=BackgroundTasks(), redis_pool=test_redis_pool, strategy=test_configuration.settings.rate_limiting_strategy
+    )
 
 
 @pytest_asyncio.fixture(scope="session")
