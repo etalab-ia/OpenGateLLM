@@ -96,4 +96,4 @@ def _setup_monitoring(app: FastAPI, configuration: Configuration) -> None:
     include_in_schema = RouterName.MONITORING not in configuration.settings.hidden_routers
 
     if configuration.settings.monitoring_prometheus_enabled:
-        setup_prometheus(app, include_in_schema=include_in_schema)
+        setup_prometheus(app, prometheus_multiproc_dir=configuration.prometheus_multiproc_dir, include_in_schema=include_in_schema)

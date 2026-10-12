@@ -18,7 +18,7 @@ use_cases/        Command, UseCase, UseCaseSuccess, execute()
 infrastructure/
   fastapi/        endpoints, schemas, HTTP exceptions, AccessController, routes, monitoring
   postgres/       Postgres*Repository / Postgres*Query adapters, AutocommitSession
-  configuration.py  Settings + get_configuration() / the `configuration` singleton
+  configuration.py  Settings + get_configuration() — read lazily, never at import time; DI factories take Depends(get_configuration)
   context.py      GlobalContext — the process-wide infrastructure handles
   logging.py      configure_logging — configures the "api" logger (or applies the settings.log_config file), every module uses getLogger(__name__)
 app.py            create_app: middleware, router registration, monitoring

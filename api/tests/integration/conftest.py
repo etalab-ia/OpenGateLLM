@@ -13,10 +13,10 @@ from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
-from api.infrastructure.configuration import Configuration, Dependencies, Settings
-from api.infrastructure.configuration import configuration as global_configuration
+from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
 from api.infrastructure.context import GlobalContext, global_context
 from api.infrastructure.postgres.models import Base
+from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration import factories
 
 TEST_POSTGRES_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
@@ -26,7 +26,7 @@ _current_db_session: ContextVar[AsyncSession | None] = ContextVar("_current_db_s
 
 @pytest.fixture(scope="session")
 def test_configuration():
-    configuration = Configuration.model_construct(
+    return Configuration.model_construct(
         settings=Settings.model_construct(
             app_title="test",
             swagger_summary=None,
@@ -41,13 +41,11 @@ def test_configuration():
             disabled_routers=[],
             hidden_routers=[],
             monitoring_prometheus_enabled=False,
-            auth_secret_key="test-secret-key",
+            auth_secret_key=TEST_AUTH_SECRET_KEY,
             auth_key_max_expiration_days=None,
         ),
         dependencies=Dependencies.model_construct(sentry=None),
     )
-    global_configuration.settings = configuration.settings
-    return configuration
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -204,6 +202,7 @@ async def app(test_configuration, test_redis_pool):
         finally:
             await client.aclose()
 
+    app.dependency_overrides[get_configuration] = lambda: test_configuration
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_redis_client] = override_get_redis_client

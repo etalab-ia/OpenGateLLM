@@ -12,7 +12,7 @@ from alembic import op
 import bcrypt
 import sqlalchemy as sa
 
-from api.infrastructure.configuration import configuration
+from api.infrastructure.configuration import get_configuration
 
 
 # revision identifiers, used by Alembic.
@@ -34,6 +34,7 @@ def _get_null_user_reference_count(bind: sa.Connection) -> int:
 
 
 def _ensure_bootstrap_admin(bind: sa.Connection) -> int:
+    configuration = get_configuration()
     admin_username = configuration.settings.auth_bootsrap_admin_username
     admin_password = configuration.settings.auth_bootsrap_admin_password
     
