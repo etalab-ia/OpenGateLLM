@@ -11,14 +11,13 @@ from api.infrastructure.configuration import Settings
 from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.logging import JsonGunicornLogger, configure_logging
-from api.tests.helpers import TEST_AUTH_SECRET_KEY
 
 EXAMPLE_LOG_CONFIG = Path(__file__).parents[4] / "logging.example.yml"
 
 
 @pytest.fixture
 def settings():
-    return Settings(log_level="INFO", log_config=None, auth_secret_key=TEST_AUTH_SECRET_KEY)
+    return Settings(log_level="INFO", log_config=None, auth_secret_key="logging-test-secret")
 
 
 @pytest.fixture(autouse=True)
