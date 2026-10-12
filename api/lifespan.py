@@ -14,6 +14,7 @@ from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInval
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
+from api.infrastructure.configuration import Model as ModelConfiguration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.postgres import (
@@ -32,7 +33,14 @@ from api.use_cases.admin import (
     BootstrapAdminUseCaseSkipped,
     BootstrapAdminUseCaseSuccess,
 )
-from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
+from api.use_cases.models import (
+    BootstrapModelsCommand,
+    BootstrapModelsUseCase,
+    BootstrapModelsUseCaseSkipped,
+    BootstrapModelsUseCaseSuccess,
+    ProviderToCreate,
+    RouterToCreate,
+)
 from api.use_cases.services import ProviderCapabilitiesProbe
 
 logger = logging.getLogger(__name__)
@@ -127,11 +135,15 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
     provider_capabilities_probe = ProviderCapabilitiesProbe(provider_client=HttpProviderClient(adapter_builder=HttpProviderAdapterBuilder()))
 
+    command = BootstrapModelsCommand(
+        routers_to_create=map_models_to_routers_to_create(configuration.models), bootstrap_admin_user_id=bootstrap_admin_user_id
+    )
+
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
         provider_capabilities_probe=provider_capabilities_probe,
-    ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
+    ).execute(command)
 
     match result:
         case BootstrapModelsUseCaseSuccess() as success:
@@ -154,6 +166,34 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
         case InconsistentModelMaxContextLengthError() as error:
             raise RuntimeError(f"Inconsistent model max context length ({error.router_name}).")
+
+
+def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[RouterToCreate]:
+    return [
+        RouterToCreate(
+            name=model.name,
+            type=model.type,
+            aliases=model.aliases,
+            load_balancing_strategy=model.load_balancing_strategy,
+            cost_prompt_tokens=model.cost_prompt_tokens,
+            cost_completion_tokens=model.cost_completion_tokens,
+            providers=[
+                ProviderToCreate(
+                    type=provider.type,
+                    url=provider.url,
+                    key=provider.key,
+                    basic_auth=provider.basic_auth,
+                    timeout=provider.timeout,
+                    model_name=provider.model_name,
+                    model_hosting_zone=provider.model_hosting_zone,
+                    model_total_params=provider.model_total_params,
+                    model_active_params=provider.model_active_params,
+                )
+                for provider in model.providers
+            ],
+        )
+        for model in models
+    ]
 
 
 def initialize_tokenizer(configuration: Configuration) -> Encoding:
