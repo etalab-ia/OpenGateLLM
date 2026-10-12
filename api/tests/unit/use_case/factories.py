@@ -13,8 +13,7 @@ from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.user.entities import User
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.configuration import Model as ModelConfiguration
-from api.infrastructure.configuration import ModelProvider as ModelProviderConfiguration
+from api.use_cases.models import ProviderToCreate, RouterToCreate
 
 
 # Entity factories
@@ -169,10 +168,10 @@ class KeyFactory(factory.Factory):
     revoked = False
 
 
-# Configuration factories
-class ModelProviderConfigurationFactory(factory.Factory):
+# Command factories
+class ProviderToCreateFactory(factory.Factory):
     class Meta:
-        model = ModelProviderConfiguration
+        model = ProviderToCreate
 
     type = ProviderType.VLLM
     url = factory.Faker("url")
@@ -190,9 +189,9 @@ class ModelProviderConfigurationFactory(factory.Factory):
         albert = factory.Trait(type=ProviderType.ALBERT)
 
 
-class ModelConfigurationFactory(factory.Factory):
+class RouterToCreateFactory(factory.Factory):
     class Meta:
-        model = ModelConfiguration
+        model = RouterToCreate
 
     name = factory.Faker("bothify", text="router_####")
     type = RouterType.TEXT_GENERATION
@@ -200,10 +199,10 @@ class ModelConfigurationFactory(factory.Factory):
     load_balancing_strategy = RouterLoadBalancingStrategy.SHUFFLE
     cost_prompt_tokens = 0.0
     cost_completion_tokens = 0.0
-    providers = factory.LazyFunction(lambda: [ModelProviderConfigurationFactory()])
+    providers = factory.LazyFunction(lambda: [ProviderToCreateFactory()])
 
     class Params:
         embedding = factory.Trait(
             type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
-            providers=factory.LazyFunction(lambda: [ModelProviderConfigurationFactory(tei=True)]),
+            providers=factory.LazyFunction(lambda: [ProviderToCreateFactory(tei=True)]),
         )
