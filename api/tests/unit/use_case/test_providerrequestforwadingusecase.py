@@ -16,7 +16,7 @@ from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
-from api.domain.usage.entities import EnvironmentalImpacts, Usage
+from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases._providerrequestforwardingusecase import (
@@ -529,6 +529,23 @@ class TestSendRequest:
             prompt_tokens=67,
             completion_tokens=38,
         )
+
+    @pytest.mark.asyncio
+    async def test_should_keep_provider_cached_tokens_when_provider_response_reports_usage(self, use_case, router, payload, user_with_router_access):
+        # Arrange
+        provider_data = ForwardingTestData(
+            usage=Usage(prompt_tokens=67, completion_tokens=38, total_tokens=105, prompt_tokens_details=PromptTokensDetails(cached_tokens=25))
+        )
+        use_case.provider_client.forward.return_value = ProviderResponse(data=provider_data)
+
+        # Act
+        result = await use_case._send_request(
+            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
+
+        # Assert
+        assert isinstance(result, ProviderResponse)
+        assert result.data.usage.prompt_tokens_details.cached_tokens == 25
 
     @pytest.mark.asyncio
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(

@@ -211,7 +211,9 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
     ) -> Usage:
         completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
         completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
-        usage = self._build_usage(provider=provider, router=router, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, latency=latency)
+        usage = self._build_usage(
+            provider=provider, router=router, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cached_tokens=0, latency=latency
+        )
         self.usage_context.record_usage(request_id=request_id, usage=usage)
         self.usage_repository.update_record(
             usage=usage,
