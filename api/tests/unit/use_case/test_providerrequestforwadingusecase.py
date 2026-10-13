@@ -486,6 +486,51 @@ class TestSendRequest:
         )
 
     @pytest.mark.asyncio
+    async def test_should_use_provider_token_counts_when_provider_response_reports_usage(
+        self, use_case, router, provider, payload, model_tokenizer, user_with_router_access
+    ):
+        # Arrange
+        provider_data = ForwardingTestData(usage=Usage(prompt_tokens=67, completion_tokens=38, total_tokens=105))
+        use_case.provider_client.forward.return_value = ProviderResponse(data=provider_data)
+        use_case.usage_repository.compute_latency.return_value = 12000
+        expected_usage = Usage(
+            prompt_tokens=67,
+            completion_tokens=38,
+            total_tokens=105,
+            cost=0.03,
+            impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+        )
+
+        with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
+            # Act
+            result = await use_case._send_request(
+                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            )
+
+        # Assert
+        assert isinstance(result, ProviderResponse)
+        assert result.data.usage == expected_usage
+        model_tokenizer.compute_tokens.assert_not_called()
+        compute_request_cost.assert_called_once_with(
+            prompt_tokens=67,
+            completion_tokens=38,
+            cost_prompt_tokens=router.cost_prompt_tokens,
+            cost_completion_tokens=router.cost_completion_tokens,
+        )
+        use_case.usage_repository.update_record.assert_called_once_with(
+            usage=expected_usage,
+            provider_id=provider.id,
+            provider_model_name=provider.model_name,
+        )
+        use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
+            user_id=user_with_router_access.id,
+            router_limits=[Limit(router_id=router.id, type=LimitType.RPM, value=100)],
+            router_id=router.id,
+            prompt_tokens=67,
+            completion_tokens=38,
+        )
+
+    @pytest.mark.asyncio
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(
         self, use_case, router, provider, payload, user_with_router_access
     ):

@@ -220,7 +220,13 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         match result:
             case ProviderResponse() as provider_response:
-                completion_tokens = self.model_tokenizer.compute_tokens(texts=provider_response.get_completions())
+                if provider_response.data is not None and "usage" in provider_response.data.model_fields_set:
+                    prompt_tokens = provider_response.data.usage.prompt_tokens
+                    completion_tokens = provider_response.data.usage.completion_tokens
+
+                else:
+                    completion_tokens = self.model_tokenizer.compute_tokens(texts=provider_response.get_completions())
+
                 usage = self._build_usage(
                     provider=provider,
                     router=router,
