@@ -35,6 +35,7 @@ _MODELTYPE_WITH_IMAGE_TEXT_TO_TEXT = (*_MODELTYPE_WITHOUT_IMAGE_TEXT_TO_TEXT, "I
 def _replace_modeltype(values: tuple[str, ...]) -> None:
     quoted = ", ".join(f"'{value}'" for value in values)
     op.execute("ALTER TYPE modeltype RENAME TO modeltype_old")
+    # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- values come from a constant tuple of this file
     op.execute(f"CREATE TYPE modeltype AS ENUM ({quoted})")
     op.execute("ALTER TABLE router ALTER COLUMN type TYPE modeltype USING type::text::modeltype")
     op.execute("DROP TYPE modeltype_old")
