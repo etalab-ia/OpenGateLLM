@@ -113,7 +113,7 @@ async def _count_idle_in_transaction() -> int:
     conn = await asyncpg.connect(PROBE_DSN)
     try:
         return await conn.fetchval(
-            "SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND state = 'idle in transaction'",
+            "SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND state = 'idle in transaction' AND datname = current_database()",
             APP_NAME,
         )
     finally:

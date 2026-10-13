@@ -632,7 +632,7 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 - Postgres: `repository` fixture from `db_session` — do not construct the repo inside each test
 - Factories: SQL `UserSQLFactory` / `RoleSQLFactory` / `KeySQLFactory` ; unit `UserFactory`. Add a factory field when the column is new
 - Configuration: integration tests get `test_configuration` through `app.dependency_overrides[get_configuration]` and never read `CONFIG_FILE`. `TEST_CONFIG_FILE=<path>` takes its `settings` from a file instead, keeping the test secret and Prometheus off; dependencies stay the fixtures'. A test that needs another value overrides `get_configuration` itself
-- Databases: `TEST_POSTGRES_URL` and `TEST_REDIS_URL` override the test Postgres and Redis (defaults: `test_db` and Redis db `1` on localhost). Never point them at a database holding data: the fixtures drop every table and flush Redis
+- Databases: `TEST_POSTGRES_URL` and `TEST_REDIS_URL` override the test Postgres and Redis (defaults: `test_db` and Redis db `1` on localhost). Never point them at a database holding data: the fixtures drop every table and flush Redis. Under `pytest -n <workers>` (pytest-xdist), each worker suffixes the database (`test_db_gw0`…) and offsets the Redis db (`/1`, `/2`…), so `TEST_REDIS_URL` must end with a db number and at most 15 workers fit. A test that reads server-wide state (`pg_stat_activity`, `CREATE DATABASE`, a Redis command spanning every db) must scope it to its own worker's database
 - Do not use a mutable module-level dict to pass IDs from a fixture into a DI factory — close over the values (see `api/tests/integration/endpoints/test_auth_sso_login.py`)
 
 ### Unit use case

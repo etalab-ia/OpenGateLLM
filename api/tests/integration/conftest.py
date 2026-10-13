@@ -22,8 +22,28 @@ from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration import factories
 
-TEST_POSTGRES_URL = os.getenv("TEST_POSTGRES_URL", "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db")
-TEST_REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://:changeme@localhost:6379/1")
+
+def _test_postgres_url() -> str:
+    url = make_url(os.getenv("TEST_POSTGRES_URL", "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"))
+    xdist_worker = os.getenv("PYTEST_XDIST_WORKER")
+    if xdist_worker and url.database:
+        url = url.set(database=f"{url.database}_{xdist_worker}")
+    return url.render_as_string(hide_password=False)
+
+
+def _test_redis_url() -> str:
+    url = os.getenv("TEST_REDIS_URL", "redis://:changeme@localhost:6379/1")
+    xdist_worker = os.getenv("PYTEST_XDIST_WORKER")
+    if not xdist_worker:
+        return url
+    base_url, db = url.rsplit("/", 1)
+    xdist_worker_index = int(xdist_worker.removeprefix("gw"))
+    return f"{base_url}/{int(db) + xdist_worker_index}"
+
+
+TEST_POSTGRES_URL = _test_postgres_url()
+TEST_REDIS_URL = _test_redis_url()
+
 _current_db_session: ContextVar[AsyncSession | None] = ContextVar("_current_db_session", default=None)
 
 
