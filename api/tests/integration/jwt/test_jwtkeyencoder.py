@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from jose import JWTError
+from jwt import PyJWTError
 import pytest
 
 from api.domain.key import KeyEncoder
@@ -61,6 +61,21 @@ class TestJwtKeyEncoder:
         assert claims["user_id"] == 7
         assert claims["token_id"] == 53
 
+    def test_decode_accepts_a_key_issued_by_python_jose(self, key_encoder: JwtKeyEncoder):
+        # Arrange
+        # Issued by the former python-jose implementation with "MY_SECRET_KEY": the keys already given to users must stay valid.
+        key_issued_by_python_jose = (
+            "sk-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+            ".eyJ1c2VyX2lkIjoxMiwidG9rZW5faWQiOjM0LCJleHBpcmVzIjoxODkzNDU2MDAwfQ"
+            ".eFxpjt5LKR1WK26DOurF-WxKQE0atLXOmIRsQNxdlYg"
+        )
+
+        # Act
+        claims = key_encoder.decode(key_value=key_issued_by_python_jose)
+
+        # Assert
+        assert claims == {"user_id": 12, "token_id": 34, "expires": int(datetime(2030, 1, 1, tzinfo=UTC).timestamp())}
+
     def test_decode_fails_with_wrong_secret_key(self, secret_key: str):
         # Arrange
         encoder_a = JwtKeyEncoder(secret_key="key-a")
@@ -68,12 +83,12 @@ class TestJwtKeyEncoder:
         token = encoder_a.encode_token(user_id=1, key_id=1)
 
         # Act / Assert
-        with pytest.raises(JWTError):
+        with pytest.raises(PyJWTError):
             encoder_b.decode(key_value=token)
 
     def test_decode_fails_when_value_is_not_a_jwt(self, key_encoder: JwtKeyEncoder):
         # Act / Assert
-        with pytest.raises(JWTError):
+        with pytest.raises(PyJWTError):
             key_encoder.decode(key_value="sk-not-a-valid-jwt")
 
     def test_changing_secret_key_invalidates_existing_tokens(self):
@@ -83,5 +98,5 @@ class TestJwtKeyEncoder:
         token = encoder_old.encode_token(user_id=5, key_id=5)
 
         # Act / Assert
-        with pytest.raises(JWTError):
+        with pytest.raises(PyJWTError):
             encoder_new.decode(key_value=token)

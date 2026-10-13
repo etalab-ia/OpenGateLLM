@@ -1,23 +1,3 @@
-# Perl Archive::Tar symlink extraction weakness — no upstream Debian fix yet
-# Reported in perl-base from base image. Re-evaluate after 2026-10-01.
-CVE-2026-42496 exp:2026-10-01
-
-# Perl heap buffer overflow during compilation — no upstream Debian fix yet
-# Reported in perl-base from base image. Re-evaluate after 2026-10-01.
-CVE-2026-8376 exp:2026-10-01
-
-# Perl regex trie overflow (incorrect matches with >65535 alternation branches) — no upstream Debian fix yet
-# Reported in perl-base from base image. Upstream fix is in Perl 5.43.10 only. Re-evaluate after 2026-10-01.
-CVE-2026-13221 exp:2026-10-01
-
-# Perl Storable signed integer overflow on crafted SX_HOOK — no upstream Debian fix yet
-# Reported in perl-base from base image. Fixed upstream in Storable 3.41. Re-evaluate after 2026-10-01.
-CVE-2026-57433 exp:2026-10-01
-
 # Python XML Expat hash-flooding protection weakness — full fix needs libexpat >= 2.8.0 and a Python patch
-# Reported from Python/base image stack. Re-evaluate after 2026-10-01.
-CVE-2026-7210 exp:2026-10-01
-
-# Python tarfile.extractall() with the 'data' or 'tar' filter could be bypasse — no upstream Debian fix yet
-# Reported in libpython3.13-minimal from base image. Re-evaluate after 2026-10-01.
-CVE-2026-11940 exp:2026-10-01
+# Reported in python3.13 from the Debian base image of the playground (HIGH, no fixed version on 2026-10-13). Re-evaluate after 2027-01-15.
+CVE-2026-7210 exp:2027-01-15

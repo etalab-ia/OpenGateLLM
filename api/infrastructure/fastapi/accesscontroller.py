@@ -3,7 +3,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
+from jwt import PyJWTError
 from pydantic import ValidationError
 
 from api.dependencies import _authenticated_user_query, _authentication_key_repository
@@ -52,7 +52,7 @@ class AccessController:
         try:
             claims = key_repository.key_encoder.decode(key_value=api_key.credentials)
             decoded_key = Key.build_from_claims(claims=claims)
-        except (JWTError, KeyError, ValidationError):
+        except (PyJWTError, KeyError, ValidationError):
             raise InvalidAPIKeyHTTPException()
 
         result = await key_repository.get_key_by_id(key_id=decoded_key.id)

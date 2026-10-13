@@ -1,4 +1,4 @@
-from jose import jwt
+import jwt
 from pydantic import FutureDatetime
 
 from api.domain.key import KeyEncoder
@@ -11,11 +11,11 @@ class JwtKeyEncoder(KeyEncoder):
     def encode_token(self, user_id: int, key_id: int, expires: FutureDatetime | None = None) -> str:
         expires = int(expires.timestamp()) if expires is not None else None
         return KeyEncoder.KEY_PREFIX + jwt.encode(
-            claims={"user_id": user_id, "token_id": key_id, "expires": expires},
+            payload={"user_id": user_id, "token_id": key_id, "expires": expires},
             key=self.secret_key,
             algorithm=self.ENCODING_ALGORITHM,
         )
 
     def decode(self, key_value: str) -> dict:
         value = key_value.removeprefix(KeyEncoder.KEY_PREFIX)
-        return jwt.decode(token=value, key=self.secret_key, algorithms=[self.ENCODING_ALGORITHM])
+        return jwt.decode(jwt=value, key=self.secret_key, algorithms=[self.ENCODING_ALGORITHM])
