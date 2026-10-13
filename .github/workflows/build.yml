@@ -12,6 +12,20 @@ on:
       - edited
   workflow_dispatch:
 
+env:
+  # Tag rules of docker/metadata-action, shared by every image of this workflow:
+  #   push to main, manual run → latest
+  #   pull request             → the branch name (sanitized by the action)
+  #   release                  → the release tag
+  #   push to main, release    → sha-<full commit SHA>, the immutable tag deploy.yml deploys
+  IMAGE_TAGS: |
+    type=raw,value=latest,enable=${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    type=raw,value=${{ github.head_ref }},enable=${{ github.event_name == 'pull_request' }}
+    type=ref,event=tag
+    type=sha,format=long,enable=${{ github.event_name == 'push' || github.event_name == 'release' }}
+  # The images of a pull request are built from its head commit, not from the merge commit: label them with it.
+  DOCKER_METADATA_PR_HEAD_SHA: true
+
 jobs:
   prepare:
     name: Prepare build
@@ -22,31 +36,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'pull_request' && 'build-approval' || 'build-auto' }}
     outputs:
-      image_tag: ${{ steps.set_tag.outputs.tag }}
-      commit_tag: ${{ steps.set_tag.outputs.commit_tag }}
+      image_tag: ${{ steps.meta.outputs.version }}
     steps:
       - name: Determine image tag
-        id: set_tag
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
-          HEAD_REF: ${{ github.head_ref }}
-          COMMIT_SHA: ${{ github.sha }}
-        run: |
-          if [ "$EVENT_NAME" = "release" ]; then
-            TAG="$RELEASE_TAG_NAME"
-          elif [ "$EVENT_NAME" = "pull_request" ]; then
-            TAG="$HEAD_REF"
-          else
-            TAG="latest"
-          fi
-          # Docker tags can't contain "/", which commonly appears in branch names.
-          TAG="$(echo "$TAG" | tr '/' '-')"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          # Immutable tag of the built commit, deployed by deploy.yml. Pull request images do not need one.
-          if [ "$EVENT_NAME" = "push" ] || [ "$EVENT_NAME" = "release" ]; then
-            echo "commit_tag=sha-${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          fi
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: latest=false
 
   build-opengatellm-api:
     name: Build and push OpenGateLLM API image
@@ -54,8 +51,6 @@ jobs:
     needs: prepare
     env:
       API_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/api
-      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-      COMMIT_TAG: ${{ needs.prepare.outputs.commit_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,6 +67,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Compute image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.API_IMAGE_NAME }}
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: latest=false
+
       - name: Build and push OpenGateLLM API image to GitHub
         uses: docker/build-push-action@v6
         with:
@@ -80,9 +83,8 @@ jobs:
           build-args: BUILD_TARGET=api
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ env.API_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ env.COMMIT_TAG && format('{0}:{1}', env.API_IMAGE_NAME, env.COMMIT_TAG) || '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache
           cache-to: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache,mode=max
 
@@ -94,8 +96,6 @@ jobs:
       GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
       PLAYGROUND_URL: https://albert.playground.env.etalab.gouv.fr
-      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-      COMMIT_TAG: ${{ needs.prepare.outputs.commit_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -112,6 +112,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Compute image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: latest=false
+
       - name: Build and push OpenGateLLM playground image to GitHub
         uses: docker/build-push-action@v6
         with:
@@ -119,9 +127,8 @@ jobs:
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ env.COMMIT_TAG && format('{0}:{1}', env.GITHUB_PLAYGROUND_IMAGE_NAME, env.COMMIT_TAG) || '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
           cache-to: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache,mode=max
 
@@ -132,8 +139,6 @@ jobs:
     env:
       GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
-      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-      COMMIT_TAG: ${{ needs.prepare.outputs.commit_tag }}
     strategy:
       matrix:
         environment: [dev, staging, prod]
@@ -182,6 +187,14 @@ jobs:
             playground_host=${{ matrix.public_host }}
             auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
 
+      - name: Compute public image tags and labels
+        id: meta_public
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: latest=false
+
       - name: Build and push Albert public playground images to GitLab
         uses: docker/build-push-action@v6
         with:
@@ -195,9 +208,8 @@ jobs:
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}
-            ${{ env.COMMIT_TAG && format('{0}/{1}:{2}', env.GITLAB_PLAYGROUND_IMAGE_NAME, matrix.environment, env.COMMIT_TAG) || '' }}
+          tags: ${{ steps.meta_public.outputs.tags }}
+          labels: ${{ steps.meta_public.outputs.labels }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
       - name: Render private playground config
@@ -210,6 +222,16 @@ jobs:
             playground_host=${{ matrix.public_host }}
             playground_type=private
             auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
+
+      - name: Compute private image tags and labels
+        id: meta_private
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: |
+            latest=false
+            suffix=.private,onlatest=true
 
       - name: Build and push Albert private playground images to GitLab
         uses: docker/build-push-action@v6
@@ -224,9 +246,8 @@ jobs:
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}.private
-            ${{ env.COMMIT_TAG && format('{0}/{1}:{2}.private', env.GITLAB_PLAYGROUND_IMAGE_NAME, matrix.environment, env.COMMIT_TAG) || '' }}
+          tags: ${{ steps.meta_private.outputs.tags }}
+          labels: ${{ steps.meta_private.outputs.labels }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
   trivy-scan-api:
