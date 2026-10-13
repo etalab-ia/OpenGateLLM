@@ -18,7 +18,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import PostgresAuthenticatedUserQuery, PostgresKeyRepository
-from api.tests.helpers import create_key
+from api.tests.helpers import TEST_AUTH_SECRET_KEY, create_key
 from api.tests.integration.factories.sql import KeySQLFactory, PermissionSQLFactory, RoleSQLFactory, UserSQLFactory
 
 
@@ -57,7 +57,7 @@ def allow_expired_access_controller() -> AccessController:
 
 @pytest.fixture
 def secret_key() -> str:
-    return "MY_SECRET_KEY"
+    return TEST_AUTH_SECRET_KEY
 
 
 @pytest.fixture
