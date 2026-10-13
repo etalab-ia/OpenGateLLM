@@ -23,6 +23,7 @@ jobs:
     environment: ${{ github.event_name == 'pull_request' && 'build-approval' || 'build-auto' }}
     outputs:
       image_tag: ${{ steps.set_tag.outputs.tag }}
+      commit_tag: ${{ steps.set_tag.outputs.commit_tag }}
     steps:
       - name: Determine image tag
         id: set_tag
@@ -30,6 +31,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
           HEAD_REF: ${{ github.head_ref }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           if [ "$EVENT_NAME" = "release" ]; then
             TAG="$RELEASE_TAG_NAME"
@@ -41,6 +43,10 @@ jobs:
           # Docker tags can't contain "/", which commonly appears in branch names.
           TAG="$(echo "$TAG" | tr '/' '-')"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          # Immutable tag of the built commit, deployed by deploy.yml. Pull request images do not need one.
+          if [ "$EVENT_NAME" = "push" ] || [ "$EVENT_NAME" = "release" ]; then
+            echo "commit_tag=sha-${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
   build-opengatellm-api:
     name: Build and push OpenGateLLM API image
@@ -49,11 +55,12 @@ jobs:
     env:
       API_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/api
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+      COMMIT_TAG: ${{ needs.prepare.outputs.commit_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -73,7 +80,9 @@ jobs:
           build-args: BUILD_TARGET=api
           platforms: linux/amd64
           push: true
-          tags: ${{ env.API_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          tags: |
+            ${{ env.API_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.COMMIT_TAG && format('{0}:{1}', env.API_IMAGE_NAME, env.COMMIT_TAG) || '' }}
           cache-from: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache
           cache-to: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache,mode=max
 
@@ -86,11 +95,12 @@ jobs:
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
       PLAYGROUND_URL: https://albert.playground.env.etalab.gouv.fr
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+      COMMIT_TAG: ${{ needs.prepare.outputs.commit_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -109,7 +119,9 @@ jobs:
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          tags: |
+            ${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.COMMIT_TAG && format('{0}:{1}', env.GITHUB_PLAYGROUND_IMAGE_NAME, env.COMMIT_TAG) || '' }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
           cache-to: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache,mode=max
 
@@ -121,6 +133,7 @@ jobs:
       GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+      COMMIT_TAG: ${{ needs.prepare.outputs.commit_tag }}
     strategy:
       matrix:
         environment: [dev, staging, prod]
@@ -139,7 +152,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitLab Container Registry
         uses: docker/login-action@v3
@@ -182,7 +195,9 @@ jobs:
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}
+          tags: |
+            ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}
+            ${{ env.COMMIT_TAG && format('{0}/{1}:{2}', env.GITLAB_PLAYGROUND_IMAGE_NAME, matrix.environment, env.COMMIT_TAG) || '' }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
       - name: Render private playground config
@@ -209,7 +224,9 @@ jobs:
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}.private
+          tags: |
+            ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}.private
+            ${{ env.COMMIT_TAG && format('{0}/{1}:{2}.private', env.GITLAB_PLAYGROUND_IMAGE_NAME, matrix.environment, env.COMMIT_TAG) || '' }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
   trivy-scan-api:
