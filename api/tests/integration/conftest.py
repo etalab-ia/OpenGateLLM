@@ -22,8 +22,18 @@ from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration import factories
 
-TEST_POSTGRES_URL = os.getenv("TEST_POSTGRES_URL", "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db")
-TEST_REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://:changeme@localhost:6379/1")
+# Under pytest-xdist each worker gets its own Postgres database and Redis db: the fixtures drop every table and flush Redis.
+XDIST_WORKER = os.getenv("PYTEST_XDIST_WORKER", "")
+XDIST_WORKER_INDEX = int(XDIST_WORKER.removeprefix("gw") or 0)
+
+_postgres_url = make_url(os.getenv("TEST_POSTGRES_URL", "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"))
+if XDIST_WORKER and _postgres_url.database:
+    _postgres_url = _postgres_url.set(database=f"{_postgres_url.database}_{XDIST_WORKER}")
+TEST_POSTGRES_URL = _postgres_url.render_as_string(hide_password=False)
+
+_redis_url, _redis_db = os.getenv("TEST_REDIS_URL", "redis://:changeme@localhost:6379/1").rsplit("/", 1)
+TEST_REDIS_URL = f"{_redis_url}/{int(_redis_db) + XDIST_WORKER_INDEX}"
+
 _current_db_session: ContextVar[AsyncSession | None] = ContextVar("_current_db_session", default=None)
 
 
