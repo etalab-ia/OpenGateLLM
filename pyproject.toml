@@ -17,6 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 playground = [
     "reflex==0.8.28.post1",
+    "sqlalchemy[asyncio]==2.0.47",
 ]
 api = [
     "alembic==1.18.4",
