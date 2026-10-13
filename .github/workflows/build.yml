@@ -45,12 +45,21 @@ jobs:
           tags: ${{ env.IMAGE_TAGS }}
           flavor: latest=false
 
-  build-opengatellm-api:
-    name: Build and push OpenGateLLM API image
+  build-opengatellm:
+    name: Build and push OpenGateLLM ${{ matrix.image }} image
     runs-on: ubuntu-latest
     needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: ./api/Dockerfile
+            build_args: BUILD_TARGET=api
+          - image: playground
+            dockerfile: ./playground/Dockerfile
     env:
-      API_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/api
+      IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/${{ matrix.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -71,66 +80,22 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ${{ env.API_IMAGE_NAME }}
+          images: ${{ env.IMAGE_NAME }}
           tags: ${{ env.IMAGE_TAGS }}
           flavor: latest=false
 
-      - name: Build and push OpenGateLLM API image to GitHub
+      - name: Build and push OpenGateLLM ${{ matrix.image }} image to GitHub
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./api/Dockerfile
-          build-args: BUILD_TARGET=api
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache
-          cache-to: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache,mode=max
-
-  build-opengatellm-playground:
-    name: Build and push OpenGateLLM playground image
-    runs-on: ubuntu-latest
-    needs: prepare
-    env:
-      GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
-      GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
-      PLAYGROUND_URL: https://albert.playground.env.etalab.gouv.fr
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Compute image tags and labels
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}
-          tags: ${{ env.IMAGE_TAGS }}
-          flavor: latest=false
-
-      - name: Build and push OpenGateLLM playground image to GitHub
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./playground/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
-          cache-to: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
 
   build-albert-playground:
     name: Build and push Albert playground image
@@ -250,18 +215,14 @@ jobs:
           labels: ${{ steps.meta_private.outputs.labels }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
-  trivy-scan-api:
-    name: Trivy scan — API
-    needs: [ prepare, build-opengatellm-api ]
+  trivy-scan:
+    name: Trivy scan — ${{ matrix.image }}
+    needs: [ prepare, build-opengatellm ]
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ api, playground ]
     uses: ./.github/workflows/trivy-scan.yml
     with:
-      image-name: ghcr.io/etalab-ia/opengatellm/api
-      image-tag: ${{ needs.prepare.outputs.image_tag }}
-
-  trivy-scan-playground:
-    name: Trivy scan — Playground
-    needs: [ prepare, build-opengatellm-playground ]
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      image-name: ghcr.io/etalab-ia/opengatellm/playground
+      image-name: ghcr.io/etalab-ia/opengatellm/${{ matrix.image }}
       image-tag: ${{ needs.prepare.outputs.image_tag }}
