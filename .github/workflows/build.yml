@@ -98,7 +98,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
 
   build-albert-playground:
-    name: Build and push Albert playground image
+    name: Build and push Albert ${{ matrix.type }} playground image (${{ matrix.environment }})
     runs-on: ubuntu-latest
     needs: prepare
     env:
@@ -106,17 +106,37 @@ jobs:
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
     strategy:
       matrix:
-        environment: [dev, staging, prod]
         include:
           - environment: dev
-            public_host: albert.playground.dev.etalab.gouv.fr
-            private_host: albert.api.001.dev.etalab.gouv.fr:8002
+            type: public
+            playground_host: albert.playground.dev.etalab.gouv.fr
+            reflex_url: https://albert.playground.dev.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: dev
+            type: private
+            playground_host: albert.playground.dev.etalab.gouv.fr
+            reflex_url: http://albert.api.001.dev.etalab.gouv.fr:8002
+            tag_suffix: .private
           - environment: staging
-            public_host: albert.playground.staging.etalab.gouv.fr
-            private_host: albert.api.001.staging.etalab.gouv.fr:8002
+            type: public
+            playground_host: albert.playground.staging.etalab.gouv.fr
+            reflex_url: https://albert.playground.staging.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: staging
+            type: private
+            playground_host: albert.playground.staging.etalab.gouv.fr
+            reflex_url: http://albert.api.001.staging.etalab.gouv.fr:8002
+            tag_suffix: .private
           - environment: prod
-            public_host: albert.playground.etalab.gouv.fr
-            private_host: albert.api.001.prod.etalab.gouv.fr:8002
+            type: public
+            playground_host: albert.playground.etalab.gouv.fr
+            reflex_url: https://albert.playground.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: prod
+            type: private
+            playground_host: albert.playground.etalab.gouv.fr
+            reflex_url: http://albert.api.001.prod.etalab.gouv.fr:8002
+            tag_suffix: .private
 
     steps:
       - name: Checkout repository
@@ -141,78 +161,42 @@ jobs:
           command: |
             ansible-vault decrypt .github/assets/config.playground.yml.j2
 
-      - name: Render public playground config
+      - name: Render playground config
         uses: cuchi/jinja2-action@v1.3.0
         with:
           template: .github/assets/config.playground.yml.j2
           output_file: .github/assets/config.playground.yml
           strict: true
           variables: |
-            playground_type=public
-            playground_host=${{ matrix.public_host }}
+            playground_type=${{ matrix.type }}
+            playground_host=${{ matrix.playground_host }}
             auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
 
-      - name: Compute public image tags and labels
-        id: meta_public
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}
-          tags: ${{ env.IMAGE_TAGS }}
-          flavor: latest=false
-
-      - name: Build and push Albert public playground images to GitLab
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          build-args: |
-            REFLEX_BACKEND_URL=https://${{ matrix.public_host }}
-            REFLEX_FRONTEND_URL=https://${{ matrix.public_host }}
-            CONFIG_FILE=.github/assets/config.playground.yml
-            FAVICON=.github/assets/logo.svg
-            LOGO=.github/assets/logo.svg
-          file: ./playground/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta_public.outputs.tags }}
-          labels: ${{ steps.meta_public.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
-
-      - name: Render private playground config
-        uses: cuchi/jinja2-action@v1.3.0
-        with:
-          template: .github/assets/config.playground.yml.j2
-          output_file: .github/assets/config.playground.yml
-          strict: true
-          variables: |
-            playground_host=${{ matrix.public_host }}
-            playground_type=private
-            auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
-
-      - name: Compute private image tags and labels
-        id: meta_private
+      - name: Compute image tags and labels
+        id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}
           tags: ${{ env.IMAGE_TAGS }}
           flavor: |
             latest=false
-            suffix=.private,onlatest=true
+            suffix=${{ matrix.tag_suffix }},onlatest=true
 
-      - name: Build and push Albert private playground images to GitLab
+      - name: Build and push Albert playground image to GitLab
         uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |
-            REFLEX_BACKEND_URL=http://${{ matrix.private_host }}
-            REFLEX_FRONTEND_URL=http://${{ matrix.private_host }}
+            REFLEX_BACKEND_URL=${{ matrix.reflex_url }}
+            REFLEX_FRONTEND_URL=${{ matrix.reflex_url }}
             CONFIG_FILE=.github/assets/config.playground.yml
             FAVICON=.github/assets/logo.svg
             LOGO=.github/assets/logo.svg
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta_private.outputs.tags }}
-          labels: ${{ steps.meta_private.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
   trivy-scan:
