@@ -11,7 +11,6 @@ import pytest_asyncio
 import redis.asyncio as redis
 from sqlalchemy import event, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
@@ -104,7 +103,7 @@ async def test_postgres_engine():
     finally:
         await conn.close()
 
-    engine = create_async_engine(url=TEST_POSTGRES_URL, poolclass=NullPool)
+    engine = create_async_engine(url=test_postgres_url)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
