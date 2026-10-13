@@ -10,12 +10,13 @@ from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import PostgresKeyRepository
 from api.infrastructure.postgres.models import Token as KeyTable
+from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration.factories.sql import KeySQLFactory, UserSQLFactory
 
 
 @pytest.fixture
 def secret_key():
-    return "MY_SECRET_KEY"
+    return TEST_AUTH_SECRET_KEY
 
 
 @pytest.fixture

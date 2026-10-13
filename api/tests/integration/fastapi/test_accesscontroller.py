@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 from fastapi.security import HTTPAuthorizationCredentials
-from jose import jwt
+import jwt
 import pytest
 
 from api.domain.role.entities import PermissionType
@@ -18,7 +18,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import PostgresAuthenticatedUserQuery, PostgresKeyRepository
-from api.tests.helpers import create_key
+from api.tests.helpers import TEST_AUTH_SECRET_KEY, create_key
 from api.tests.integration.factories.sql import KeySQLFactory, PermissionSQLFactory, RoleSQLFactory, UserSQLFactory
 
 
@@ -37,7 +37,7 @@ def _encode_api_key(
         claims["token_id"] = token_id
     if not missing_expires:
         claims["expires"] = expires
-    return "sk-" + jwt.encode(claims=claims, key=secret_key, algorithm="HS256")
+    return "sk-" + jwt.encode(payload=claims, key=secret_key, algorithm="HS256")
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ def allow_expired_access_controller() -> AccessController:
 
 @pytest.fixture
 def secret_key() -> str:
-    return "MY_SECRET_KEY"
+    return TEST_AUTH_SECRET_KEY
 
 
 @pytest.fixture
@@ -564,7 +564,7 @@ class TestAccessController:
         await db_session.flush()
 
         credentials = "sk-" + jwt.encode(
-            claims={"user_id": user.id, "token_id": token.id, "expires_at": int(stored_expires.timestamp())},
+            payload={"user_id": user.id, "token_id": token.id, "expires_at": int(stored_expires.timestamp())},
             key=secret_key,
             algorithm="HS256",
         )
@@ -607,7 +607,7 @@ class TestAccessController:
 
         key_stored_expires = int((datetime.now(tz=UTC) - timedelta(hours=1)).timestamp())
         credentials = "sk-" + jwt.encode(
-            claims={"user_id": user.id, "token_id": token.id, "expires": key_stored_expires},
+            payload={"user_id": user.id, "token_id": token.id, "expires": key_stored_expires},
             key=secret_key,
             algorithm="HS256",
         )

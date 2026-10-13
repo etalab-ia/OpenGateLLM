@@ -1,7 +1,7 @@
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.tests.integration.factories.sql import KeySQLFactory
 
-TEST_AUTH_SECRET_KEY = "test-secret-key"
+TEST_AUTH_SECRET_KEY = "test-secret-key-at-least-32-bytes-long"
 INVALID_API_KEY = "sk-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0b2tlbl9pZCI6OCwiZXhwaXJlcyI6MTc3OTMxMzE5NH0.jrigYbCVgAMhHLLEORa1fw-M9dtmZtRNNmsQDl3Fb10"
 
 
