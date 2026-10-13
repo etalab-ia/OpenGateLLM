@@ -107,6 +107,7 @@ async def enum_labels(connection: AsyncConnection, type_name: str) -> list[str]:
 
 
 async def count_rows(connection: AsyncConnection, table: str) -> int:
+    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table names are hard-coded in this script
     result = await connection.execute(text(f'SELECT COUNT(*) FROM "{table}"'))
     return int(result.scalar_one())
 
@@ -159,6 +160,7 @@ async def fetch_users(source: AsyncConnection, source_columns: dict[str, set[str
         permission_sql = "FALSE"
 
     result = await source.execute(
+        # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- the interpolated fragments are fixed strings chosen from the existing columns
         text(
             f"""
             SELECT
@@ -192,6 +194,7 @@ async def fetch_collections(source: AsyncConnection) -> list[dict[str, Any]]:
 async def fetch_documents(source: AsyncConnection, document_columns: set[str]) -> list[dict[str, Any]]:
     size_sql = "size" if "size" in document_columns else "0"
     result = await source.execute(
+        # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- size_sql is a fixed string chosen from the existing columns
         text(
             f"""
             SELECT id, collection_id, name, {size_sql} AS size, created
@@ -221,6 +224,7 @@ async def insert_rows(destination: AsyncConnection, statement: str, rows: list[d
 
 async def reset_sequence(destination: AsyncConnection, table: str, column: str = "id") -> None:
     qualified = f'"{table}"'
+    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table and column names are hard-coded in this script
     result = await destination.execute(text(f"SELECT pg_get_serial_sequence('{qualified}', '{column}')"))
     sequence = result.scalar_one_or_none()
     if not sequence:
@@ -231,6 +235,7 @@ async def reset_sequence(destination: AsyncConnection, table: str, column: str =
             return
         sequence = fallback
     await destination.execute(
+        # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table and column names are hard-coded in this script
         text(f"SELECT setval(:sequence, (SELECT COALESCE(MAX({column}), 1) FROM {qualified}), true)"),
         {"sequence": sequence},
     )
