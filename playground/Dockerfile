@@ -8,10 +8,9 @@ RUN apt-get update && \
 WORKDIR /playground
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv
-RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv pip install ".[playground]"
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv sync --locked --no-install-project --extra playground
 
 ARG CONFIG_FILE=config.example.yml \
     LOGO=./playground/assets/logo.svg \

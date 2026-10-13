@@ -20,10 +20,9 @@ COPY ./api/ /api
 ARG BUILD_TARGET=api
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv
-RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv pip install ".[${BUILD_TARGET}]"
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv sync --locked --no-install-project --extra ${BUILD_TARGET}
 
 # Runtime stage
 FROM python:3.12-slim AS runtime

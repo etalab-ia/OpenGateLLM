@@ -10,6 +10,7 @@
 !.github/assets/
 !.github/assets/**
 !pyproject.toml
+!uv.lock
 !config.example.yml
 !config.yml
 
