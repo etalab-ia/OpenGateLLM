@@ -48,6 +48,19 @@ class TestJwtKeyEncoder:
         assert claims["token_id"] == 10
         assert claims["expires"] == int(expires_at.timestamp())
 
+    def test_decode_succeeds_when_key_contains_sk_string_after_prefix(self):
+        # Arrange
+        key_encoder = JwtKeyEncoder(secret_key="test-secret-key")
+        token = key_encoder.encode_token(user_id=7, key_id=53)
+        assert KeyEncoder.KEY_PREFIX in token.removeprefix(KeyEncoder.KEY_PREFIX)
+
+        # Act
+        claims = key_encoder.decode(key_value=token)
+
+        # Assert
+        assert claims["user_id"] == 7
+        assert claims["token_id"] == 53
+
     def test_decode_fails_with_wrong_secret_key(self, secret_key: str):
         # Arrange
         encoder_a = JwtKeyEncoder(secret_key="key-a")
