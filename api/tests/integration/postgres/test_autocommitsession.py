@@ -23,14 +23,14 @@ from api.infrastructure.postgres import AutocommitSession, TransactionRequiredEr
 from api.infrastructure.postgres.models import Base
 from api.lifespan import create_autocommit_postgres_session_factory
 from api.tests.helpers import create_key
-from api.tests.integration.conftest import TEST_POSTGRES_URL, XDIST_WORKER, bind_sql_factories, override_global_context
+from api.tests.integration.conftest import TEST_POSTGRES_URL, bind_sql_factories, override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL
 from api.tests.integration.factories import sql as sql_factories
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiRerankResponseFactory
 from api.tests.integration.factories.vllm import VllmChatCompletionsResponseFactory
 
-APP_NAME = f"ogllm_idle_in_transaction_probe{XDIST_WORKER}"
+APP_NAME = "ogllm_idle_in_transaction_probe"
 PROBE_DSN = TEST_POSTGRES_URL.replace("+asyncpg", "")
 ROUTER_NAME = "forward-idle-probe"
 RERANK_DOCUMENTS = ["The weather is nice.", "The news is grim.", "The match was close."]
@@ -113,7 +113,7 @@ async def _count_idle_in_transaction() -> int:
     conn = await asyncpg.connect(PROBE_DSN)
     try:
         return await conn.fetchval(
-            "SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND state = 'idle in transaction'",
+            "SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND state = 'idle in transaction' AND datname = current_database()",
             APP_NAME,
         )
     finally:

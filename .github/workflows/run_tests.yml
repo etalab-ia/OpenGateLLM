@@ -79,7 +79,7 @@ jobs:
       - name: Run tests
         run: |
           . .venv/bin/activate
-          pytest -s api/tests/integration --config-file=pyproject.toml
+          pytest api/tests/integration --config-file=pyproject.toml -n 4
         env:
           CONFIG_FILE: config.example.yml
 
@@ -108,7 +108,7 @@ jobs:
       - name: Run tests
         run: |
           . .venv/bin/activate
-          pytest -s api/tests/unit api/tests/integration --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
+          pytest api/tests/unit api/tests/integration --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml -n 4
         env:
           CONFIG_FILE: config.example.yml
       
