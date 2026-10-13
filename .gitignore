@@ -204,7 +204,6 @@ terraform.rc
 .idea
 .vscode
 .json
-uv.lock
 .envrc
 **/.env*
 !.env.example

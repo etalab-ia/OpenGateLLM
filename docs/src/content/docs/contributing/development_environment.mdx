@@ -98,6 +98,18 @@ Example:
 git rebase -i HEAD~3
 ```
 
+## Dependencies
+
+The dependency versions are locked in [uv.lock](https://github.com/etalab-ia/OpenGateLLM/blob/main/uv.lock), which the API and playground images install from. The CI fails a pull request whose `uv.lock` does not match `pyproject.toml`.
+
+After changing the dependencies in `pyproject.toml`, update the lock with [uv](https://docs.astral.sh/uv/) and commit it with your change:
+
+```bash
+uv lock
+```
+
+If a rebase conflicts on `uv.lock`, keep either version, then run `uv lock` again to regenerate it.
+
 ## Linter
 
 The project linter is [Ruff](https://docs.astral.sh/ruff/). The specific project formatting rules are in the [pyproject.toml](https://github.com/etalab-ia/OpenGateLLM/blob/main/pyproject.toml) file.
