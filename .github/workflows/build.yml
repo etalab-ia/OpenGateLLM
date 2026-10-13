@@ -13,17 +13,12 @@ on:
   workflow_dispatch:
 
 env:
-  # Tag rules of docker/metadata-action, shared by every image of this workflow:
-  #   push to main, manual run → latest
-  #   pull request             → the branch name (sanitized by the action)
-  #   release                  → the release tag
-  #   push to main, release    → sha-<full commit SHA>, the immutable tag deploy.yml deploys
   IMAGE_TAGS: |
-    type=raw,value=latest,enable=${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-    type=raw,value=${{ github.head_ref }},enable=${{ github.event_name == 'pull_request' }}
+    type=raw,value=latest,enable=${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
+    type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
+    type=ref,event=pr
     type=ref,event=tag
     type=sha,format=long,enable=${{ github.event_name == 'push' || github.event_name == 'release' }}
-  # The images of a pull request are built from its head commit, not from the merge commit: label them with it.
   DOCKER_METADATA_PR_HEAD_SHA: true
 
 jobs:
@@ -62,19 +57,19 @@ jobs:
       IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/${{ matrix.image }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Compute image tags and labels
         id: meta
@@ -85,7 +80,7 @@ jobs:
           flavor: latest=false
 
       - name: Build and push OpenGateLLM ${{ matrix.image }} image to GitHub
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ${{ matrix.dockerfile }}
@@ -140,19 +135,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitLab Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: registry.gitlab.com
           username: ${{ secrets.GITLAB_USERNAME }}
           password: ${{ secrets.GITLAB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Decrypt playground config
         uses: taichunmin/github-actions-ansible-vault@v1
@@ -183,7 +178,7 @@ jobs:
             suffix=${{ matrix.tag_suffix }},onlatest=true
 
       - name: Build and push Albert playground image to GitLab
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           build-args: |
