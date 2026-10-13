@@ -17,5 +17,5 @@ class JwtKeyEncoder(KeyEncoder):
         )
 
     def decode(self, key_value: str) -> dict:
-        value = key_value.split(KeyEncoder.KEY_PREFIX)[1]
+        value = key_value.removeprefix(KeyEncoder.KEY_PREFIX)
         return jwt.decode(token=value, key=self.secret_key, algorithms=[self.ENCODING_ALGORITHM])
