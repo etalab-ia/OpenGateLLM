@@ -12,6 +12,15 @@ on:
       - edited
   workflow_dispatch:
 
+env:
+  IMAGE_TAGS: |
+    type=raw,value=latest,enable=${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
+    type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
+    type=ref,event=pr
+    type=ref,event=tag
+    type=sha,format=long,enable=${{ github.event_name == 'push' || github.event_name == 'release' }}
+  DOCKER_METADATA_PR_HEAD_SHA: true
+
 jobs:
   prepare:
     name: Prepare build
@@ -22,134 +31,123 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'pull_request' && 'build-approval' || 'build-auto' }}
     outputs:
-      image_tag: ${{ steps.set_tag.outputs.tag }}
+      image_tag: ${{ steps.meta.outputs.version }}
     steps:
       - name: Determine image tag
-        id: set_tag
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
-          HEAD_REF: ${{ github.head_ref }}
-        run: |
-          if [ "$EVENT_NAME" = "release" ]; then
-            TAG="$RELEASE_TAG_NAME"
-          elif [ "$EVENT_NAME" = "pull_request" ]; then
-            TAG="$HEAD_REF"
-          else
-            TAG="latest"
-          fi
-          # Docker tags can't contain "/", which commonly appears in branch names.
-          TAG="$(echo "$TAG" | tr '/' '-')"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: latest=false
 
-  build-opengatellm-api:
-    name: Build and push OpenGateLLM API image
+  build-opengatellm:
+    name: Build and push OpenGateLLM ${{ matrix.image }} image
     runs-on: ubuntu-latest
     needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: api
+            dockerfile: ./api/Dockerfile
+            build_args: BUILD_TARGET=api
+          - image: playground
+            dockerfile: ./playground/Dockerfile
     env:
-      API_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/api
-      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+      IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/${{ matrix.image }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Build and push OpenGateLLM API image to GitHub
-        uses: docker/build-push-action@v6
+      - name: Compute image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: latest=false
+
+      - name: Build and push OpenGateLLM ${{ matrix.image }} image to GitHub
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: ./api/Dockerfile
-          build-args: BUILD_TARGET=api
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
           platforms: linux/amd64
           push: true
-          tags: ${{ env.API_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache
-          cache-to: type=registry,ref=${{ env.API_IMAGE_NAME }}:cache,mode=max
-
-  build-opengatellm-playground:
-    name: Build and push OpenGateLLM playground image
-    runs-on: ubuntu-latest
-    needs: prepare
-    env:
-      GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
-      GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
-      PLAYGROUND_URL: https://albert.playground.env.etalab.gouv.fr
-      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push OpenGateLLM playground image to GitHub
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./playground/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
-          cache-to: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
 
   build-albert-playground:
-    name: Build and push Albert playground image
+    name: Build and push Albert ${{ matrix.type }} playground image (${{ matrix.environment }})
     runs-on: ubuntu-latest
     needs: prepare
     env:
       GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
-      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
     strategy:
       matrix:
-        environment: [dev, staging, prod]
         include:
           - environment: dev
-            public_host: albert.playground.dev.etalab.gouv.fr
-            private_host: albert.api.001.dev.etalab.gouv.fr:8002
+            type: public
+            playground_host: albert.playground.dev.etalab.gouv.fr
+            reflex_url: https://albert.playground.dev.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: dev
+            type: private
+            playground_host: albert.playground.dev.etalab.gouv.fr
+            reflex_url: http://albert.api.001.dev.etalab.gouv.fr:8002
+            tag_suffix: .private
           - environment: staging
-            public_host: albert.playground.staging.etalab.gouv.fr
-            private_host: albert.api.001.staging.etalab.gouv.fr:8002
+            type: public
+            playground_host: albert.playground.staging.etalab.gouv.fr
+            reflex_url: https://albert.playground.staging.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: staging
+            type: private
+            playground_host: albert.playground.staging.etalab.gouv.fr
+            reflex_url: http://albert.api.001.staging.etalab.gouv.fr:8002
+            tag_suffix: .private
           - environment: prod
-            public_host: albert.playground.etalab.gouv.fr
-            private_host: albert.api.001.prod.etalab.gouv.fr:8002
+            type: public
+            playground_host: albert.playground.etalab.gouv.fr
+            reflex_url: https://albert.playground.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: prod
+            type: private
+            playground_host: albert.playground.etalab.gouv.fr
+            reflex_url: http://albert.api.001.prod.etalab.gouv.fr:8002
+            tag_suffix: .private
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitLab Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: registry.gitlab.com
           username: ${{ secrets.GITLAB_USERNAME }}
           password: ${{ secrets.GITLAB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Decrypt playground config
         uses: taichunmin/github-actions-ansible-vault@v1
@@ -158,72 +156,52 @@ jobs:
           command: |
             ansible-vault decrypt .github/assets/config.playground.yml.j2
 
-      - name: Render public playground config
+      - name: Render playground config
         uses: cuchi/jinja2-action@v1.3.0
         with:
           template: .github/assets/config.playground.yml.j2
           output_file: .github/assets/config.playground.yml
           strict: true
           variables: |
-            playground_type=public
-            playground_host=${{ matrix.public_host }}
+            playground_type=${{ matrix.type }}
+            playground_host=${{ matrix.playground_host }}
             auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
 
-      - name: Build and push Albert public playground images to GitLab
-        uses: docker/build-push-action@v6
+      - name: Compute image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}
+          tags: ${{ env.IMAGE_TAGS }}
+          flavor: |
+            latest=false
+            suffix=${{ matrix.tag_suffix }},onlatest=true
+
+      - name: Build and push Albert playground image to GitLab
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           build-args: |
-            REFLEX_BACKEND_URL=https://${{ matrix.public_host }}
-            REFLEX_FRONTEND_URL=https://${{ matrix.public_host }}
+            REFLEX_BACKEND_URL=${{ matrix.reflex_url }}
+            REFLEX_FRONTEND_URL=${{ matrix.reflex_url }}
             CONFIG_FILE=.github/assets/config.playground.yml
             FAVICON=.github/assets/logo.svg
             LOGO=.github/assets/logo.svg
           file: ./playground/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
-      - name: Render private playground config
-        uses: cuchi/jinja2-action@v1.3.0
-        with:
-          template: .github/assets/config.playground.yml.j2
-          output_file: .github/assets/config.playground.yml
-          strict: true
-          variables: |
-            playground_host=${{ matrix.public_host }}
-            playground_type=private
-            auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
-
-      - name: Build and push Albert private playground images to GitLab
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          build-args: |
-            REFLEX_BACKEND_URL=http://${{ matrix.private_host }}
-            REFLEX_FRONTEND_URL=http://${{ matrix.private_host }}
-            CONFIG_FILE=.github/assets/config.playground.yml
-            FAVICON=.github/assets/logo.svg
-            LOGO=.github/assets/logo.svg
-          file: ./playground/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}.private
-          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
-
-  trivy-scan-api:
-    name: Trivy scan — API
-    needs: [ prepare, build-opengatellm-api ]
+  trivy-scan:
+    name: Trivy scan — ${{ matrix.image }}
+    needs: [ prepare, build-opengatellm ]
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ api, playground ]
     uses: ./.github/workflows/trivy-scan.yml
     with:
-      image-name: ghcr.io/etalab-ia/opengatellm/api
-      image-tag: ${{ needs.prepare.outputs.image_tag }}
-
-  trivy-scan-playground:
-    name: Trivy scan — Playground
-    needs: [ prepare, build-opengatellm-playground ]
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      image-name: ghcr.io/etalab-ia/opengatellm/playground
+      image-name: ghcr.io/etalab-ia/opengatellm/${{ matrix.image }}
       image-tag: ${{ needs.prepare.outputs.image_tag }}

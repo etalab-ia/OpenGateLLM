@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: dev
+      image_tag:
+        description: "Image tag to deploy: sha-<commit> to deploy or roll back to a given commit, or a release tag"
+        required: false
+        type: string
+        default: latest
 
 jobs:
   deploy-dev:
@@ -29,6 +34,11 @@ jobs:
       )
     name: Deploy from ${{ github.event.workflow_run.head_branch || github.ref_name }}/${{ github.event.workflow_run.head_sha || github.sha }}
     runs-on: ubuntu-latest
+    # At job level, so that the workflow runs skipped by the condition above (pull request and release builds) do not enter the group.
+    # Deployments run one after the other, never in parallel.
+    concurrency:
+      group: deploy-${{ inputs.environment || 'dev' }}
+      cancel-in-progress: false
     steps:
       - name: Get commit title
         id: commit_title
@@ -49,12 +59,13 @@ jobs:
           GITLAB_CI_TOKEN: ${{ secrets.GITLAB_CI_TOKEN }}
           PIPELINE_NAME: ${{ github.event.repository.name }} - ${{ steps.commit_title.outputs.title }}
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+          DOCKER_IMAGE_TAG: ${{ inputs.image_tag || format('sha-{0}', github.event.workflow_run.head_sha) }}
         run: |
           RESPONSE="$(curl --request POST \
             --form token="$GITLAB_CI_TOKEN" \
             --form ref=main \
             --form "variables[pipeline_name]=$PIPELINE_NAME" \
-            --form 'variables[docker_image_tag]=latest' \
+            --form "variables[docker_image_tag]=$DOCKER_IMAGE_TAG" \
             --form 'variables[application_to_deploy]=albert-api' \
             --form "variables[deployment_environment]=$DEPLOYMENT_ENVIRONMENT" \
             'https://gitlab.com/api/v4/projects/58117805/trigger/pipeline')"
