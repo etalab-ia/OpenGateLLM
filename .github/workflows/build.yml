@@ -149,23 +149,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Decrypt playground config
-        uses: taichunmin/github-actions-ansible-vault@v1
-        with:
-          vault_key: ${{ secrets.VAULT_KEY }}
-          command: |
-            ansible-vault decrypt .github/assets/config.playground.yml.j2
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
-      - name: Render playground config
-        uses: cuchi/jinja2-action@v1.3.0
-        with:
-          template: .github/assets/config.playground.yml.j2
-          output_file: .github/assets/config.playground.yml
-          strict: true
-          variables: |
-            playground_type=${{ matrix.type }}
-            playground_host=${{ matrix.playground_host }}
-            auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
+      - name: Decrypt and render playground config
+        env:
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+          AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}
+          PLAYGROUND_TYPE: ${{ matrix.type }}
+          PLAYGROUND_HOST: ${{ matrix.playground_host }}
+        run: |
+          uvx --from ansible-core==2.21.4 ansible-vault decrypt \
+            --vault-password-file <(printf '%s' "$VAULT_KEY") \
+            .github/assets/config.playground.yml.j2
+          uv run --no-project --with jinja2==3.1.6 python - <<'PY'
+          import os
+          from jinja2 import StrictUndefined, Template
+
+          with open(".github/assets/config.playground.yml.j2") as file:
+              template = Template(file.read(), undefined=StrictUndefined)
+          with open(".github/assets/config.playground.yml", "w") as file:
+              file.write(template.render(
+                  playground_type=os.environ["PLAYGROUND_TYPE"],
+                  playground_host=os.environ["PLAYGROUND_HOST"],
+                  auth_sso_client_secret=os.environ["AUTH_SSO_CLIENT_SECRET"],
+              ) + "\n")
+          PY
 
       - name: Compute image tags and labels
         id: meta
