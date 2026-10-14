@@ -483,6 +483,7 @@ class TestSendRequest:
             router_id=router.id,
             prompt_tokens=1,
             completion_tokens=1,
+            cached_tokens=0,
         )
 
     @pytest.mark.asyncio
@@ -528,6 +529,7 @@ class TestSendRequest:
             router_id=router.id,
             prompt_tokens=67,
             completion_tokens=38,
+            cached_tokens=0,
         )
 
     @pytest.mark.asyncio

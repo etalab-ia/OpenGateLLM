@@ -301,6 +301,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             router_id=router.id,
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
+            cached_tokens=usage.prompt_tokens_details.cached_tokens,
         )
 
     def _build_success(self, command: TCommand, response: ProviderResponse, headers: dict[str, str]) -> TResult:

@@ -29,7 +29,9 @@ def background_tasks():
 
 @pytest.fixture
 def rate_limiter(test_redis_pool, background_tasks):
-    return RedisRouterRateLimiter(background_tasks=background_tasks, redis_pool=test_redis_pool, strategy=LimitingStrategy.MOVING_WINDOW)
+    return RedisRouterRateLimiter(
+        background_tasks=background_tasks, redis_pool=test_redis_pool, strategy=LimitingStrategy.MOVING_WINDOW, cached_tokens_discount=0.8
+    )
 
 
 @pytest.fixture
@@ -79,7 +81,9 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=5)
 
         # Act
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=10)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=10, cached_tokens=0
+        )
         await background_tasks()
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
@@ -96,7 +100,9 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=10, tpm=100)
 
         # Act
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0, cached_tokens=0
+        )
         await background_tasks()
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
@@ -115,7 +121,9 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=10, tpm=50, tpd=200)
 
         # Act
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=12, completion_tokens=8)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=12, completion_tokens=8, cached_tokens=0
+        )
         await background_tasks()
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
@@ -124,6 +132,25 @@ class TestRedisRouterRateLimiter:
         assert result.tpm.reset > time.time()
         assert result.tpd.remaining == 180
         assert result.tpd.reset > time.time()
+
+    async def test_update_rate_limit_state_discounts_cached_tokens_from_tpm_and_tpd(
+        self, rate_limiter: RedisRouterRateLimiter, background_tasks: BackgroundTasks
+    ):
+        # Arrange
+        user_id = 1010
+        router_id = 2010
+        limits = limits_factory(router_id=router_id, rpm=10, tpm=50, tpd=200)
+
+        # Act
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=12, completion_tokens=8, cached_tokens=10
+        )
+        await background_tasks()
+        result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
+
+        # Assert
+        assert result.tpm.remaining == 38
+        assert result.tpd.remaining == 188
 
     async def test_update_rate_limit_state_decrements_tpm_and_tpd_remaining_with_completion_tokens_only(
         self, rate_limiter: RedisRouterRateLimiter, background_tasks: BackgroundTasks
@@ -134,7 +161,9 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=10, tpm=50, tpd=200)
 
         # Act
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=8)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=8, cached_tokens=0
+        )
         await background_tasks()
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
@@ -151,7 +180,9 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=5)
 
         # Act
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0, cached_tokens=0
+        )
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
         # Assert
@@ -167,8 +198,12 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=2)
 
         # Act
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0, cached_tokens=0
+        )
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0, cached_tokens=0
+        )
         await background_tasks()
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
@@ -184,7 +219,9 @@ class TestRedisRouterRateLimiter:
         user_id = 1008
         router_id = 2008
         limits = limits_factory(router_id=router_id, rpm=10, tpm=50)
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=30, completion_tokens=0)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=30, completion_tokens=0, cached_tokens=0
+        )
         await background_tasks()
 
         # Act
@@ -202,7 +239,9 @@ class TestRedisRouterRateLimiter:
         user_id = 1007
         router_id = 2007
         limits = limits_factory(router_id=router_id, rpm=5)
-        rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
+        rate_limiter.update_rate_limit_state(
+            user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0, cached_tokens=0
+        )
         await background_tasks()
         assert await redis_client.keys("LIMITS*")
 

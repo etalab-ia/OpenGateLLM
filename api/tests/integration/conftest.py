@@ -105,7 +105,10 @@ async def _reset_redis_between_tests(test_redis_pool):
 @pytest.fixture
 def router_rate_limiter(test_redis_pool, test_configuration) -> RouterRateLimiter:
     return RedisRouterRateLimiter(
-        background_tasks=BackgroundTasks(), redis_pool=test_redis_pool, strategy=test_configuration.settings.rate_limiting_strategy
+        background_tasks=BackgroundTasks(),
+        redis_pool=test_redis_pool,
+        strategy=test_configuration.settings.rate_limiting_strategy,
+        cached_tokens_discount=test_configuration.settings.rate_limiting_cached_tokens_discount,
     )
 
 
