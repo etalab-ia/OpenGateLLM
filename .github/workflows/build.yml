@@ -1,3 +1,4 @@
+# deploy.yml listens to this workflow by its name (workflow_run): renaming it stops the automated deployments, with no error.
 name: Build and scan images
 
 on:
