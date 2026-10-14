@@ -1,0 +1,40 @@
+name: Delete pull request images
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+permissions: {}
+
+jobs:
+  delete-ghcr-images:
+    name: Delete pr-${{ github.event.pull_request.number }} images from GHCR
+    # Fork pull request builds cannot push, so they leave no image to delete.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Delete the pr-${{ github.event.pull_request.number }} images and their manifests
+        run: |
+          for IMAGE in api playground; do
+            VERSIONS_URL="/orgs/etalab-ia/packages/container/opengatellm%2F$IMAGE/versions"
+            VERSIONS="$(gh api --paginate "$VERSIONS_URL" --jq '.[] | {id, name, tags: .metadata.container.tags}')"
+            INDEX_DIGEST="$(jq -r --arg tag "$TAG" 'select(any(.tags[]; . == $tag)) | .name' <<< "$VERSIONS")"
+            if [ -z "$INDEX_DIGEST" ]; then
+              echo "No ghcr.io/etalab-ia/opengatellm/$IMAGE:$TAG image to delete."
+              continue
+            fi
+
+            # The tag points to an image index: its platform and provenance manifests are separate, untagged package versions.
+            MANIFEST_DIGESTS="$(docker buildx imagetools inspect --raw "ghcr.io/etalab-ia/opengatellm/$IMAGE@$INDEX_DIGEST" | jq -r '.manifests[].digest')"
+            for DIGEST in $INDEX_DIGEST $MANIFEST_DIGESTS; do
+              VERSION_ID="$(jq -r --arg digest "$DIGEST" 'select(.name == $digest) | .id' <<< "$VERSIONS")"
+              gh api --silent --method DELETE "$VERSIONS_URL/$VERSION_ID"
+              echo "Deleted ghcr.io/etalab-ia/opengatellm/$IMAGE@$DIGEST"
+            done
+          done
