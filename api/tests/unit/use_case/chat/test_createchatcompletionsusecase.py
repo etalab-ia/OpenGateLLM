@@ -400,6 +400,26 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert usage_chunk["usage"]["completion_tokens"] == 1  # the comment never reached the buffer
 
     @pytest.mark.asyncio
+    async def test_should_use_the_provider_usage_when_the_stream_reports_it(self, use_case, router, provider, mock_usage_recorder):
+        # Arrange: the tokenizer would count 3 prompt and 1 completion tokens, vLLM reports 12, 5 and 8 cached
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
+        chunks = _chunk_stream(
+            'data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}',
+            'data: {"id": "chat-1", "choices": [], "usage": {"prompt_tokens": 12, "completion_tokens": 5, "total_tokens": 17, "prompt_tokens_details": {"cached_tokens": 8}}}',  # fmt: off
+            "data: [DONE]",
+        )
+
+        # Act
+        collected = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3))
+
+        # Assert
+        assert len(collected) == 3  # the content chunk, our usage chunk, [DONE]: the provider's usage chunk is not relayed
+        recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
+        assert recorded.prompt_tokens == 12
+        assert recorded.completion_tokens == 5
+        assert recorded.prompt_tokens_details.cached_tokens == 8
+
+    @pytest.mark.asyncio
     async def test_should_record_the_delivered_tokens_when_the_provider_fails_mid_stream(self, use_case, router, provider, mock_usage_recorder):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
