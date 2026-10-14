@@ -1,15 +1,13 @@
-[//]: # (TODO - Add automatically the title, the PR number, the issue number, and the source and target branches)
-[//]: # (TODO - Add automatically the number of commits / commit messages summary in this PR)
-[//]: # (# Pull Request Title: [Please insert the PR title here])
+<!-- Title: the conventional commit title of the change, e.g. "fix(key): stop rejecting keys that contain sk- after the prefix" -->
 
 ## Overview
 
-*Please precise the issue that you are resolving and provide a summarized description of what was done in this PR. Then provide the Definition of Done (DoD) criteria that apply to this PR:*
+Closes #
+
+<!-- Describe what this PR does and why, then the Definition of Done (DoD) criteria that apply to it. -->
 
 - [ ] DoD 1
-- [ ] DoD 2
-- [ ] DoD 3
-- [ ] ...
+- ...
 
 **Breaking changes:**
 
@@ -20,7 +18,7 @@
 
 ### Review checklist
 
-*Before requesting a review, please take a moment to confirm that the following aspects have been considered and addressed. This section helps ensure the PR is ready for review, safe to merge, and deployable. If any items are left unchecked, please add a brief explanation for context.*
+<!-- Before requesting a review, confirm each point. Explain briefly any box left unchecked. -->
 
 - [ ] Updated or added documentation
 - [ ] Updated or added unit tests
@@ -29,22 +27,23 @@
 - [ ] No secrets or environment variables committed in clear text
 - [ ] Code is linted and formatted using the project pre-commit hooks
 
+**If [`api/infrastructure/postgres/models.py`](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/infrastructure/postgres/models.py) has been modified:**
 
-**If [`api/sql/models.py`](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/sql/models.py) has been modified, please confirm that the following steps have been completed:**
 - [ ] Alembic migration has been generated
 - [ ] Alembic migration upgrade has been tested locally
 - [ ] Alembic migration downgrade has been tested locally
 
 ## Deployment checklist
 
-For each of the following items, please confirm if the PR concerns the deployment of the changes:
+This PR requires, at deployment:
 
-- [ ] Alembic migration has been generated
-- [ ] Configuration file has been modified
-- [ ] Environment variables have been modified
+- [ ] Nothing
+- [ ] An Alembic migration to run
+- [ ] A configuration file change
+- [ ] Environment variable changes
 
-*If new or updated environment variables are required, please list them here, otherwise delete this part. If other special deployment steps are required, please describe them here, otherwise delete this part.*
+<!-- List the new or updated environment variables, and any other special deployment step. -->
 
 ## Additional Notes
 
-*Please provide any additional information or context that may be relevant to this PR, otherwise delete this part. This could be any specific areas you would like the reviewers to focus on during their review of this PR (complex logic, risky changes, performance-sensitive code, etc.)*
+<!-- Anything reviewers should focus on: complex logic, risky changes, performance-sensitive code. Delete this section if empty. -->
