@@ -1,30 +1,23 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: ["Build and scan images"]
-    types:
-      - completed
-  workflow_dispatch:
+  workflow_call:
     inputs:
       image_tag:
-        description: "Image tag to deploy to dev: sha-<commit> to deploy or roll back to a given commit, or a release tag"
+        description: "Image tag to deploy to dev"
         required: true
         type: string
+    secrets:
+      GITLAB_CI_TOKEN:
+        required: true
+      GITLAB_DEPLOY_STATUS_TOKEN:
+        required: true
 
 permissions: {}
 
 jobs:
   deploy-dev:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.actor.login != 'github-actions[bot]'
-      )
-    name: Deploy ${{ inputs.image_tag || format('sha-{0}', github.event.workflow_run.head_sha) }} to dev
+    name: Deploy ${{ inputs.image_tag }} to dev
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
@@ -35,17 +28,11 @@ jobs:
         id: trigger
         env:
           GITLAB_CI_TOKEN: ${{ secrets.GITLAB_CI_TOKEN }}
-          EVENT_NAME: ${{ github.event_name }}
           REPOSITORY_NAME: ${{ github.event.repository.name }}
-          HEAD_COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
-          ACTOR: ${{ github.actor }}
-          DOCKER_IMAGE_TAG: ${{ inputs.image_tag || format('sha-{0}', github.event.workflow_run.head_sha) }}
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          DOCKER_IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            TITLE="manual deployment of $DOCKER_IMAGE_TAG by $ACTOR"
-          else
-            TITLE="$(echo "$HEAD_COMMIT_MESSAGE" | head -n 1)"
-          fi
+          TITLE="$(echo "$HEAD_COMMIT_MESSAGE" | head -n 1)"
 
           if ! RESPONSE="$(curl --fail-with-body --silent --show-error --request POST \
             --form token="$GITLAB_CI_TOKEN" \
