@@ -36,8 +36,10 @@ class AudioTranscriptionsAdapter(HttpProviderAdapter):
         if http_response.text is not None:
             return ProviderResponse(text=http_response.text)
 
+        # audio providers report usage in seconds, not tokens: our tokenizer counts the transcription instead
+        body = {key: value for key, value in http_response.data.items() if key != "usage"}
         try:
-            data = self.RESPONSE_TYPE.model_validate({**http_response.data, "id": request.id, "model": request.payload.model})
+            data = self.RESPONSE_TYPE.model_validate({**body, "id": request.id, "model": request.payload.model})
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
