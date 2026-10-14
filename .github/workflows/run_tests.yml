@@ -3,7 +3,7 @@ name: Testing
 # PR targeting main:
 #   draft  → unit + integration
 #   ready  → unit & integration (coverage; badge commit only on same-repo PRs)
-# workflow_call / workflow_dispatch → all jobs; unit with coverage (badge commit only on a ready PR to main)
+# push to main (called by build.yml, before the deployment to dev) / workflow_dispatch → unit + integration
 
 on:
   pull_request:
@@ -37,7 +37,7 @@ jobs:
   unit-tests:
     name: Unit tests (draft PR only)
     if: >-
-      github.event_name == 'workflow_call' ||
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       (
         github.actor != 'github-actions[bot]' &&
@@ -67,7 +67,7 @@ jobs:
   integration-tests:
     name: Integration tests (draft PR only)
     if: >-
-      github.event_name == 'workflow_call' ||
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       (
         github.actor != 'github-actions[bot]' &&

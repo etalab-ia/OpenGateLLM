@@ -99,7 +99,7 @@ On a pull request targeting `main` (when `api/**` or the workflow file itself ch
 | Draft | Yes, without coverage or badge commit | Yes | No |
 | Ready for review | Yes, with coverage and badge commit | Yes | Yes |
 
-Manual runs (`workflow_dispatch`) and reusable calls (`workflow_call`) run all jobs. Unit tests include coverage. The coverage badge is committed only on a non-draft pull request targeting `main`.
+Every push to `main` and manual runs (`workflow_dispatch`) run the unit and integration tests, without coverage. On `main`, the tests are called by the [Build and scan images](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/build.yml) workflow, and the deployment to dev waits for them. The coverage badge is committed only on a non-draft pull request targeting `main`.
 
 <Aside type="note">
 Jobs skip when the actor is `github-actions[bot]`, so the coverage badge commit does not retrigger the workflow.
