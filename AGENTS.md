@@ -606,21 +606,21 @@ inconsistency is a bug.
 `AccessController` (`api/infrastructure/fastapi/accesscontroller.py`) takes `only_admin` and `allow_expired`, both
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
-Today **only `POST /v1/admin/organizations` asks OpenFGA**. It is the one organization route guarded by a bare
-`AccessController()`; the four others still carry `AccessController(only_admin=True)`. Never put both on one route: two
+Today **only `POST` and `DELETE /v1/admin/organizations` ask OpenFGA**. They are the organization routes guarded by a
+bare `AccessController()`; the three others still carry `AccessController(only_admin=True)`. Never put both on one route: two
 sources of truth for the same decision drift, and `only_admin` short-circuits any rule that would let a non-admin
 through (an organization member reading their own organization, for one).
 
-**What is actually wired.** Three of the nine relations the model declares are reached by code:
+**What is actually wired.** Four relations the model declares are reached by code:
 
-| Relation                                  | Written by                                    | Checked by                  |
-|-------------------------------------------|-----------------------------------------------|-----------------------------|
-| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up    | — (only via the rule below) |
-| `platform:api#can_create_organization`    | computed from `admin`, never written          | `CreateOrganizationUseCase` |
-| `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase`, on each creation | —                           |
+| Relation                                  | Written by                                                                         | Checked by                    |
+|-------------------------------------------|------------------------------------------------------------------------------------|-------------------------------|
+| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up                                         | — (only via the rules below)  |
+| `platform:api#can_create_organization`    | computed from `admin`, never written                                               | `CreateOrganizationUseCase`   |
+| `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`    | — (only via the rule below)   |
+| `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                 | `DeleteOrganizationUseCase`   |
 
-`member`, `can_read`, `can_update`, `can_delete`, `can_add_member` and `can_remove_member` exist in `model.fga` **and**
-in `OrganizationRelation`, and nothing reads or writes them yet. The schema is ahead of the code on purpose: adding the
+`can_read` and `can_update` exist in `model.fga` **and** in `OrganizationRelation`, and nothing reads them yet. The schema is ahead of the code on purpose: adding the
 route that needs one is the work, not the modelling.
 
 **Three layers, narrowest first.**
@@ -696,6 +696,12 @@ organization belongs on `organization:<id>`.
 **Writing the attachment is part of creating.** A new organization gets `organization:<id>#platform@platform:api`,
 written *after* the row and *before* returning success: a failed write raises out of the use case, which rolls the
 Postgres transaction back, so it cannot leave an organization no one can reach.
+
+**Deleting the attachment is part of deleting, mirrored.** `DeleteOrganizationUseCase` checks
+`organization:<id>#can_delete` first, then removes `organization:<id>#platform@platform:api` *after* the row and *before*
+returning success, so a failed delete rolls the row back. The check runs before the existence lookup: an organization
+with no attachment — an unknown id, or one created before OpenFGA and not yet backfilled by the deployment repo's
+`m002_organizations_platform.py` — answers 403, not 404.
 
 **Never fail open.** The port returns a plain `bool`. An OpenFGA outage raises out of the adapter and surfaces as a 500:
 deliberately unhandled for now, but never swallowed into a `False`, which would read as a denial and hide the outage.
