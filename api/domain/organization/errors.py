@@ -20,3 +20,8 @@ class OrganizationHasUsersError:
 @dataclass
 class UserCannotCreateOrganizationError:
     user_id: int
+
+
+@dataclass
+class UserCannotDeleteOrganizationError:
+    user_id: int
