@@ -31,10 +31,14 @@ jobs:
   tests:
     name: Tests
     uses: ./.github/workflows/_run_tests.yml
+    with:
+      coverage: false
 
   semgrep:
     name: Semgrep
     uses: ./.github/workflows/_semgrep.yml
+    with:
+      scan: full
 
   deploy:
     name: Deploy to dev

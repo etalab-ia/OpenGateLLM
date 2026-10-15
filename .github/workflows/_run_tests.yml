@@ -1,18 +1,16 @@
 name: Testing
 
-# Called by pull_request.yml and main.yml.
-#   draft PR → unit + integration
-#   ready PR → unit & integration (coverage; badge commit only on same-repo PRs)
-#   push to main (before the deployment to dev) / workflow_dispatch → unit + integration
-
 on:
   workflow_call:
-  workflow_dispatch:
+    inputs:
+      coverage:
+        description: "Run the unit and integration tests with coverage and commit the coverage badge to the pull request branch"
+        required: true
+        type: boolean
 
 jobs:
   lockfile:
     name: Lockfile is up to date
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,13 +26,7 @@ jobs:
 
   unit-tests:
     name: Unit tests
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.actor != 'github-actions[bot]' &&
-        github.event.pull_request.draft == true
-      )
+    if: ${{ !inputs.coverage }}
     runs-on: ubuntu-latest
 
     steps:
@@ -54,13 +46,7 @@ jobs:
 
   integration-tests:
     name: Integration tests
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.actor != 'github-actions[bot]' &&
-        github.event.pull_request.draft == true
-      )
+    if: ${{ !inputs.coverage }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,7 +69,7 @@ jobs:
 
   coverage-badge:
     name: Unit & integration tests with coverage badge
-    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false && github.event.pull_request.base.ref == 'main'
+    if: inputs.coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -16,7 +16,11 @@ jobs:
   tests:
     name: Tests
     uses: ./.github/workflows/_run_tests.yml
+    with:
+      coverage: ${{ !github.event.pull_request.draft }}
 
   semgrep:
     name: Semgrep
     uses: ./.github/workflows/_semgrep.yml
+    with:
+      scan: diff

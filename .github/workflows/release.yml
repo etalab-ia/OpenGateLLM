@@ -31,6 +31,8 @@ jobs:
   semgrep:
     name: Semgrep
     uses: ./.github/workflows/_semgrep.yml
+    with:
+      scan: full
 
   release-updates:
     name: Release updates
