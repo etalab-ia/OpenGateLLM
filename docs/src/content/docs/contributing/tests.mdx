@@ -92,7 +92,7 @@ To run the tests with VSCode, you can create a `.vscode/settings.json` file with
 
 The [Testing](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/run_tests.yml) workflow selects jobs from the pull request state and the trigger type.
 
-On a pull request targeting `main` (when `api/**` or the workflow file itself changes):
+On a pull request targeting `main` (when `api/**`, `pyproject.toml`, `uv.lock`, `compose.example.yml` or the workflow file itself changes):
 
 | PR status | Unit tests | Integration tests | e2e tests |
 |-----------|------------|-------------------|-----------|
