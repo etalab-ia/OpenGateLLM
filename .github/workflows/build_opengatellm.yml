@@ -14,7 +14,7 @@ env:
 
 jobs:
   build-opengatellm:
-    name: Build and scan OpenGateLLM ${{ matrix.image }} image
+    name: ${{ matrix.image }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

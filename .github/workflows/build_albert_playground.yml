@@ -25,7 +25,7 @@ env:
 
 jobs:
   build-albert-playground:
-    name: Build and push Albert ${{ matrix.type }} playground image (${{ matrix.environment }})
+    name: ${{ matrix.environment }} ${{ matrix.type }}
     runs-on: ubuntu-latest
     env:
       GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
