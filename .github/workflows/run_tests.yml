@@ -13,6 +13,7 @@ on:
       - "api/**"
       - "pyproject.toml"
       - "uv.lock"
+      - "compose.example.yml"
       - ".github/workflows/run_tests.yml"
   workflow_call: # Add this to make the workflow reusable
   workflow_dispatch: # Add this to allow manual triggering
