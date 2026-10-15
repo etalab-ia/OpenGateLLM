@@ -420,6 +420,25 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert recorded.prompt_tokens_details.cached_tokens == 8
 
     @pytest.mark.asyncio
+    async def test_should_use_the_provider_usage_reported_on_a_content_chunk(self, use_case, router, provider, mock_usage_recorder):
+        # Arrange: Mistral reports the usage on its last content chunk instead of a separate `choices: []` chunk
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
+        chunks = _chunk_stream(
+            'data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 12, "completion_tokens": 5, "total_tokens": 17}}',  # fmt: off
+            "data: [DONE]",
+        )
+
+        # Act
+        collected = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3))
+
+        # Assert
+        assert len(collected) == 3  # the content chunk, our usage chunk, [DONE]: the content chunk is still relayed
+        assert '"content": "hi"' in collected[0].content
+        recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
+        assert recorded.prompt_tokens == 12
+        assert recorded.completion_tokens == 5
+
+    @pytest.mark.asyncio
     async def test_should_record_the_delivered_tokens_when_the_provider_fails_mid_stream(self, use_case, router, provider, mock_usage_recorder):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
@@ -481,6 +500,27 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         mock_usage_recorder.record_usage.assert_called_once()
         recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
         assert recorded.completion_tokens == 1, "the chunk the client already received must be billed"
+
+    @pytest.mark.asyncio
+    async def test_should_bill_the_tokenizer_count_when_a_stream_with_running_counts_is_cut(self, use_case, router, provider, mock_usage_recorder):  # fmt: off
+        # Arrange: vLLM `continuous_usage_stats` puts a running count on every content chunk
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
+        chunks = _chunk_stream(
+            'data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}], "usage": {"prompt_tokens": 12, "completion_tokens": 7, "total_tokens": 19}}',  # fmt: off
+            'data: {"id": "chat-1", "choices": [{"delta": {"content": " there"}}], "usage": {"prompt_tokens": 12, "completion_tokens": 9, "total_tokens": 21}}',  # fmt: off
+            "data: [DONE]",
+        )
+        stream = _format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3)
+
+        # Act: read both content chunks, then drop the generator before it reaches the usage event
+        await stream.__anext__()
+        await stream.__anext__()
+        await stream.aclose()
+
+        # Assert
+        recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
+        assert recorded.prompt_tokens == 3
+        assert recorded.completion_tokens == 2, "a cut stream is billed the same whether or not the client asked for running counts"
 
     @pytest.mark.asyncio
     async def test_should_not_record_usage_when_the_consumer_abandons_before_any_chunk(self, use_case, router, provider, mock_usage_recorder):

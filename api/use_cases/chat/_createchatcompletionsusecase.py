@@ -136,9 +136,10 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                             yield ProviderChunkResponse(content=chunk.content, status_code=chunk.status_code)
                             continue
 
-                        if parsed_chunk.get("usage") and not parsed_chunk.get("choices"):
+                        if parsed_chunk.get("usage"):
                             provider_usage = Usage.model_validate(parsed_chunk["usage"])
-                            continue
+                            if not parsed_chunk.get("choices"):
+                                continue
 
                         buffer.append(parsed_chunk)
                         if first_token_at is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
@@ -169,7 +170,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                             provider=provider,
                             buffer=buffer,
                             prompt_tokens=prompt_tokens,
-                            provider_usage=provider_usage,
+                            provider_usage=None,
                             latency=self.usage_repository.compute_latency(),
                             request_id=request_id,
                             first_token_at=first_token_at,
