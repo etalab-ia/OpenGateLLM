@@ -15,9 +15,9 @@ jobs:
 
   tests:
     name: Tests
-    uses: ./.github/workflows/_run_tests.yml
+    uses: ./.github/workflows/_run_tests_with_coverage.yml
     with:
-      coverage: ${{ !github.event.pull_request.draft }}
+      commit_coverage: ${{ !github.event.pull_request.draft }}
 
   semgrep:
     name: Semgrep

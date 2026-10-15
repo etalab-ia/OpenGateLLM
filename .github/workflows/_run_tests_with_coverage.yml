@@ -1,10 +1,10 @@
-name: Testing
+name: Tests with coverage
 
 on:
   workflow_call:
     inputs:
-      coverage:
-        description: "Run the unit and integration tests with coverage and commit the coverage badge to the pull request branch"
+      commit_coverage:
+        description: "Commit the coverage badge to the pull request branch"
         required: true
         type: boolean
 
@@ -41,20 +41,13 @@ jobs:
         run: |
           docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
 
-      - name: Run tests
-        if: ${{ !inputs.coverage }}
-        run: |
-          . .venv/bin/activate
-          pytest api/tests/unit api/tests/integration --config-file=pyproject.toml -n 4
-
       - name: Run tests with coverage
-        if: inputs.coverage
         run: |
           . .venv/bin/activate
           pytest api/tests/unit api/tests/integration --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml -n 4
 
       - name: Build coverage badge from coverage.xml
-        if: inputs.coverage
+        if: inputs.commit_coverage
         run: |
           mkdir -p .github/badges
           python - <<'PY'
@@ -81,7 +74,7 @@ jobs:
           PY
 
       - name: Commit tests coverage badge
-        if: inputs.coverage && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        if: inputs.commit_coverage && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9 # v7.1.0
         with:
           commit_message: "chore(tests): update tests coverage badge"
