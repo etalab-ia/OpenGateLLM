@@ -1,0 +1,26 @@
+name: Trivy scan
+description: Scan a local image with Trivy, report the HIGH findings and fail on the CRITICAL ones.
+inputs:
+  image-ref:
+    description: The image to scan, loaded in the local Docker daemon.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Trivy scan (HIGH — warning)
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        format: table
+        severity: HIGH
+        exit-code: "0"
+        trivyignores: .github/.trivyignore
+
+    - name: Trivy scan (CRITICAL — blocking)
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+      with:
+        image-ref: ${{ inputs.image-ref }}
+        format: table
+        severity: CRITICAL
+        exit-code: "1"
+        trivyignores: .github/.trivyignore

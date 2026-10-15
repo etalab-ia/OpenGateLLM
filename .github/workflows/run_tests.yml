@@ -3,7 +3,7 @@ name: Testing
 # PR targeting main:
 #   draft  → unit + integration
 #   ready  → unit & integration (coverage; badge commit only on same-repo PRs)
-# push to main (called by build.yml, before the deployment to dev) / workflow_dispatch → unit + integration
+# push to main (called by pipeline.yml, before the deployment to dev) / workflow_dispatch → unit + integration
 
 on:
   pull_request:

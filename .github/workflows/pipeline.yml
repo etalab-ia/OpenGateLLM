@@ -1,0 +1,60 @@
+name: Pipeline
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "api/**"
+      - "!api/tests/**"
+      - "playground/**"
+      - "scripts/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "config.example.yml"
+      - ".github/assets/**"
+      - ".dockerignore"
+      - ".github/.trivyignore"
+      - ".github/actions/**"
+      - ".github/workflows/pipeline.yml"
+      - ".github/workflows/build_opengatellm.yml"
+      - ".github/workflows/build_albert_playground.yml"
+  push:
+    branches:
+     - main
+  release:
+    types:
+      - published
+      - edited
+  workflow_dispatch:
+
+jobs:
+  build-opengatellm:
+    name: OpenGateLLM images
+    uses: ./.github/workflows/build_opengatellm.yml
+
+  build-albert-playground:
+    name: Albert playground images
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/build_albert_playground.yml
+    secrets:
+      GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      GITLAB_PROJECT_PATH: ${{ secrets.GITLAB_PROJECT_PATH }}
+      VAULT_KEY: ${{ secrets.VAULT_KEY }}
+      AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}
+
+  tests:
+    name: Tests
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/run_tests.yml
+
+  deploy:
+    name: Deploy to dev
+    if: github.event_name == 'push'
+    needs: [ build-opengatellm, build-albert-playground, tests ]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      image_tag: sha-${{ github.sha }}
+    secrets:
+      GITLAB_CI_TOKEN: ${{ secrets.GITLAB_CI_TOKEN }}
+      GITLAB_DEPLOY_STATUS_TOKEN: ${{ secrets.GITLAB_DEPLOY_STATUS_TOKEN }}
