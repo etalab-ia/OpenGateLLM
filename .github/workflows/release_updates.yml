@@ -1,10 +1,6 @@
 name: Release updates
 
 on:
-  workflow_run:
-    workflows: ["Pipeline"]
-    types:
-      - completed
   workflow_dispatch:
   workflow_call:
 
@@ -14,7 +10,6 @@ permissions:
 
 jobs:
   release_updates:
-    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -72,8 +67,8 @@ jobs:
           commit-message: "chore(doc): update generated documentation and release versions"
           title: "chore(doc): update generated documentation and release versions"
           body: |
-            Automated documentation and release version update after `Build and deploy` release workflow completion.
-          branch: "ci/release-update-${{ github.event.workflow_run.id || github.run_id }}"
+            Automated documentation and release version update after the release images were built by the Pipeline workflow.
+          branch: "ci/release-update-${{ github.run_id }}"
           base: "main"
           delete-branch: true
           add-paths: |

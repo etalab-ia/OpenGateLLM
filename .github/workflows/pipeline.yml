@@ -43,6 +43,23 @@ jobs:
       VAULT_KEY: ${{ secrets.VAULT_KEY }}
       AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}
 
+  release-updates:
+    name: Release updates
+    if: github.event_name == 'release'
+    needs: [ build-opengatellm, build-albert-playground ]
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/release_updates.yml
+
+  deploy-documentation:
+    name: Deploy documentation
+    if: github.event_name == 'release'
+    needs: [ build-opengatellm, build-albert-playground ]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/deploy_documentation.yml
+
   tests:
     name: Tests
     if: github.event_name == 'push'
