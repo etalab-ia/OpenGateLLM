@@ -9,26 +9,20 @@ on:
         type: string
 
 jobs:
-  semgrep-diff:
-    name: Semgrep SAST (diff)
-    if: inputs.scan == 'diff'
+  semgrep:
+    name: Semgrep SAST (${{ inputs.scan }})
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Run Semgrep (diff only)
+        if: inputs.scan == 'diff'
         run: semgrep ci --config auto --verbose
 
-  semgrep-full:
-    name: Semgrep SAST (full)
-    if: inputs.scan == 'full'
-    runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run Semgrep (WARNING severity)
+        if: inputs.scan == 'full'
         run: |
           semgrep scan \
             --config auto \
@@ -41,6 +35,7 @@ jobs:
           exit 0  # Never block this job
 
       - name: Run Semgrep (ERROR severity only)
+        if: inputs.scan == 'full'
         run: |
           semgrep scan \
             --config auto \

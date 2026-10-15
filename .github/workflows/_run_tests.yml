@@ -24,29 +24,8 @@ jobs:
       - name: Check that uv.lock matches pyproject.toml
         run: uv lock --check
 
-  unit-tests:
-    name: Unit tests
-    if: ${{ !inputs.coverage }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-
-      - name: Install test dependencies
-        uses: ./.github/actions/test-dependencies
-
-      - name: Run tests
-        run: |
-          . .venv/bin/activate
-          pytest -s api/tests/unit --config-file=pyproject.toml
-
-  integration-tests:
-    name: Integration tests
-    if: ${{ !inputs.coverage }}
+  tests:
+    name: Unit & integration tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,36 +40,21 @@ jobs:
       - name: Set up Docker Compose
         run: |
           docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
-  
+
       - name: Run tests
+        if: ${{ !inputs.coverage }}
         run: |
           . .venv/bin/activate
-          pytest api/tests/integration --config-file=pyproject.toml -n 4
+          pytest api/tests/unit api/tests/integration --config-file=pyproject.toml -n 4
 
-  coverage-badge:
-    name: Unit & integration tests with coverage badge
-    if: inputs.coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-
-      - name: Install test dependencies
-        uses: ./.github/actions/test-dependencies
-
-      - name: Set up Docker Compose
-        run: |
-          docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
-  
-      - name: Run tests
+      - name: Run tests with coverage
+        if: inputs.coverage
         run: |
           . .venv/bin/activate
           pytest api/tests/unit api/tests/integration --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml -n 4
-      
+
       - name: Build coverage badge from coverage.xml
+        if: inputs.coverage
         run: |
           mkdir -p .github/badges
           python - <<'PY'
@@ -117,7 +81,7 @@ jobs:
           PY
 
       - name: Commit tests coverage badge
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        if: inputs.coverage && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9 # v7.1.0
         with:
           commit_message: "chore(tests): update tests coverage badge"
