@@ -1,23 +1,13 @@
 name: Testing
 
-# PR targeting main:
-#   draft  → unit + integration
-#   ready  → unit & integration (coverage; badge commit only on same-repo PRs)
-# push to main (called by pipeline.yml, before the deployment to dev) / workflow_dispatch → unit + integration
+# Called by pull_request.yml and main.yml.
+#   draft PR → unit + integration
+#   ready PR → unit & integration (coverage; badge commit only on same-repo PRs)
+#   push to main (before the deployment to dev) / workflow_dispatch → unit + integration
 
 on:
-  pull_request:
-    branches: [ main ]
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "api/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "compose.example.yml"
-      - ".github/actions/test-dependencies/**"
-      - ".github/workflows/run_tests.yml"
-  workflow_call: # Add this to make the workflow reusable
-  workflow_dispatch: # Add this to allow manual triggering
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   lockfile:

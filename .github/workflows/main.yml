@@ -1,0 +1,47 @@
+name: Main
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-opengatellm:
+    name: OpenGateLLM images
+    uses: ./.github/workflows/_build_opengatellm.yml
+    with:
+      tags: |
+        type=raw,value=latest
+        type=sha,format=long
+      push: true
+
+  build-albert-playground:
+    name: Albert playground images
+    uses: ./.github/workflows/_build_albert_playground.yml
+    with:
+      tags: |
+        type=raw,value=latest
+        type=sha,format=long
+    secrets:
+      GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      GITLAB_PROJECT_PATH: ${{ secrets.GITLAB_PROJECT_PATH }}
+      VAULT_KEY: ${{ secrets.VAULT_KEY }}
+      AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}
+
+  tests:
+    name: Tests
+    uses: ./.github/workflows/_run_tests.yml
+
+  semgrep:
+    name: Semgrep
+    uses: ./.github/workflows/_semgrep.yml
+
+  deploy:
+    name: Deploy to dev
+    needs: [ build-opengatellm, build-albert-playground, tests ]
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      image_tag: sha-${{ github.sha }}
+    secrets:
+      GITLAB_CI_TOKEN: ${{ secrets.GITLAB_CI_TOKEN }}
+      GITLAB_DEPLOY_STATUS_TOKEN: ${{ secrets.GITLAB_DEPLOY_STATUS_TOKEN }}

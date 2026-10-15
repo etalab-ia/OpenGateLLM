@@ -1,0 +1,31 @@
+name: Publish branch images
+
+# Actions → Publish branch images → Run workflow, on the branch to publish.
+# The images are tagged with the branch name, or latest when run on main.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-opengatellm:
+    name: OpenGateLLM images
+    uses: ./.github/workflows/_build_opengatellm.yml
+    with:
+      tags: |
+        type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+        type=ref,event=branch,enable=${{ github.ref != 'refs/heads/main' }}
+      push: true
+
+  build-albert-playground:
+    name: Albert playground images
+    uses: ./.github/workflows/_build_albert_playground.yml
+    with:
+      tags: |
+        type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+        type=ref,event=branch,enable=${{ github.ref != 'refs/heads/main' }}
+    secrets:
+      GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      GITLAB_PROJECT_PATH: ${{ secrets.GITLAB_PROJECT_PATH }}
+      VAULT_KEY: ${{ secrets.VAULT_KEY }}
+      AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}

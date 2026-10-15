@@ -1,0 +1,22 @@
+name: Pull request
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+
+jobs:
+  build-opengatellm:
+    name: OpenGateLLM images
+    uses: ./.github/workflows/_build_opengatellm.yml
+    with:
+      tags: type=ref,event=pr
+      push: false
+
+  tests:
+    name: Tests
+    uses: ./.github/workflows/_run_tests.yml
+
+  semgrep:
+    name: Semgrep
+    uses: ./.github/workflows/_semgrep.yml

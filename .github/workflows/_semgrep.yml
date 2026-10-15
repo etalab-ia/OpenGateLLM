@@ -1,22 +1,13 @@
 name: Semgrep
 
 on:
-  push:
-    branches:
-      - main
-  release:
-    types:
-      - published
-      - edited
-  pull_request:
-    branches:
-      - main
+  workflow_call:
   workflow_dispatch:
 
 jobs:
   semgrep-diff:
     name: Semgrep SAST (diff)
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b
@@ -27,10 +18,7 @@ jobs:
 
   semgrep-full:
     name: Semgrep SAST (full)
-    if: >-
-      github.event_name == 'release' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]')
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b

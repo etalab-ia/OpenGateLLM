@@ -2,6 +2,11 @@ name: Build Albert playground images
 
 on:
   workflow_call:
+    inputs:
+      tags:
+        description: "Image tags, in the docker/metadata-action format"
+        required: true
+        type: string
     secrets:
       GITLAB_USERNAME:
         required: true
@@ -13,15 +18,6 @@ on:
         required: true
       AUTH_SSO_CLIENT_SECRET:
         required: true
-
-env:
-  IMAGE_TAGS: |
-    type=raw,value=latest,enable=${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
-    type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
-    type=ref,event=pr
-    type=ref,event=tag
-    type=sha,format=long,enable=${{ github.event_name == 'push' || github.event_name == 'release' }}
-  DOCKER_METADATA_PR_HEAD_SHA: true
 
 jobs:
   build-albert-playground:
@@ -112,7 +108,7 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: ${{ inputs.tags }}
           flavor: |
             latest=false
             suffix=${{ matrix.tag_suffix }},onlatest=true

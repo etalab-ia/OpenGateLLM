@@ -2,14 +2,17 @@ name: Build OpenGateLLM images
 
 on:
   workflow_call:
+    inputs:
+      tags:
+        description: "Image tags, in the docker/metadata-action format"
+        required: true
+        type: string
+      push:
+        description: "Push the images to GHCR after the scan"
+        required: true
+        type: boolean
 
 env:
-  IMAGE_TAGS: |
-    type=raw,value=latest,enable=${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
-    type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
-    type=ref,event=pr
-    type=ref,event=tag
-    type=sha,format=long,enable=${{ github.event_name == 'push' || github.event_name == 'release' }}
   DOCKER_METADATA_PR_HEAD_SHA: true
 
 jobs:
@@ -48,7 +51,7 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGE_NAME }}
-          tags: ${{ env.IMAGE_TAGS }}
+          tags: ${{ inputs.tags }}
           flavor: latest=false
 
       - name: Build OpenGateLLM ${{ matrix.image }} image
@@ -69,7 +72,7 @@ jobs:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
 
       - name: Push OpenGateLLM ${{ matrix.image }} image to GitHub
-        if: github.event_name != 'pull_request'
+        if: inputs.push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           # One manifest per image, no index: the cleanup deletes a single package version.

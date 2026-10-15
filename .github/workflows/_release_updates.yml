@@ -67,7 +67,7 @@ jobs:
           commit-message: "chore(doc): update generated documentation and release versions"
           title: "chore(doc): update generated documentation and release versions"
           body: |
-            Automated documentation and release version update after the release images were built by the Pipeline workflow.
+            Automated documentation and release version update after the release images were built by the Release workflow.
           branch: "ci/release-update-${{ github.run_id }}"
           base: "main"
           delete-branch: true
