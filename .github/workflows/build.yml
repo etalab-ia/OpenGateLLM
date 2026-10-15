@@ -29,16 +29,11 @@ jobs:
       github.event_name == 'release' ||
       github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    # The jobs that build or test need this one for its environment: build-approval makes pull request builds wait for a reviewer.
     environment: ${{ github.event_name == 'pull_request' && 'build-approval' || 'build-auto' }}
-    outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
     steps:
-      - name: Determine image tag
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          tags: ${{ env.IMAGE_TAGS }}
-          flavor: latest=false
+      - name: Build approved
+        run: echo "Build approved."
 
   build-opengatellm:
     name: Build and push OpenGateLLM ${{ matrix.image }} image
@@ -79,7 +74,37 @@ jobs:
           tags: ${{ env.IMAGE_TAGS }}
           flavor: latest=false
 
-      - name: Build and push OpenGateLLM ${{ matrix.image }} image to GitHub
+      - name: Build OpenGateLLM ${{ matrix.image }} image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
+
+      - name: Scan OpenGateLLM ${{ matrix.image }} image with Trivy (HIGH — warning)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          severity: HIGH
+          exit-code: "0"
+          trivyignores: .github/.trivyignore
+
+      - name: Scan OpenGateLLM ${{ matrix.image }} image with Trivy (CRITICAL — blocking)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+          trivyignores: .github/.trivyignore
+
+      - name: Push OpenGateLLM ${{ matrix.image }} image to GitHub
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -186,7 +211,42 @@ jobs:
             latest=false
             suffix=${{ matrix.tag_suffix }},onlatest=true
 
-      - name: Build and push Albert playground image to GitLab
+      - name: Build Albert playground image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          build-args: |
+            REFLEX_BACKEND_URL=${{ matrix.reflex_url }}
+            REFLEX_FRONTEND_URL=${{ matrix.reflex_url }}
+            CONFIG_FILE=.github/assets/config.playground.yml
+            FAVICON=.github/assets/logo.svg
+            LOGO=.github/assets/logo.svg
+          file: ./playground/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
+
+      - name: Scan Albert playground image with Trivy (HIGH — warning)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          severity: HIGH
+          exit-code: "0"
+          trivyignores: .github/.trivyignore
+
+      - name: Scan Albert playground image with Trivy (CRITICAL — blocking)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          severity: CRITICAL
+          exit-code: "1"
+          trivyignores: .github/.trivyignore
+
+      - name: Push Albert playground image to GitLab
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -203,18 +263,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
-  trivy-scan:
-    name: Trivy scan — ${{ matrix.image }}
-    needs: [ prepare, build-opengatellm ]
-    strategy:
-      fail-fast: false
-      matrix:
-        image: [ api, playground ]
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      image-name: ghcr.io/etalab-ia/opengatellm/${{ matrix.image }}
-      image-tag: ${{ needs.prepare.outputs.image_tag }}
-
   tests:
     name: Tests
     if: github.event_name == 'push'
@@ -224,7 +272,7 @@ jobs:
   deploy:
     name: Deploy to dev
     if: github.event_name == 'push'
-    needs: [ build-opengatellm, build-albert-playground, trivy-scan, tests ]
+    needs: [ build-opengatellm, build-albert-playground, tests ]
     uses: ./.github/workflows/deploy.yml
     with:
       image_tag: sha-${{ github.sha }}
