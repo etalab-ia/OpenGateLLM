@@ -15,7 +15,7 @@ jobs:
 
   tests:
     name: Tests
-    uses: ./.github/workflows/_run_tests_with_coverage.yml
+    uses: ./.github/workflows/_run_tests.yml
     with:
       commit_coverage: ${{ !github.event.pull_request.draft }}
 

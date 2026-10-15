@@ -30,7 +30,9 @@ jobs:
 
   tests:
     name: Tests
-    uses: ./.github/workflows/_run_tests_without_coverage.yml
+    uses: ./.github/workflows/_run_tests.yml
+    with:
+      commit_coverage: false
 
   semgrep:
     name: Semgrep
