@@ -85,12 +85,12 @@ def organizations_list() -> rx.Component:
         entities=OrganizationsState.organizations,
         renderer_entity_row=organization_renderer_row,
         no_entities_message=rx.cond(
-            OrganizationsState.search_name_value != "",
+            OrganizationsState.has_search_name,
             "No organizations found",
             "No organizations yet",
         ),
         no_entities_description=rx.cond(
-            OrganizationsState.search_name_value != "",
+            OrganizationsState.has_search_name,
             "No organization name matches your search",
             "Create your first organization to get started",
         ),
