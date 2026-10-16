@@ -65,6 +65,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
 
     async def get_organizations_page(
         self,
+        name: str | None = None,
         limit: int = 10,
         offset: int = 0,
         sort_by: OrganizationSortField = OrganizationSortField.ID,
@@ -81,13 +82,18 @@ class PostgresOrganizationRepository(OrganizationRepository):
         users_subquery = (
             select(func.count(UserTable.id)).where(UserTable.organization_id == OrganizationTable.id).correlate(OrganizationTable).scalar_subquery()
         )
+        conditions = []
+        if name is not None:
+            conditions.append(OrganizationTable.name.icontains(name, autoescape=True))
+
         organizations_query = (
             select(OrganizationTable, users_subquery.label("users"), func.count().over().label("total"))
+            .where(*conditions)
             .order_by(order_fn(sort_column))
             .offset(offset)
             .limit(limit)
         )
-        count_query = select(func.count()).select_from(OrganizationTable)
+        count_query = select(func.count()).select_from(OrganizationTable).where(*conditions)
         rows, total = await fetch_page_with_total(self.postgres_session, organizations_query, count_query)
         organizations = [self._row_to_organization(row[0], users=row.users) for row in rows]
         return OrganizationPage(total=total, data=organizations)

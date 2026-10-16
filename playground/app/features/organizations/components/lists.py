@@ -1,6 +1,6 @@
 import reflex as rx
 
-from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import SELECT_LARGE_WIDTH, SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.organizations.components.dialogs import organization_delete_dialog, organization_settings_dialog
 from app.features.organizations.models import Organization
 from app.features.organizations.state import OrganizationsState
@@ -61,6 +61,22 @@ def organization_renderer_row(organization: Organization, with_settings: bool = 
     )
 
 
+def organization_filters() -> rx.Component:
+    """Filters for organizations list."""
+    return rx.hstack(
+        rx.text("Search", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.input(
+            type="text",
+            value=OrganizationsState.search_name_value,
+            on_change=OrganizationsState.set_search_name,
+            placeholder="Enter name",
+            width=SELECT_LARGE_WIDTH,
+        ),
+        spacing=SPACING_SMALL,
+        align="center",
+    )
+
+
 def organizations_list() -> rx.Component:
     """Users list."""
     return entity_list(
@@ -68,10 +84,19 @@ def organizations_list() -> rx.Component:
         title="Organizations",
         entities=OrganizationsState.organizations,
         renderer_entity_row=organization_renderer_row,
-        no_entities_message="No organizations yet",
-        no_entities_description="Create your first organization to get started",
+        no_entities_message=rx.cond(
+            OrganizationsState.search_name_value != "",
+            "No organizations found",
+            "No organizations yet",
+        ),
+        no_entities_description=rx.cond(
+            OrganizationsState.search_name_value != "",
+            "No organization name matches your search",
+            "Create your first organization to get started",
+        ),
         settings_dialog=organization_settings_dialog(),
         delete_dialog=organization_delete_dialog(),
+        filters=organization_filters(),
         pagination=True,
         sorting=True,
     )

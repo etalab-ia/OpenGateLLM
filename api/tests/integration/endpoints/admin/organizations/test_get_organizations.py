@@ -54,6 +54,23 @@ class TestGetOrganizations:
         ids = [organization["id"] for organization in data["data"]]
         assert ids == sorted(ids, reverse=True)
 
+    async def test_filters_by_name_query_param(self, client: AsyncClient, db_session):
+        matching = OrganizationSQLFactory(name="Search Target Organization")
+        OrganizationSQLFactory(name="search target other")
+        OrganizationSQLFactory(name="unrelated-organization")
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            params={"name": "SEARCH TARGET", "limit": 1, "sort_by": "id", "sort_order": "asc"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 2
+        assert [organization["id"] for organization in data["data"]] == [matching.id]
+
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)

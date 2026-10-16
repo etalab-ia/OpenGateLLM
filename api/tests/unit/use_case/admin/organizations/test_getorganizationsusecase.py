@@ -37,6 +37,7 @@ class TestGetOrganizationsUseCase:
         assert result.organization_page.total == 2
         assert result.organization_page.data == [organization_1, organization_2]
         organization_repository.get_organizations_page.assert_awaited_once_with(
+            name=None,
             limit=5,
             offset=10,
             sort_by=OrganizationSortField.UPDATED,
@@ -57,6 +58,28 @@ class TestGetOrganizationsUseCase:
         assert result.organization_page.total == 0
         assert result.organization_page.data == []
         organization_repository.get_organizations_page.assert_awaited_once_with(
+            name=None,
+            limit=10,
+            offset=0,
+            sort_by=OrganizationSortField.ID,
+            sort_order=SortOrder.ASC,
+        )
+
+    @pytest.mark.asyncio
+    async def test_should_forward_name_filter_to_repository(self, use_case, organization_repository):
+        # Arrange
+        organization = OrganizationFactory(id=1, name="Etalab")
+        organization_repository.get_organizations_page.return_value = EntitiesPage(total=1, data=[organization])
+        command = GetOrganizationsCommand(name="tala")
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert isinstance(result, GetOrganizationsUseCaseSuccess)
+        assert result.organization_page.data == [organization]
+        organization_repository.get_organizations_page.assert_awaited_once_with(
+            name="tala",
             limit=10,
             offset=0,
             sort_by=OrganizationSortField.ID,

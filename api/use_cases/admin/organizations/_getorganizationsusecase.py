@@ -7,6 +7,7 @@ from api.domain.organization.entities import OrganizationPage, OrganizationSortF
 
 @dataclass
 class GetOrganizationsCommand:
+    name: str | None = None
     offset: int = 0
     limit: int = 10
     sort_by: OrganizationSortField = OrganizationSortField.ID
@@ -27,6 +28,7 @@ class GetOrganizationsUseCase:
 
     async def execute(self, command: GetOrganizationsCommand) -> GetOrganizationsUseCaseResult:
         organization_page = await self.organization_repository.get_organizations_page(
+            name=command.name,
             limit=command.limit,
             offset=command.offset,
             sort_by=command.sort_by,

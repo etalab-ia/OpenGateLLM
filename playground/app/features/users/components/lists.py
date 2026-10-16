@@ -108,8 +108,16 @@ def users_list() -> rx.Component:
         title="Users",
         entities=UsersState.users,
         renderer_entity_row=user_renderer_row,
-        no_entities_message="No users yet",
-        no_entities_description="Create your first user to get started",
+        no_entities_message=rx.cond(
+            UsersState.has_active_filters,
+            "No users found",
+            "No users yet",
+        ),
+        no_entities_description=rx.cond(
+            UsersState.has_active_filters,
+            "No user matches your search or filters",
+            "Create your first user to get started",
+        ),
         settings_dialog=user_settings_dialog(),
         delete_dialog=user_delete_dialog(),
         filters=user_filters(),

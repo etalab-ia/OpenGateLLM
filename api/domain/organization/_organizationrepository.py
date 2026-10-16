@@ -21,6 +21,7 @@ class OrganizationRepository(ABC):
     @abstractmethod
     async def get_organizations_page(
         self,
+        name: str | None = None,
         limit: int = 10,
         offset: int = 0,
         sort_by: OrganizationSortField = OrganizationSortField.ID,
