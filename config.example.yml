@@ -65,6 +65,7 @@ settings:
   #       values: ["eidas0-mfa", "eidas1-mfa", "eidas2", "eidas3"]
 
   # rate_limiting_strategy: fixed_window
+  # rate_limiting_cached_tokens_discount: 0.8
 
   playground_opengatellm_url: ${OPENGATELLM_URL:-http://api:8000}
   # playground_opengatellm_timeout: 60

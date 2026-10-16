@@ -280,6 +280,7 @@ class Settings(ConfigBaseModel):
 
     # rate_limiting
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off
+    rate_limiting_cached_tokens_discount: float = Field(default=0.8, ge=0.0, le=1.0, description="Share of cached prompt tokens deducted from TPM and TPD limits.")  # fmt: off
 
     # monitoring
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
