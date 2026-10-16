@@ -45,6 +45,23 @@ class TestUpdateMeInfo:
         assert any("password is required when current_password is provided" in error["msg"] for error in response.json()["detail"])
 
     @pytest.mark.parametrize(
+        "overrides,field",
+        [
+            pytest.param({"password": "é" * 72}, "password", id="password"),
+            pytest.param({"password": "valid-password", "current_password": "é" * 72}, "current_password", id="current_password"),
+        ],
+    )
+    async def test_rejects_over_72_byte_password_fields(self, client: AsyncClient, overrides, field):
+        response = await client.patch(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json={"email": self.user.email, "name": self.user.name, **overrides},
+        )
+
+        assert response.status_code == 422, response.text
+        assert [error for error in response.json()["detail"] if error["loc"][-1] == field]
+
+    @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
             (
