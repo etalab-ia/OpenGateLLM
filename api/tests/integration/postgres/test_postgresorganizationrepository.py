@@ -175,6 +175,58 @@ class TestGetOrganizationsPage:
         names = [organization.name for organization in result.data]
         assert names == sorted(names, reverse=True)
 
+    async def test_filters_by_name_substring_case_insensitively(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Org Name Filter Alpha")
+        OrganizationSQLFactory(name="org name filter beta")
+        OrganizationSQLFactory(name="Org Page Unrelated")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_organizations_page(name="NAME FILTER", limit=100, offset=0)
+
+        # Assert
+        assert sorted(organization.name for organization in result.data) == ["Org Name Filter Alpha", "org name filter beta"]
+        assert result.total == 2
+
+    async def test_returns_filtered_total_independent_of_limit(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Org Filtered Total 1")
+        OrganizationSQLFactory(name="Org Filtered Total 2")
+        OrganizationSQLFactory(name="Org Filtered Total 3")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_organizations_page(name="filtered total", limit=2, offset=0)
+
+        # Assert
+        assert len(result.data) == 2
+        assert result.total == 3
+
+    async def test_returns_empty_page_when_no_name_matches(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Org Name No Match")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_organizations_page(name="does-not-exist-anywhere", limit=10, offset=0)
+
+        # Assert
+        assert result.data == []
+        assert result.total == 0
+
+    async def test_treats_sql_wildcards_in_name_literally(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Org 100% Wildcard")
+        OrganizationSQLFactory(name="Org 1000 Wildcard")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_organizations_page(name="100%", limit=10, offset=0)
+
+        # Assert
+        assert [organization.name for organization in result.data] == ["Org 100% Wildcard"]
+
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestDeleteOrganization:

@@ -49,6 +49,9 @@ class OrganizationsState(EntityState):
             "sort_order": self.order_direction_value,
         }
 
+        if self.search_name_value:
+            params["name"] = self.search_name_value
+
         response = None
         try:
             async with httpx.AsyncClient() as client:
@@ -237,10 +240,19 @@ class OrganizationsState(EntityState):
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created", "updated"]
+    search_name_value: str = ""
 
     @rx.var
     def total_pages(self) -> int:
         return max(1, math.ceil(self.total / self.per_page))
+
+    @rx.event
+    async def set_search_name(self, value: str):
+        self.search_name_value = value
+        self.page = 1
+        yield
+        async for _ in self.load_entities():
+            yield
 
     @rx.event
     async def set_order_by(self, value: str):

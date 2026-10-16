@@ -72,13 +72,14 @@ async def create_organization(
     responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
 async def get_organizations(
+    name: str | None = Query(default=None, description="Name substring to filter the organizations by (case-insensitive)."),
     offset: int = Query(default=0, ge=0, description="Number of organizations to skip."),
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of organizations to return."),
     sort_by: OrganizationSortField = Query(default=OrganizationSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_organizations_use_case: GetOrganizationsUseCase = Depends(get_organizations_use_case_factory),
 ) -> OrganizationsResponse:
-    command = GetOrganizationsCommand(offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
+    command = GetOrganizationsCommand(name=name, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
     result = await get_organizations_use_case.execute(command)
 
     match result:
