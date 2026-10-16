@@ -90,10 +90,6 @@ To run the tests with VSCode, you can create a `.vscode/settings.json` file with
 
 ## Continuous integration
 
-The [Pull request](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/pull_request.yml) and [Main](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/main.yml) workflows run the [Tests](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/_run_tests.yml) workflow on every pull request targeting `main` and on every push to `main`. It runs the unit and the integration tests in two parallel jobs, each one measuring its coverage, then combines both measures into the total coverage.
+The [Pull request](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/pull_request.yml) and [Main](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/main.yml) workflows run the [Tests](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/_run_tests.yml) workflow on every pull request targeting `main` and on every push to `main`. It runs the unit and the integration tests in two parallel jobs, each one measuring its coverage. On `main`, the deployment to dev waits for the tests.
 
-Once a pull request is ready for review, the coverage badge is committed to its branch. On `main`, the deployment to dev waits for the tests.
-
-<Aside type="note">
-The coverage badge commit is pushed with the workflow token, so it does not trigger a new workflow run.
-</Aside>
+On every push to `main`, the [Coverage](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/_coverage.yml) workflow combines both measures with [python-coverage-comment-action](https://github.com/py-cov-action/python-coverage-comment-action). It writes the total coverage to the run summary, and publishes the README badge and an HTML coverage report to the [`python-coverage-comment-action-data`](https://github.com/etalab-ia/OpenGateLLM/tree/python-coverage-comment-action-data) branch. That branch is managed by the action: do not protect it nor commit to it.
