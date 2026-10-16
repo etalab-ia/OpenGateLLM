@@ -17,7 +17,7 @@ def nav_item(label: str, icon: str | None, page: str, is_external: bool = False,
         label: The label for the navigation item.
         icon: The icon name. If None, reserve the same width so the label still aligns.
         page: The page to navigate to.
-        is_external: Open the link in a new tab.
+        is_external: Open the link in a new tab and show a trailing external link icon.
         admin: Show a compact Admin badge next to the label.
 
     Returns:
@@ -28,8 +28,9 @@ def nav_item(label: str, icon: str | None, page: str, is_external: bool = False,
         rx.hstack(
             rx.icon(icon, size=20) if icon else rx.box(width="20px", min_width="20px", height="20px"),
             rx.text(label, size="3", weight=rx.cond(is_current, "bold", "regular")),
-            rx.spacer() if admin else rx.fragment(),
+            rx.spacer() if admin or is_external else rx.fragment(),
             nav_admin_badge() if admin else rx.fragment(),
+            rx.icon("external-link", size=14) if is_external else rx.fragment(),
             padding=PADDING_NAV,
             border_radius="8px",
             color=rx.cond(is_current, rx.color("mauve", 12), rx.color("mauve", 11)),
@@ -141,15 +142,20 @@ def navigation_sidebar() -> rx.Component:
                     if model_items or admin_items
                     else []
                 ),
-                *docs_items,
                 spacing="0",
                 width="100%",
                 padding_x=PADDING_MEDIUM,
                 padding_bottom=PADDING_MEDIUM,
                 padding_top=PADDING_PAGE,
             ),
-            # User info and logout at the bottom
+            # External links, user info and logout at the bottom
             rx.spacer(),
+            rx.vstack(
+                *docs_items,
+                spacing="0",
+                width="100%",
+                padding_x=PADDING_MEDIUM,
+            ),
             rx.vstack(
                 rx.divider(),
                 # Dark mode toggle
