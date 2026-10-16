@@ -157,7 +157,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case._check_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, prompt_tokens=1)
         assert isinstance(result, CreateChatCompletionsUseCaseSuccess)
         assert result.data is sample_completion
-        assert result.headers == rate_limit_state.build_limit_headers
+        assert result.headers == rate_limit_state.build_limit_headers(1)
         use_case.usage_repository.end_record.assert_called_once()
         use_case.usage_repository.fail_record.assert_not_called()
 

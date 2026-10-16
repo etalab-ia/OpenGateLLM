@@ -277,7 +277,7 @@ class TestCheckRateLimits:
         assert isinstance(result, RouterRateLimitExceededError)
         assert result.id == router.id
         assert result.limit_type == LimitType.RPM
-        assert result.headers == rate_limit_state.build_limit_headers
+        assert result.headers == rate_limit_state.build_limit_headers(1)
         use_case.router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
@@ -300,7 +300,7 @@ class TestCheckRateLimits:
         assert isinstance(result, RouterRateLimitExceededError)
         assert result.id == router.id
         assert result.limit_type == LimitType.TPM
-        assert result.headers == rate_limit_state.build_limit_headers
+        assert result.headers == rate_limit_state.build_limit_headers(10)
         use_case.router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
@@ -687,7 +687,7 @@ class TestExecute:
         # Assert
         assert isinstance(result, ProviderRequestForwardingUseCaseSuccess)
         assert result.data is sample_data
-        assert result.headers == rate_limit_state.build_limit_headers
+        assert result.headers == rate_limit_state.build_limit_headers(1)
         use_case.usage_repository.start_record.assert_called_once()
         use_case.usage_repository.fail_record.assert_not_called()
         use_case.usage_repository.end_record.assert_called_once()

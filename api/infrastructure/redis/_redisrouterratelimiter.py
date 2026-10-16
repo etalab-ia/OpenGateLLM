@@ -1,4 +1,5 @@
 import logging
+import time
 
 from fastapi import BackgroundTasks
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
@@ -127,6 +128,10 @@ class RedisRouterRateLimiter(RouterRateLimiter):
 
             key = f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}"
             window = await self.strategy.get_window_stats(limit, key)
+            if isinstance(self.strategy, strategies.FixedWindowRateLimiter) and window.reset_time <= time.time():
+                # the fixed window is not charged yet: report no reset so the header falls back to the window period
+                return WindowStats(reset_time=0, remaining=window.remaining)
+
             return window
 
         except Exception:
