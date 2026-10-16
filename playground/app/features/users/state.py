@@ -83,8 +83,9 @@ class UsersState(EntityState):
             params["role_id"] = self.roles_dict[self.filter_role_value]
         if self.filter_organization_value != "All organizations":
             params["organization_id"] = self.organizations_dict[self.filter_organization_value]
-        if self.search_email_value:
-            params["email"] = self.search_email_value
+        search_email = self.search_email_value.strip()
+        if search_email:
+            params["email"] = search_email
 
         response = None
         try:
@@ -372,7 +373,7 @@ class UsersState(EntityState):
 
     @rx.var
     def has_active_filters(self) -> bool:
-        return self.search_email_value != "" or self.filter_role_value != "All roles" or self.filter_organization_value != "All organizations"
+        return self.search_email_value.strip() != "" or self.filter_role_value != "All roles" or self.filter_organization_value != "All organizations"
 
     @rx.event
     async def set_search_email(self, value: str):

@@ -49,8 +49,9 @@ class OrganizationsState(EntityState):
             "sort_order": self.order_direction_value,
         }
 
-        if self.search_name_value:
-            params["name"] = self.search_name_value
+        search_name = self.search_name_value.strip()
+        if search_name:
+            params["name"] = search_name
 
         response = None
         try:
@@ -245,6 +246,10 @@ class OrganizationsState(EntityState):
     @rx.var
     def total_pages(self) -> int:
         return max(1, math.ceil(self.total / self.per_page))
+
+    @rx.var
+    def has_search_name(self) -> bool:
+        return self.search_name_value.strip() != ""
 
     @rx.event
     async def set_search_name(self, value: str):
