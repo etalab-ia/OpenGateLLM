@@ -110,6 +110,11 @@ uv lock
 
 If a rebase conflicts on `uv.lock`, keep either version, then run `uv lock` again to regenerate it.
 
+[Dependabot](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/dependabot.yml) proposes the updates as pull requests:
+- security fixes, as soon as an alert is published, in one pull request for Python and one for the documentation;
+- other Python updates, once a week, for releases at least 14 days old: minor and patch updates in one pull request, each major update in its own;
+- GitHub Actions updates, once a week, in one pull request.
+
 ## Linter
 
 The project linter is [Ruff](https://docs.astral.sh/ruff/). The specific project formatting rules are in the [pyproject.toml](https://github.com/etalab-ia/OpenGateLLM/blob/main/pyproject.toml) file.
