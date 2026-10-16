@@ -1,42 +1,28 @@
 name: Semgrep
 
 on:
-  push:
-    branches:
-      - main
-  release:
-    types:
-      - published
-      - edited
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      scan:
+        description: "diff: the files changed by the pull request, full: the whole repository"
+        required: true
+        type: string
 
 jobs:
-  semgrep-diff:
-    name: Semgrep SAST (diff)
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+  semgrep:
+    name: Semgrep SAST (${{ inputs.scan }})
     runs-on: ubuntu-latest
     container:
-      image: semgrep/semgrep
+      image: semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Run Semgrep (diff only)
+        if: inputs.scan == 'diff'
         run: semgrep ci --config auto --verbose
 
-  semgrep-full:
-    name: Semgrep SAST (full)
-    if: >-
-      github.event_name == 'release' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]')
-    runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep
-    steps:
-      - uses: actions/checkout@v4
       - name: Run Semgrep (WARNING severity)
+        if: inputs.scan == 'full'
         run: |
           semgrep scan \
             --config auto \
@@ -49,6 +35,7 @@ jobs:
           exit 0  # Never block this job
 
       - name: Run Semgrep (ERROR severity only)
+        if: inputs.scan == 'full'
         run: |
           semgrep scan \
             --config auto \

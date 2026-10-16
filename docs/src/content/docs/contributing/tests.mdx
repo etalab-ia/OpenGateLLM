@@ -90,17 +90,10 @@ To run the tests with VSCode, you can create a `.vscode/settings.json` file with
 
 ## Continuous integration
 
-The [Testing](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/run_tests.yml) workflow selects jobs from the pull request state and the trigger type.
+The [Pull request](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/pull_request.yml) and [Main](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/main.yml) workflows run the [Tests](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/_run_tests.yml) workflow on every pull request targeting `main` and on every push to `main`. It runs the unit and the integration tests in two parallel jobs, each one measuring its coverage, then combines both measures into the total coverage.
 
-On a pull request targeting `main` (when `api/**`, `pyproject.toml`, `uv.lock`, `compose.example.yml` or the workflow file itself changes):
-
-| PR status | Unit tests | Integration tests | e2e tests |
-|-----------|------------|-------------------|-----------|
-| Draft | Yes, without coverage or badge commit | Yes | No |
-| Ready for review | Yes, with coverage and badge commit | Yes | Yes |
-
-Every push to `main` and manual runs (`workflow_dispatch`) run the unit and integration tests, without coverage. On `main`, the tests are called by the [Build and scan images](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/build.yml) workflow, and the deployment to dev waits for them. The coverage badge is committed only on a non-draft pull request targeting `main`.
+Once a pull request is ready for review, the coverage badge is committed to its branch. On `main`, the deployment to dev waits for the tests.
 
 <Aside type="note">
-Jobs skip when the actor is `github-actions[bot]`, so the coverage badge commit does not retrigger the workflow.
+The coverage badge commit is pushed with the workflow token, so it does not trigger a new workflow run.
 </Aside>

@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  release:
+    types: [ published, edited ]
+
+jobs:
+  build-opengatellm:
+    name: OpenGateLLM images
+    uses: ./.github/workflows/_build_opengatellm.yml
+    with:
+      tags: |
+        type=ref,event=tag
+        type=sha,format=long
+      push: true
+
+  build-albert-playground:
+    name: Albert playground images
+    uses: ./.github/workflows/_build_albert_playground.yml
+    with:
+      tags: |
+        type=ref,event=tag
+        type=sha,format=long
+    secrets:
+      GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      GITLAB_PROJECT_PATH: ${{ secrets.GITLAB_PROJECT_PATH }}
+      VAULT_KEY: ${{ secrets.VAULT_KEY }}
+      AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}
+
+  semgrep:
+    name: Semgrep
+    uses: ./.github/workflows/_semgrep.yml
+    with:
+      scan: full
+
+  release-updates:
+    name: Release updates
+    needs: [ build-opengatellm, build-albert-playground ]
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/_release_updates.yml
+
+  deploy-documentation:
+    name: Deploy documentation
+    needs: [ build-opengatellm, build-albert-playground ]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_deploy_documentation.yml

@@ -1,10 +1,6 @@
 name: Release updates
 
 on:
-  workflow_run:
-    workflows: ["Build and scan images"]
-    types:
-      - completed
   workflow_dispatch:
   workflow_call:
 
@@ -14,14 +10,13 @@ permissions:
 
 jobs:
   release_updates:
-    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
 
     steps:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
       - name: Checkout du code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
           fetch-depth: 0
@@ -63,17 +58,17 @@ jobs:
             exit 1
           fi
           curl -fSL --retry 8 --retry-all-errors --retry-delay 2 http://localhost:8000/openapi.json -o ./docs/openapi.json
-          docker pull redocly/cli
-          docker run --rm -v "$DOCS_DIR:/spec" redocly/cli build-docs /spec/openapi.json --output /spec/redoc-static.html
+          docker pull redocly/cli:2.57.0@sha256:e320090ecd380878ff2aa671a928d5ac28fcbb7bb6230250d772790811125aea
+          docker run --rm -v "$DOCS_DIR:/spec" redocly/cli:2.57.0@sha256:e320090ecd380878ff2aa671a928d5ac28fcbb7bb6230250d772790811125aea build-docs /spec/openapi.json --output /spec/redoc-static.html
 
       - name: Create pull request for release updates
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           commit-message: "chore(doc): update generated documentation and release versions"
           title: "chore(doc): update generated documentation and release versions"
           body: |
-            Automated documentation and release version update after `Build and deploy` release workflow completion.
-          branch: "ci/release-update-${{ github.event.workflow_run.id || github.run_id }}"
+            Automated documentation and release version update after the release images were built by the Release workflow.
+          branch: "ci/release-update-${{ github.run_id }}"
           base: "main"
           delete-branch: true
           add-paths: |

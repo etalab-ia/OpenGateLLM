@@ -1,0 +1,153 @@
+name: Build Albert playground images
+
+on:
+  workflow_call:
+    inputs:
+      tags:
+        description: "Image tags, in the docker/metadata-action format"
+        required: true
+        type: string
+    secrets:
+      GITLAB_USERNAME:
+        required: true
+      GITLAB_TOKEN:
+        required: true
+      GITLAB_PROJECT_PATH:
+        required: true
+      VAULT_KEY:
+        required: true
+      AUTH_SSO_CLIENT_SECRET:
+        required: true
+
+jobs:
+  build-albert-playground:
+    name: ${{ matrix.environment }} ${{ matrix.type }}
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
+      GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
+    strategy:
+      matrix:
+        include:
+          - environment: dev
+            type: public
+            playground_host: albert.playground.dev.etalab.gouv.fr
+            reflex_url: https://albert.playground.dev.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: dev
+            type: private
+            playground_host: albert.playground.dev.etalab.gouv.fr
+            reflex_url: http://albert.api.001.dev.etalab.gouv.fr:8002
+            tag_suffix: .private
+          - environment: staging
+            type: public
+            playground_host: albert.playground.staging.etalab.gouv.fr
+            reflex_url: https://albert.playground.staging.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: staging
+            type: private
+            playground_host: albert.playground.staging.etalab.gouv.fr
+            reflex_url: http://albert.api.001.staging.etalab.gouv.fr:8002
+            tag_suffix: .private
+          - environment: prod
+            type: public
+            playground_host: albert.playground.etalab.gouv.fr
+            reflex_url: https://albert.playground.etalab.gouv.fr
+            tag_suffix: ""
+          - environment: prod
+            type: private
+            playground_host: albert.playground.etalab.gouv.fr
+            reflex_url: http://albert.api.001.prod.etalab.gouv.fr:8002
+            tag_suffix: .private
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Log in to GitLab Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: registry.gitlab.com
+          username: ${{ secrets.GITLAB_USERNAME }}
+          password: ${{ secrets.GITLAB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+
+      - name: Decrypt and render playground config
+        env:
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+          AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}
+          PLAYGROUND_TYPE: ${{ matrix.type }}
+          PLAYGROUND_HOST: ${{ matrix.playground_host }}
+        run: |
+          uvx --from ansible-core==2.21.4 ansible-vault decrypt \
+            --vault-password-file <(printf '%s' "$VAULT_KEY") \
+            .github/assets/config.playground.yml.j2
+          uv run --no-project --with jinja2==3.1.6 python - <<'PY'
+          import os
+          from jinja2 import StrictUndefined, Template
+
+          with open(".github/assets/config.playground.yml.j2") as file:
+              template = Template(file.read(), undefined=StrictUndefined)
+          with open(".github/assets/config.playground.yml", "w") as file:
+              file.write(template.render(
+                  playground_type=os.environ["PLAYGROUND_TYPE"],
+                  playground_host=os.environ["PLAYGROUND_HOST"],
+                  auth_sso_client_secret=os.environ["AUTH_SSO_CLIENT_SECRET"],
+              ) + "\n")
+          PY
+
+      - name: Compute image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}
+          tags: ${{ inputs.tags }}
+          flavor: |
+            latest=false
+            suffix=${{ matrix.tag_suffix }},onlatest=true
+
+      - name: Build Albert playground image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          build-args: |
+            REFLEX_BACKEND_URL=${{ matrix.reflex_url }}
+            REFLEX_FRONTEND_URL=${{ matrix.reflex_url }}
+            CONFIG_FILE=.github/assets/config.playground.yml
+            FAVICON=.github/assets/logo.svg
+            LOGO=.github/assets/logo.svg
+          file: ./playground/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
+
+      - name: Scan Albert playground image with Trivy
+        uses: ./.github/actions/trivy-scan
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+
+      - name: Push Albert playground image to GitLab
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          build-args: |
+            REFLEX_BACKEND_URL=${{ matrix.reflex_url }}
+            REFLEX_FRONTEND_URL=${{ matrix.reflex_url }}
+            CONFIG_FILE=.github/assets/config.playground.yml
+            FAVICON=.github/assets/logo.svg
+            LOGO=.github/assets/logo.svg
+          file: ./playground/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
