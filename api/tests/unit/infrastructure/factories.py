@@ -4,6 +4,7 @@ import factory
 from faker import Faker
 from openai.types import Embedding
 
+from api.domain.chat.entities import CreateChatCompletionsBody
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Model, Models
 from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse
@@ -33,6 +34,12 @@ class ProviderRequestFactory(factory.Factory):
     payload = None
 
     class Params:
+        chat_completions = factory.Trait(
+            endpoint=ProviderEndpoint.CHAT_COMPLETIONS,
+            payload=factory.LazyAttribute(
+                lambda self: CreateChatCompletionsBody(model="openweight-chat", messages=[{"role": "user", "content": fake.sentence()}])
+            ),
+        )
         embeddings = factory.Trait(
             endpoint=ProviderEndpoint.EMBEDDINGS,
             payload=factory.LazyAttribute(

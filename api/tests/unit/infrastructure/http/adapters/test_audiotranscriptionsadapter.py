@@ -67,6 +67,18 @@ class TestAudioTranscriptionsAdapter:
         assert result.data.text == "hello world"
         assert result.data.model == "audio-router"
 
+    def test_should_drop_the_provider_usage_reported_in_seconds(self):
+        # Arrange
+        provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test", model_name="whisper-1")
+        adapter = AudioTranscriptionsAdapter(provider=provider)
+        original_response = HttpProviderResponse(data={"text": "hello world", "usage": {"type": "duration", "seconds": 372}})
+
+        # Act
+        result = adapter.to_provider_response(request=_original_request(), http_response=original_response)
+
+        # Assert
+        assert "usage" not in result.data.model_fields_set
+
 
 class TestMistralAudioTranscriptionsAdapter:
     def test_should_encode_audio_file_into_chat_completions_body(self):

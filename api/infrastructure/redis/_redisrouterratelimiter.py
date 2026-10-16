@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class RedisRouterRateLimiter(RouterRateLimiter):
-    def __init__(self, background_tasks: BackgroundTasks, redis_pool: ConnectionPool, strategy: LimitingStrategy):
+    def __init__(self, background_tasks: BackgroundTasks, redis_pool: ConnectionPool, strategy: LimitingStrategy, cached_tokens_discount: float):
         self.background_tasks = background_tasks
+        self.cached_tokens_discount = cached_tokens_discount
         self.redis_pool = redis_pool
         self.redis_storage = storage.RedisStorage(uri=self.redis_pool.url, connection_pool=self.redis_pool, implementation="redispy")
         self.redis_client = Redis(connection_pool=redis_pool)
@@ -70,7 +71,9 @@ class RedisRouterRateLimiter(RouterRateLimiter):
 
         return state
 
-    def update_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int) -> None:
+    def update_rate_limit_state(
+        self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int, cached_tokens: int
+    ) -> None:
         self.background_tasks.add_task(
             self._charge,
             user_id=user_id,
@@ -78,16 +81,19 @@ class RedisRouterRateLimiter(RouterRateLimiter):
             router_id=router_id,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            cached_tokens=cached_tokens,
         )
 
-    async def _charge(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int) -> None:
+    async def _charge(
+        self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int, cached_tokens: int
+    ) -> None:
         rpm = next((limit.value for limit in router_limits if limit.type == LimitType.RPM), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPM, value=rpm)
 
         rpd = next((limit.value for limit in router_limits if limit.type == LimitType.RPD), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPD, value=rpd)
 
-        total_tokens = prompt_tokens + completion_tokens
+        total_tokens = round(prompt_tokens + completion_tokens - self.cached_tokens_discount * cached_tokens)
         if not total_tokens:
             return
 

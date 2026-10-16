@@ -114,6 +114,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         request_id: str,
     ) -> AsyncGenerator[ProviderChunkResponse]:
         buffer: list[dict] = []
+        provider_usage: Usage | None = None
         first_token_at: datetime | None = None
         usage_is_recorded = False
 
@@ -135,6 +136,11 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                             yield ProviderChunkResponse(content=chunk.content, status_code=chunk.status_code)
                             continue
 
+                        if parsed_chunk.get("usage"):
+                            provider_usage = Usage.model_validate(parsed_chunk["usage"])
+                            if not parsed_chunk.get("choices"):
+                                continue
+
                         buffer.append(parsed_chunk)
                         if first_token_at is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
                             first_token_at = datetime.now(tz=UTC)
@@ -148,6 +154,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                         provider=provider,
                         buffer=buffer,
                         prompt_tokens=prompt_tokens,
+                        provider_usage=provider_usage,
                         latency=self.usage_repository.compute_latency(),
                         request_id=request_id,
                         first_token_at=first_token_at,
@@ -163,6 +170,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                             provider=provider,
                             buffer=buffer,
                             prompt_tokens=prompt_tokens,
+                            provider_usage=None,
                             latency=self.usage_repository.compute_latency(),
                             request_id=request_id,
                             first_token_at=first_token_at,
@@ -176,6 +184,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         buffer: list[dict],
         prompt_tokens: int,
+        provider_usage: Usage | None,
         latency: float,
         request_id: str,
         first_token_at: datetime | None,
@@ -186,6 +195,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             provider=provider,
             buffer=buffer,
             prompt_tokens=prompt_tokens,
+            provider_usage=provider_usage,
             latency=latency,
             request_id=request_id,
             first_token_at=first_token_at,
@@ -205,13 +215,28 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         buffer: list[dict],
         prompt_tokens: int,
+        provider_usage: Usage | None,
         latency: float,
         request_id: str,
         first_token_at: datetime | None,
     ) -> Usage:
-        completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
-        completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
-        usage = self._build_usage(provider=provider, router=router, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, latency=latency)
+        if provider_usage is not None:
+            prompt_tokens = provider_usage.prompt_tokens
+            completion_tokens = provider_usage.completion_tokens
+            cached_tokens = provider_usage.prompt_tokens_details.cached_tokens
+        else:
+            completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
+            completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
+            cached_tokens = 0
+
+        usage = self._build_usage(
+            provider=provider,
+            router=router,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cached_tokens=cached_tokens,
+            latency=latency,
+        )
         self.usage_context.record_usage(request_id=request_id, usage=usage)
         self.usage_repository.update_record(
             usage=usage,

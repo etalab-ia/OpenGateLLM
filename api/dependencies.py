@@ -154,7 +154,10 @@ def _user_password_encoder() -> UserPasswordEncoder:
 
 def _router_rate_limiter(background_tasks: BackgroundTasks, configuration: Configuration = Depends(get_configuration)) -> RouterRateLimiter:
     return RedisRouterRateLimiter(
-        background_tasks=background_tasks, redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy
+        background_tasks=background_tasks,
+        redis_pool=global_context.redis_pool,
+        strategy=configuration.settings.rate_limiting_strategy,
+        cached_tokens_discount=configuration.settings.rate_limiting_cached_tokens_discount,
     )
 
 
