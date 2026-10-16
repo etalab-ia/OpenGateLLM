@@ -370,6 +370,10 @@ class UsersState(EntityState):
     def total_pages(self) -> int:
         return max(1, math.ceil(self.total / self.per_page))
 
+    @rx.var
+    def has_active_filters(self) -> bool:
+        return self.search_email_value != "" or self.filter_role_value != "All roles" or self.filter_organization_value != "All organizations"
+
     @rx.event
     async def set_search_email(self, value: str):
         self.search_email_value = value
