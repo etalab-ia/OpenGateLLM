@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 from typing import Annotated, Any, Literal, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, constr, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
@@ -14,6 +14,7 @@ import yaml
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.infrastructure.fastapi.routes import RouterName
+from api.infrastructure.fastapi.schemas import reject_password_over_max_bytes
 
 DEFAULT_APP_NAME: str = "OpenGateLLM"
 DEFAULT_TIMEOUT: int = 300
@@ -274,7 +275,7 @@ class Settings(ConfigBaseModel):
     auth_master_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="[DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user.", deprecated=True)  # fmt: off
     auth_secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys. If not provided, the master key will be used.")  # fmt: off
     auth_bootsrap_admin_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default="admin", description="Username of the admin user created at the first startup.")  # fmt: off
-    auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(default="changeme", description="Password of the admin user created at the first startup.")  # fmt: off
+    auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), AfterValidator(reject_password_over_max_bytes)] = Field(default="changeme", description="Password of the admin user created at the first startup.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
     auth_login_session_duration: int = Field(default=3600, ge=1, description="Duration of login session for the playground in seconds. Also used as oauth2-proxy cookie expiration when SSO is enabled.")  # fmt: off
 

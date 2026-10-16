@@ -101,6 +101,30 @@ class TestCreateUser:
         assert len(password_errors) == 1
         assert password_errors[0]["msg"] == expected_msg
 
+    async def test_rejects_password_over_72_bytes(self, client: AsyncClient):
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.token.token}"},
+            json=_valid_body(role_id=1, password="é" * 72),
+        )
+
+        assert response.status_code == 422, response.text
+        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "password"]
+        assert len(password_errors) == 1
+
+    async def test_accepts_password_at_72_bytes(self, client: AsyncClient, db_session):
+        role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
+        await db_session.flush()
+
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.token.token}"},
+            json=_valid_body(role_id=role.id, organization_id=organization.id, password="a" * 72),
+        )
+
+        assert response.status_code == 201, response.text
+
     async def test_rejects_missing_organization(self, client: AsyncClient):
         body = _valid_body(role_id=1)
         del body["organization_id"]
