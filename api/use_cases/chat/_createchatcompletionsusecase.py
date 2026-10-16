@@ -82,7 +82,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     prompt_tokens=prompt_tokens,
                     request_id=request_id,
                 ),
-                headers=rate_limit_state.build_limit_headers,
+                headers=rate_limit_state.build_limit_headers(prompt_tokens),
             )
 
         try:
@@ -100,7 +100,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
                     return error
 
-            return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
+            return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers(prompt_tokens))
         finally:
             self.usage_repository.end_record()
 

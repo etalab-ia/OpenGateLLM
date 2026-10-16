@@ -130,7 +130,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                     self.usage_repository.fail_record(message=type(error).__name__, status_code=503)
                     return error
 
-            return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
+            return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers(prompt_tokens))
         finally:
             self.usage_repository.end_record()
 
@@ -177,7 +177,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             exceeded_limits = rate_limit_state.exceeded_limits(prompt_tokens=prompt_tokens)
             if exceeded_limits:
                 limit_type = exceeded_limits[0]
-                return RouterRateLimitExceededError(id=router.id, limit_type=limit_type, headers=rate_limit_state.build_limit_headers)
+                return RouterRateLimitExceededError(id=router.id, limit_type=limit_type, headers=rate_limit_state.build_limit_headers(prompt_tokens))
         else:
             rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
 

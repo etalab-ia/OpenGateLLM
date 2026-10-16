@@ -35,6 +35,20 @@ def rate_limiter(test_redis_pool, background_tasks):
 
 
 @pytest.fixture
+def fixed_window_rate_limiter(test_redis_pool, background_tasks):
+    return RedisRouterRateLimiter(
+        background_tasks=background_tasks, redis_pool=test_redis_pool, strategy=LimitingStrategy.FIXED_WINDOW, cached_tokens_discount=0.8
+    )
+
+
+@pytest.fixture
+def sliding_window_rate_limiter(test_redis_pool, background_tasks):
+    return RedisRouterRateLimiter(
+        background_tasks=background_tasks, redis_pool=test_redis_pool, strategy=LimitingStrategy.SLIDING_WINDOW, cached_tokens_discount=0.8
+    )
+
+
+@pytest.fixture
 def redis_client(test_redis_pool):
     return AsyncRedis(connection_pool=test_redis_pool)
 
@@ -54,6 +68,36 @@ class TestRedisRouterRateLimiter:
         assert result.rpm.value == 10
         assert result.rpm.remaining == 10
         assert result.rpm.reset > time.time()
+
+    async def test_get_rate_limit_state_reports_no_reset_for_a_fixed_window_that_has_not_started(
+        self, fixed_window_rate_limiter: RedisRouterRateLimiter
+    ):
+        # Arrange
+        user_id = 1011
+        router_id = 2011
+        limits = limits_factory(router_id=router_id, rpm=10)
+
+        # Act
+        result = await fixed_window_rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
+
+        # Assert
+        assert result.rpm.remaining == 10
+        assert result.rpm.reset == 0
+
+    async def test_get_rate_limit_state_keeps_the_reset_for_a_sliding_window_that_has_not_started(
+        self, sliding_window_rate_limiter: RedisRouterRateLimiter
+    ):
+        # Arrange
+        user_id = 1012
+        router_id = 2012
+        limits = limits_factory(router_id=router_id, rpm=10)
+
+        # Act
+        result = await sliding_window_rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
+
+        # Assert
+        assert result.rpm.remaining == 10
+        assert result.rpm.reset > 0
 
     async def test_get_rate_limit_state_skips_zero_value_limits(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
