@@ -71,6 +71,19 @@ jobs:
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
 
+      - name: Start the api image with the example configuration
+        if: matrix.image == 'api'
+        env:
+          CONFIG_FILE: ./config.example.yml
+        run: |
+          # compose.example.yml runs api:latest: tag the image just built so that compose does not pull it from GHCR.
+          docker tag "${{ fromJSON(steps.meta.outputs.json).tags[0] }}" ghcr.io/etalab-ia/opengatellm/api:latest
+          docker compose --env-file .env.example --file compose.example.yml up --detach --quiet-pull --wait api
+
+      - name: Show the api logs
+        if: failure() && matrix.image == 'api'
+        run: docker compose --env-file .env.example --file compose.example.yml logs api
+
       - name: Push OpenGateLLM ${{ matrix.image }} image to GitHub
         if: inputs.push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
