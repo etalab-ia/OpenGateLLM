@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -84,7 +84,13 @@ class RpdRateLimitState(BaseModel):
     reset: int = 0
 
 
+type RateLimitWindowState = TpmRateLimitState | TpdRateLimitState | RpmRateLimitState | RpdRateLimitState
+
+
 class RouterRateLimitState(BaseModel):
+    MINUTE_WINDOW_SECONDS: ClassVar[int] = 60
+    DAY_WINDOW_SECONDS: ClassVar[int] = 86_400
+
     tpm: Annotated[TpmRateLimitState, Field(default_factory=TpmRateLimitState)]
     tpd: Annotated[TpdRateLimitState, Field(default_factory=TpdRateLimitState)]
     rpm: Annotated[RpmRateLimitState, Field(default_factory=RpmRateLimitState)]
@@ -107,39 +113,53 @@ class RouterRateLimitState(BaseModel):
             rpd=RpdRateLimitState(value=None),
         )
 
-    @property
-    def build_limit_headers(self) -> dict[str, str]:
-        def seconds_until_reset(reset_epoch: float) -> int:
-            return max(0, int(reset_epoch - datetime.now(UTC).timestamp()))
+    def build_limit_headers(self, prompt_tokens: int) -> dict[str, str]:
+        headers: dict[str, str] = {}
 
-        def format_duration(seconds: int) -> str:
-            minutes, secs = divmod(seconds, 60)
-            hours, minutes = divmod(minutes, 60)
-            if hours:
-                return f"{hours}h{minutes}m{secs}s"
+        requests_window = self._most_restrictive_limit((self.rpm, self.MINUTE_WINDOW_SECONDS), (self.rpd, self.DAY_WINDOW_SECONDS))
+        if requests_window is not None:
+            headers.update(self._window_headers(window=requests_window[0], period_seconds=requests_window[1], family="requests", cost=1))
 
-            if minutes:
-                return f"{minutes}m{secs}s"
-
-            return f"{secs}s"
-
-        headers = {}
-        if self.tpd.value == 0:
-            headers["x-ratelimit-limit-token"] = str(self.tpm.value)
-            headers["x-ratelimit-remaining-token"] = str(self.tpm.remaining)
-            headers["x-ratelimit-reset-token"] = format_duration(seconds_until_reset(self.tpm.reset))
-        else:
-            headers["x-ratelimit-limit-token"] = str(self.tpd.value)
-            headers["x-ratelimit-remaining-token"] = str(self.tpd.remaining)
-            headers["x-ratelimit-reset-token"] = format_duration(seconds_until_reset(self.tpd.reset))
-
-        if self.rpm.value == 0:
-            headers["x-ratelimit-limit-request"] = str(self.rpm.value)
-            headers["x-ratelimit-remaining-request"] = str(self.rpm.remaining)
-            headers["x-ratelimit-reset-requests"] = format_duration(seconds_until_reset(self.rpm.reset))
-        else:
-            headers["x-ratelimit-limit-request"] = str(self.rpm.value)
-            headers["x-ratelimit-remaining-request"] = str(self.rpm.remaining)
-            headers["x-ratelimit-reset-requests"] = format_duration(seconds_until_reset(self.rpm.reset))
+        tokens_window = self._most_restrictive_limit((self.tpm, self.MINUTE_WINDOW_SECONDS), (self.tpd, self.DAY_WINDOW_SECONDS))
+        if tokens_window is not None:
+            headers.update(self._window_headers(window=tokens_window[0], period_seconds=tokens_window[1], family="tokens", cost=prompt_tokens))
 
         return headers
+
+    @staticmethod
+    def _most_restrictive_limit(*candidates: tuple[RateLimitWindowState, int]) -> tuple[RateLimitWindowState, int] | None:
+        configured = [candidate for candidate in candidates if candidate[0].value is not None]
+        if not configured:
+            return None
+
+        return min(configured, key=lambda candidate: candidate[0].remaining)
+
+    @staticmethod
+    def _window_headers(window: RateLimitWindowState, period_seconds: int, family: str, cost: int) -> dict[str, str]:
+        return {
+            f"x-ratelimit-limit-{family}": str(window.value),
+            f"x-ratelimit-remaining-{family}": str(max(0, window.remaining - cost)),
+            f"x-ratelimit-reset-{family}": RouterRateLimitState._format_duration(
+                RouterRateLimitState._reset_in_seconds(reset_epoch=window.reset, period_seconds=period_seconds)
+            ),
+        }
+
+    @staticmethod
+    def _reset_in_seconds(reset_epoch: float, period_seconds: int) -> int:
+        if reset_epoch <= 0:
+            # a fixed window read before it is charged reports no reset yet, it will last the full period
+            return period_seconds
+
+        return max(0, int(reset_epoch - datetime.now(UTC).timestamp()))
+
+    @staticmethod
+    def _format_duration(seconds: int) -> str:
+        minutes, secs = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h{minutes}m{secs}s"
+
+        if minutes:
+            return f"{minutes}m{secs}s"
+
+        return f"{secs}s"
