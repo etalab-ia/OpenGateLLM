@@ -31,8 +31,13 @@ jobs:
   tests:
     name: Tests
     uses: ./.github/workflows/_run_tests.yml
-    with:
-      commit_coverage: false
+
+  coverage:
+    name: Coverage
+    needs: tests
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_coverage.yml
 
   semgrep:
     name: Semgrep
