@@ -6,9 +6,9 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
     "jinja2==3.1.6",
-    "requests==2.32.5",
-    "pydantic==2.12.5",
-    "pydantic-settings==2.13.1",
+    "requests==2.34.2",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
     "httpx==0.28.1",
     "pyyaml==6.0.3",
     "pycountry==26.2.16",
@@ -16,14 +16,14 @@ dependencies = [
 
 [project.optional-dependencies]
 playground = [
-    "reflex==0.8.28.post1",
-    "sqlalchemy[asyncio]==2.0.47",
+    "reflex==0.9.12",
+    "sqlalchemy[asyncio]==2.1.2",
 ]
 api = [
-    "alembic==1.18.4",
+    "alembic==1.20.0",
     "asyncpg==0.31.0",
     "bcrypt==5.0.0",
-    "ecologits==0.9.3",
+    "ecologits==0.11.2",
     "fastapi==0.135.1",
     "gunicorn==25.1.0",
     "humanize==4.16.0",
@@ -33,19 +33,19 @@ api = [
     "mistralai==2.0.0",
     "openai==2.15.0",
     "prometheus-fastapi-instrumentator==8.1.0",
-    "psycopg2-binary==2.9.11",
-    "pyjwt==2.14.0",
+    "psycopg2-binary==2.9.13",
+    "pyjwt==2.15.1",
     "python-multipart==0.0.32",
     "redis==7.2.1",
-    "sentry-sdk[fastapi]==2.53.0",
+    "sentry-sdk[fastapi]==2.71.0",
     "sqlalchemy-utils==0.42.1",
-    "sqlalchemy[asyncio]==2.0.47",
-    "tiktoken==0.12.0",
-    "uvicorn==0.41.0"
+    "sqlalchemy[asyncio]==2.1.2",
+    "tiktoken==0.14.0",
+    "uvicorn==0.54.0"
 ]
 dev = [
     "pre-commit>=4.5.1",
-    "ruff==0.15.13",
+    "ruff==0.16.10",
     "tabulate==0.10.0",
     "rich==14.3.4",
 ]
