@@ -7,7 +7,7 @@ from api.domain.organization.errors import OrganizationAlreadyExistsError, Organ
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import PermissionType, Role
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
-from api.domain.user import UserPasswordEncoder, UserRepository
+from api.domain.user import BootstrapAuthorization, UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 
@@ -49,6 +49,7 @@ class BootstrapAdminUseCase:
         user_repository: UserRepository,
         organization_repository: OrganizationRepository,
         user_password_encoder: UserPasswordEncoder,
+        bootstrap_authorization: BootstrapAuthorization,
     ):
         self.role_repository = role_repository
         self.permission_repository = permission_repository
@@ -56,11 +57,13 @@ class BootstrapAdminUseCase:
         self.user_repository = user_repository
         self.organization_repository = organization_repository
         self.user_password_encoder = user_password_encoder
+        self.bootstrap_authorization = bootstrap_authorization
 
     async def execute(self, command: BootstrapAdminCommand) -> BootstrapAdminUseCaseResult:
         result = await self.user_repository.get_first_admin_user()
         match result:
             case User() as user:
+                await self.bootstrap_authorization.attach_bootstrap_admin_to_platform(user_id=user.id)
                 return BootstrapAdminUseCaseSkipped(user_id=user.id, email=user.email, role_id=user.role_id)
 
         result = await self.role_repository.get_role_with_permissions_and_limits_by_name(role_name=self.BOOTSTRAP_ADMIN_ROLE_NAME)
@@ -106,5 +109,7 @@ class BootstrapAdminUseCase:
                         pass
                     case UserAlreadyExistsError():
                         return BootstrapAdminUseCaseSkipped()
+
+        await self.bootstrap_authorization.attach_bootstrap_admin_to_platform(user_id=user.id)
 
         return BootstrapAdminUseCaseSuccess(user_id=user.id, email=user.email, role_id=role.id)
