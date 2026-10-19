@@ -52,7 +52,7 @@
 | api/domain/user/errors.py                                                             |       24 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                              |       21 |        0 |        6 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                              |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration.py                                                   |      249 |       99 |       50 |        4 |     52.17% |36-78, 81, 90-91, 121-128, 131, 155, 174-178, 294-297, 333-338, 343-346, 351-363, 375-376, 380-395, 399-418, 423 |
+| api/infrastructure/configuration.py                                                   |      250 |       99 |       50 |        4 |     52.33% |37-79, 82, 91-92, 122-129, 132, 156, 175-179, 295-298, 334-339, 344-347, 352-364, 376-377, 381-396, 400-419, 424 |
 | api/infrastructure/context.py                                                         |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/contextvars/\_contextvarsusagecontext.py                           |       19 |        1 |        0 |        0 |     94.74% |        10 |
 | api/infrastructure/ecologit/\_ecologitmodelenvironmentalimpactscomputer.py            |       12 |        0 |        2 |        0 |    100.00% |           |
@@ -90,7 +90,7 @@
 | api/infrastructure/fastapi/schemas/admin/routers.py                                   |        9 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/admin/users.py                                     |       20 |        1 |        4 |        1 |     91.67% |        22 |
 | api/infrastructure/fastapi/schemas/audio.py                                           |       17 |        4 |        0 |        0 |     76.47% |     54-64 |
-| api/infrastructure/fastapi/schemas/auth.py                                            |        8 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/fastapi/schemas/auth.py                                            |        9 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/chat.py                                            |       13 |        0 |        2 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/embeddings.py                                      |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/health.py                                          |        8 |        0 |        0 |        0 |    100.00% |           |
@@ -210,7 +210,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                       |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                            |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                             | **6662** |  **575** | **1342** |  **153** | **89.43%** |           |
+| **TOTAL**                                                                             | **6664** |  **575** | **1342** |  **153** | **89.43%** |           |
 
 
 ## Setup coverage badge
