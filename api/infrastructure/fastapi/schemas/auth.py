@@ -9,7 +9,7 @@ from api.infrastructure.fastapi.schemas.admin.keys import KeyResponse
 
 class AuthLoginBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(description="The user email.")]
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), AfterValidator(reject_password_over_max_bytes), Field(description="The user password.")]  # fmt: off
+    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), AfterValidator(reject_password_over_max_bytes), Field(description="The user password. At most 72 bytes once UTF-8 encoded.")]  # fmt: off
 
 
 class AuthLoginResponse(KeyResponse):

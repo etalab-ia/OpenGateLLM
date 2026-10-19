@@ -10,7 +10,7 @@ from api.infrastructure.fastapi.schemas import MIN_PASSWORD_LENGTH, UnixTimestam
 class CreateUserBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254, to_lower=True), Field(..., description="The user email.")]  # fmt: off
     name: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(default=None, description="The user name.")]  # fmt: off
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH), AfterValidator(reject_password_over_max_bytes), Field(description="The user password.")]  # fmt: off
+    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH), AfterValidator(reject_password_over_max_bytes), Field(description="The user password. At most 72 bytes once UTF-8 encoded.")]  # fmt: off
     role_id: Annotated[int, Field(..., description="The role ID.")]
     organization_id: Annotated[int, Field(..., description="The organization ID.")]
     expires: Annotated[int | None, Field(default=None, description="The expiration timestamp.")]
@@ -51,8 +51,8 @@ class UsersResponse(BaseModel):
 class UserUpdateRequest(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254, to_lower=True), Field(..., description="The new user email.")]  # fmt: off
     name: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(..., description="The new user name. If null, the user name is removed.")]  # fmt: off
-    current_password: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH), AfterValidator(reject_password_over_max_bytes), Field(default=None, description="The current user password. Only required to change the password.")]  # fmt: off
-    password: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH), AfterValidator(reject_password_over_max_bytes), Field(default=None, description="The new user password. If omitted, the user password is not changed.")]  # fmt: off
+    current_password: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH), AfterValidator(reject_password_over_max_bytes), Field(default=None, description="The current user password. Only required to change the password. At most 72 bytes once UTF-8 encoded.")]  # fmt: off
+    password: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH), AfterValidator(reject_password_over_max_bytes), Field(default=None, description="The new user password. If omitted, the user password is not changed. At most 72 bytes once UTF-8 encoded.")]  # fmt: off
     role_id: Annotated[int, Field(..., description="The new role ID.")]
     organization_id: Annotated[int, Field(..., description="The new organization ID.")]
     expires: Annotated[int | None, Field(..., description="The new expiration timestamp. If null, the user will never expire.")]

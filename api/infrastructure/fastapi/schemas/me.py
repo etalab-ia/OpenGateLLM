@@ -21,8 +21,8 @@ class MeResponse(BaseModel):
 class UpdateMeBody(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="The user name.")]
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(description="The user email.")]
-    current_password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, description="The current user password. If None, the password is not changed and `password` is ignored."), AfterValidator(reject_password_over_max_bytes)]  # fmt: off
-    password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, description="The new user password. Required when `current_password` is provided. Ignored when `current_password` is None."), AfterValidator(reject_password_over_max_bytes)]  # fmt: off
+    current_password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, description="The current user password. If None, the password is not changed and `password` is ignored. At most 72 bytes once UTF-8 encoded."), AfterValidator(reject_password_over_max_bytes)]  # fmt: off
+    password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, description="The new user password. Required when `current_password` is provided. Ignored when `current_password` is None. At most 72 bytes once UTF-8 encoded."), AfterValidator(reject_password_over_max_bytes)]  # fmt: off
 
     @model_validator(mode="after")
     def require_password_when_current_password_is_set(self):
