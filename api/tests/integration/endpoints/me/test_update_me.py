@@ -45,6 +45,7 @@ class TestUpdateMeInfo:
         assert any("password is required when current_password is provided" in error["msg"] for error in response.json()["detail"])
 
     async def test_rejects_a_new_password_over_72_bytes(self, client: AsyncClient):
+        # Arrange
         password_of_72_characters_and_73_bytes = "a" * 71 + "é"
         body = {
             "email": self.user.email,
@@ -53,13 +54,18 @@ class TestUpdateMeInfo:
             "password": password_of_72_characters_and_73_bytes,
         }
 
+        # Act
         response = await client.patch(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
 
+        # Assert
         assert response.status_code == 422, response.text
-        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "password"]
-        assert len(password_errors) == 1
+        errors = response.json()["detail"]
+        assert len(errors) == 1
+        assert errors[0]["loc"] == ["body", "password"]
+        assert errors[0]["msg"] == "Value error, Password must be at most 72 bytes long."
 
     async def test_rejects_a_current_password_over_72_bytes(self, client: AsyncClient):
+        # Arrange
         password_of_72_characters_and_73_bytes = "a" * 71 + "é"
         body = {
             "email": self.user.email,
@@ -68,11 +74,15 @@ class TestUpdateMeInfo:
             "password": "new-password",
         }
 
+        # Act
         response = await client.patch(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
 
+        # Assert
         assert response.status_code == 422, response.text
-        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "current_password"]
-        assert len(password_errors) == 1
+        errors = response.json()["detail"]
+        assert len(errors) == 1
+        assert errors[0]["loc"] == ["body", "current_password"]
+        assert errors[0]["msg"] == "Value error, Password must be at most 72 bytes long."
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
