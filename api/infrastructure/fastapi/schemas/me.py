@@ -1,9 +1,9 @@
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import AfterValidator, Field, StringConstraints, model_validator
 
 from api.domain import BaseModel
-from api.infrastructure.fastapi.schemas import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, UnixTimestamp
+from api.infrastructure.fastapi.schemas import MIN_PASSWORD_LENGTH, UnixTimestamp, reject_password_over_max_bytes
 from api.infrastructure.fastapi.schemas.admin.roles import Limit, PermissionType
 
 
@@ -21,8 +21,8 @@ class MeResponse(BaseModel):
 class UpdateMeBody(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="The user name.")]
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(description="The user email.")]
-    current_password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH, description="The current user password. If None, the password is not changed and `password` is ignored.")]  # fmt: off
-    password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH, description="The new user password. Required when `current_password` is provided. Ignored when `current_password` is None.")]  # fmt: off
+    current_password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, description="The current user password. If None, the password is not changed and `password` is ignored. At most 72 bytes once UTF-8 encoded."), AfterValidator(reject_password_over_max_bytes)]  # fmt: off
+    password: Annotated[str | None, Field(default=None, min_length=MIN_PASSWORD_LENGTH, description="The new user password. Required when `current_password` is provided. Ignored when `current_password` is None. At most 72 bytes once UTF-8 encoded."), AfterValidator(reject_password_over_max_bytes)]  # fmt: off
 
     @model_validator(mode="after")
     def require_password_when_current_password_is_set(self):

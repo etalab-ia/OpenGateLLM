@@ -102,6 +102,50 @@ class TestUpdateUser:
         await db_session.refresh(user)
         assert user.password == current_password
 
+    async def test_rejects_a_new_password_over_72_bytes(self, client: AsyncClient, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        await db_session.flush()
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+        body = _valid_body(
+            role_id=user.role_id,
+            organization_id=user.organization_id,
+            current_password="current-password",
+            password=password_of_72_characters_and_73_bytes,
+        )
+
+        # Act
+        response = await client.patch(url=f"{URL}/{user.id}", headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
+
+        # Assert
+        assert response.status_code == 422, response.text
+        errors = response.json()["detail"]
+        assert len(errors) == 1
+        assert errors[0]["loc"] == ["body", "password"]
+        assert errors[0]["msg"] == "Value error, Password must be at most 72 bytes long."
+
+    async def test_rejects_a_current_password_over_72_bytes(self, client: AsyncClient, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        await db_session.flush()
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+        body = _valid_body(
+            role_id=user.role_id,
+            organization_id=user.organization_id,
+            current_password=password_of_72_characters_and_73_bytes,
+            password="new-password",
+        )
+
+        # Act
+        response = await client.patch(url=f"{URL}/{user.id}", headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
+
+        # Assert
+        assert response.status_code == 422, response.text
+        errors = response.json()["detail"]
+        assert len(errors) == 1
+        assert errors[0]["loc"] == ["body", "current_password"]
+        assert errors[0]["msg"] == "Value error, Password must be at most 72 bytes long."
+
     @pytest.mark.parametrize(
         "body",
         [

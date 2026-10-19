@@ -1,14 +1,15 @@
 from typing import Annotated, Any
 
-from pydantic import Field, StringConstraints
+from pydantic import AfterValidator, Field, StringConstraints
 
 from api.domain import BaseModel
+from api.infrastructure.fastapi.schemas import reject_password_over_max_bytes
 from api.infrastructure.fastapi.schemas.admin.keys import KeyResponse
 
 
 class AuthLoginBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(description="The user email.")]
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72), Field(description="The user password.")]
+    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), AfterValidator(reject_password_over_max_bytes), Field(description="The user password. At most 72 bytes once UTF-8 encoded.")]  # fmt: off
 
 
 class AuthLoginResponse(KeyResponse):

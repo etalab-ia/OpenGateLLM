@@ -101,6 +101,41 @@ class TestCreateUser:
         assert len(password_errors) == 1
         assert password_errors[0]["msg"] == expected_msg
 
+    async def test_rejects_password_over_72_bytes(self, client: AsyncClient):
+        # Arrange
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+
+        # Act
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.token.token}"},
+            json=_valid_body(role_id=1, password=password_of_72_characters_and_73_bytes),
+        )
+
+        # Assert
+        assert response.status_code == 422, response.text
+        errors = response.json()["detail"]
+        assert len(errors) == 1
+        assert errors[0]["loc"] == ["body", "password"]
+        assert errors[0]["msg"] == "Value error, Password must be at most 72 bytes long."
+
+    async def test_accepts_password_at_72_bytes(self, client: AsyncClient, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
+        await db_session.flush()
+        password_of_72_bytes = "a" * 72
+
+        # Act
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.token.token}"},
+            json=_valid_body(role_id=role.id, organization_id=organization.id, password=password_of_72_bytes),
+        )
+
+        # Assert
+        assert response.status_code == 201, response.text
+
     async def test_rejects_missing_organization(self, client: AsyncClient):
         body = _valid_body(role_id=1)
         del body["organization_id"]
