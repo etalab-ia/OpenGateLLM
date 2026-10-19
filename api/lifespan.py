@@ -3,6 +3,9 @@ import logging
 
 from fastapi import FastAPI
 from langfuse import Langfuse
+from openfga_sdk import ClientConfiguration
+from openfga_sdk.client import OpenFgaClient
+from openfga_sdk.credentials import CredentialConfiguration, Credentials
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 import tiktoken
@@ -16,6 +19,7 @@ from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaBootstrapAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
@@ -43,6 +47,7 @@ async def lifespan(_: FastAPI):
     configuration = get_configuration()
 
     global_context.redis_pool = await create_redis_pool(configuration)
+    global_context.openfga_client = await create_openfga_client(configuration)
     global_context.postgres_engine = create_postgres_engine(configuration)
     global_context.postgres_session_factory = create_postgres_session_factory(engine=global_context.postgres_engine)
     global_context.autocommit_postgres_session_factory = create_autocommit_postgres_session_factory(engine=global_context.postgres_engine)
@@ -56,6 +61,9 @@ async def lifespan(_: FastAPI):
     global_context.tokenizer = initialize_tokenizer(configuration=configuration)
 
     yield
+
+    if global_context.openfga_client:
+        await global_context.openfga_client.close()
 
     if global_context.redis_pool:
         await global_context.redis_pool.aclose()
@@ -92,6 +100,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
     limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
     permission_repository = PostgresPermissionRepository(postgres_session=postgres_session)
     organization_repository = PostgresOrganizationRepository(postgres_session=postgres_session)
+    bootstrap_authorization = OpenFgaBootstrapAuthorization(openfga_client=OpenFgaAuthorizationClient(client=global_context.openfga_client))
 
     result = await BootstrapAdminUseCase(
         user_repository=user_repository,
@@ -100,6 +109,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
         permission_repository=permission_repository,
         organization_repository=organization_repository,
         user_password_encoder=BcryptUserPasswordEncoder(),
+        bootstrap_authorization=bootstrap_authorization,
     ).execute(
         BootstrapAdminCommand(email=configuration.settings.auth_bootsrap_admin_username, password=configuration.settings.auth_bootsrap_admin_password)
     )
@@ -182,3 +192,29 @@ def create_langfuse(configuration: Configuration) -> Langfuse | None:
         return None
 
     return langfuse
+
+
+async def create_openfga_client(configuration: Configuration) -> OpenFgaClient:
+    openfga_config = configuration.dependencies.openfga
+    client = OpenFgaClient(
+        configuration=ClientConfiguration(
+            api_url=openfga_config.url,
+            credentials=Credentials(method="api_token", configuration=CredentialConfiguration(api_token=openfga_config.api_token)),
+        )
+    )
+
+    stores = (await client.list_stores(options={"name": openfga_config.store_name})).stores
+    if len(stores) != 1:
+        await client.close()
+        raise RuntimeError(f"Expected one OpenFGA store named '{openfga_config.store_name}', found {len(stores)}.")
+
+    client.set_store_id(stores[0].id)
+
+    latest = await client.read_latest_authorization_model()
+    if latest.authorization_model is None:
+        await client.close()
+        raise RuntimeError(f"OpenFGA store '{openfga_config.store_name}' has no authorization model.")
+
+    client.set_authorization_model_id(latest.authorization_model.id)
+
+    return client
