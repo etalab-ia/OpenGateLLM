@@ -65,6 +65,15 @@ class TestAuthLogin:
         assert isinstance(data["expires"], int)
         assert isinstance(data["created"], int)
 
+    async def test_rejects_password_over_72_bytes(self, client: AsyncClient):
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+
+        response = await client.post(url=URL, json=_valid_body(password=password_of_72_characters_and_73_bytes))
+
+        assert response.status_code == 422, response.text
+        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "password"]
+        assert len(password_errors) == 1
+
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [

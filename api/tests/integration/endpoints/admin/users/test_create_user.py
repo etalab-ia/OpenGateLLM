@@ -102,10 +102,12 @@ class TestCreateUser:
         assert password_errors[0]["msg"] == expected_msg
 
     async def test_rejects_password_over_72_bytes(self, client: AsyncClient):
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(role_id=1, password="é" * 72),
+            json=_valid_body(role_id=1, password=password_of_72_characters_and_73_bytes),
         )
 
         assert response.status_code == 422, response.text
@@ -116,11 +118,12 @@ class TestCreateUser:
         role = RoleSQLFactory()
         organization = OrganizationSQLFactory()
         await db_session.flush()
+        password_of_72_bytes = "a" * 72
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(role_id=role.id, organization_id=organization.id, password="a" * 72),
+            json=_valid_body(role_id=role.id, organization_id=organization.id, password=password_of_72_bytes),
         )
 
         assert response.status_code == 201, response.text

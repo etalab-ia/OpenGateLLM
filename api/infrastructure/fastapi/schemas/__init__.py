@@ -21,4 +21,4 @@ def reject_password_over_max_bytes(value: str | None) -> str | None:
     return value
 
 
-__all__ = ["MAX_PASSWORD_BYTES", "MIN_PASSWORD_LENGTH", "UnixTimestamp", "reject_password_over_max_bytes"]
+__all__ = ["MIN_PASSWORD_LENGTH", "UnixTimestamp", "reject_password_over_max_bytes"]

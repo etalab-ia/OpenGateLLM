@@ -102,19 +102,39 @@ class TestUpdateUser:
         await db_session.refresh(user)
         assert user.password == current_password
 
-    @pytest.mark.parametrize("field", ["password", "current_password"])
-    async def test_rejects_over_72_byte_password_fields(self, client: AsyncClient, db_session, field):
+    async def test_rejects_a_new_password_over_72_bytes(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
         await db_session.flush()
-
-        response = await client.patch(
-            url=f"{URL}/{user.id}",
-            headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(role_id=user.role_id, organization_id=user.organization_id, **{field: "é" * 72}),
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+        body = _valid_body(
+            role_id=user.role_id,
+            organization_id=user.organization_id,
+            current_password="current-password",
+            password=password_of_72_characters_and_73_bytes,
         )
 
+        response = await client.patch(url=f"{URL}/{user.id}", headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
+
         assert response.status_code == 422, response.text
-        assert [error for error in response.json()["detail"] if error["loc"][-1] == field]
+        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "password"]
+        assert len(password_errors) == 1
+
+    async def test_rejects_a_current_password_over_72_bytes(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        await db_session.flush()
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+        body = _valid_body(
+            role_id=user.role_id,
+            organization_id=user.organization_id,
+            current_password=password_of_72_characters_and_73_bytes,
+            password="new-password",
+        )
+
+        response = await client.patch(url=f"{URL}/{user.id}", headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
+
+        assert response.status_code == 422, response.text
+        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "current_password"]
+        assert len(password_errors) == 1
 
     @pytest.mark.parametrize(
         "body",

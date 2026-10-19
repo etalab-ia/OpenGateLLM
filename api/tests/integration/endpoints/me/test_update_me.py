@@ -44,22 +44,35 @@ class TestUpdateMeInfo:
         assert response.status_code == 422, response.text
         assert any("password is required when current_password is provided" in error["msg"] for error in response.json()["detail"])
 
-    @pytest.mark.parametrize(
-        "overrides,field",
-        [
-            pytest.param({"password": "é" * 72}, "password", id="password"),
-            pytest.param({"password": "valid-password", "current_password": "é" * 72}, "current_password", id="current_password"),
-        ],
-    )
-    async def test_rejects_over_72_byte_password_fields(self, client: AsyncClient, overrides, field):
-        response = await client.patch(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.key.token}"},
-            json={"email": self.user.email, "name": self.user.name, **overrides},
-        )
+    async def test_rejects_a_new_password_over_72_bytes(self, client: AsyncClient):
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+        body = {
+            "email": self.user.email,
+            "name": self.user.name,
+            "current_password": "current-password",
+            "password": password_of_72_characters_and_73_bytes,
+        }
+
+        response = await client.patch(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
 
         assert response.status_code == 422, response.text
-        assert [error for error in response.json()["detail"] if error["loc"][-1] == field]
+        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "password"]
+        assert len(password_errors) == 1
+
+    async def test_rejects_a_current_password_over_72_bytes(self, client: AsyncClient):
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
+        body = {
+            "email": self.user.email,
+            "name": self.user.name,
+            "current_password": password_of_72_characters_and_73_bytes,
+            "password": "new-password",
+        }
+
+        response = await client.patch(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=body)
+
+        assert response.status_code == 422, response.text
+        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "current_password"]
+        assert len(password_errors) == 1
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

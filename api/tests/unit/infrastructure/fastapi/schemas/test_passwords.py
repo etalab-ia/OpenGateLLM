@@ -1,21 +1,19 @@
 import pytest
 
-from api.infrastructure.fastapi.schemas import MAX_PASSWORD_BYTES, reject_password_over_max_bytes
+from api.infrastructure.fastapi.schemas import reject_password_over_max_bytes
 
 
 class TestRejectPasswordOverMaxBytes:
-    def test_should_accept_ascii_password_at_the_byte_limit(self):
-        password = "a" * MAX_PASSWORD_BYTES
+    def test_should_accept_a_72_byte_password(self):
+        password_of_72_bytes = "a" * 72
 
-        assert reject_password_over_max_bytes(password) == password
+        assert reject_password_over_max_bytes(password_of_72_bytes) == password_of_72_bytes
 
-    def test_should_accept_password_below_the_byte_limit(self):
-        assert reject_password_over_max_bytes("s3cr3t") == "s3cr3t"
+    def test_should_reject_a_password_over_72_bytes(self):
+        password_of_72_characters_and_73_bytes = "a" * 71 + "é"
 
-    def test_should_reject_multibyte_password_over_the_byte_limit(self):
-        # 72 accented characters encode to 144 bytes, past bcrypt's 72-byte budget
         with pytest.raises(ValueError):
-            reject_password_over_max_bytes("é" * MAX_PASSWORD_BYTES)
+            reject_password_over_max_bytes(password_of_72_characters_and_73_bytes)
 
     def test_should_pass_none_through(self):
         assert reject_password_over_max_bytes(None) is None
