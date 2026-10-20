@@ -126,6 +126,14 @@ class AuthState(rx.State):
             return self._expire_session()
 
     @rx.event
+    def set_email_input(self, value: str):
+        self.email_input = value
+
+    @rx.event
+    def set_password_input(self, value: str):
+        self.password_input = value
+
+    @rx.event
     async def basic_login(self):
         email = self.email_input.strip()
         password = self.password_input.strip()
