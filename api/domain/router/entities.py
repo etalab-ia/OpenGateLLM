@@ -61,24 +61,32 @@ class Router(BaseModel):
 
 
 class TpmRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 60
+
     value: int | None = None
     remaining: int = 0
     reset: int = 0
 
 
 class TpdRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 86_400
+
     value: int | None = None
     remaining: int = 0
     reset: int = 0
 
 
 class RpmRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 60
+
     value: int | None = 0
     remaining: int = 0
     reset: int = 0
 
 
 class RpdRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 86_400
+
     value: int | None = 0
     remaining: int = 0
     reset: int = 0
@@ -88,9 +96,6 @@ type RateLimitWindowState = TpmRateLimitState | TpdRateLimitState | RpmRateLimit
 
 
 class RouterRateLimitState(BaseModel):
-    MINUTE_WINDOW_SECONDS: ClassVar[int] = 60
-    DAY_WINDOW_SECONDS: ClassVar[int] = 86_400
-
     tpm: Annotated[TpmRateLimitState, Field(default_factory=TpmRateLimitState)]
     tpd: Annotated[TpdRateLimitState, Field(default_factory=TpdRateLimitState)]
     rpm: Annotated[RpmRateLimitState, Field(default_factory=RpmRateLimitState)]
@@ -118,38 +123,38 @@ class RouterRateLimitState(BaseModel):
         request_cost = 1 if charged else 0
         token_cost = prompt_tokens if charged else 0
 
-        requests_window = self._most_restrictive_limit((self.rpm, self.MINUTE_WINDOW_SECONDS), (self.rpd, self.DAY_WINDOW_SECONDS))
+        requests_window = self._most_restrictive_limit(self.rpm, self.rpd)
         if requests_window is not None:
-            headers.update(self._window_headers(window=requests_window[0], period_seconds=requests_window[1], family="requests", cost=request_cost))
+            headers.update(self._window_headers(window=requests_window, family="requests", cost=request_cost))
 
-        tokens_window = self._most_restrictive_limit((self.tpm, self.MINUTE_WINDOW_SECONDS), (self.tpd, self.DAY_WINDOW_SECONDS))
+        tokens_window = self._most_restrictive_limit(self.tpm, self.tpd)
         if tokens_window is not None:
-            headers.update(self._window_headers(window=tokens_window[0], period_seconds=tokens_window[1], family="tokens", cost=token_cost))
+            headers.update(self._window_headers(window=tokens_window, family="tokens", cost=token_cost))
 
         return headers
 
     @staticmethod
-    def _most_restrictive_limit(*candidates: tuple[RateLimitWindowState, int]) -> tuple[RateLimitWindowState, int] | None:
-        configured = [candidate for candidate in candidates if candidate[0].value is not None]
+    def _most_restrictive_limit(*windows: RateLimitWindowState) -> RateLimitWindowState | None:
+        configured = [window for window in windows if window.value is not None]
         if not configured:
             return None
 
-        return min(configured, key=lambda candidate: candidate[0].remaining)
+        return min(configured, key=lambda window: window.remaining)
 
-    @staticmethod
-    def _window_headers(window: RateLimitWindowState, period_seconds: int, family: str, cost: int) -> dict[str, str]:
+    @classmethod
+    def _window_headers(cls, window: RateLimitWindowState, family: str, cost: int) -> dict[str, str]:
         return {
             f"x-ratelimit-limit-{family}": str(window.value),
             f"x-ratelimit-remaining-{family}": str(max(0, window.remaining - cost)),
-            f"x-ratelimit-reset-{family}": RouterRateLimitState._format_duration(
-                RouterRateLimitState._reset_in_seconds(reset_epoch=window.reset, period_seconds=period_seconds)
+            f"x-ratelimit-reset-{family}": cls._format_duration(
+                cls._reset_in_seconds(reset_epoch=window.reset, period_seconds=window.PERIOD_SECONDS)
             ),
         }
 
     @staticmethod
     def _reset_in_seconds(reset_epoch: float, period_seconds: int) -> int:
         if reset_epoch <= 0:
-            # a fixed window read before it is charged reports no reset yet, it will last the full period
+            # reset 0 means the window has not started: it will last the full period
             return period_seconds
 
         return max(0, int(reset_epoch - datetime.now(UTC).timestamp()))
