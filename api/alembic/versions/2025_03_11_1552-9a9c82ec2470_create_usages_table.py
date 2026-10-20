@@ -43,3 +43,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_table("usage")
+    # drop_table leaves behind the enum types its columns created.
+    op.execute("DROP TYPE IF EXISTS httpmethod")
