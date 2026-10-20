@@ -1,5 +1,4 @@
 import datetime as dt
-from enum import StrEnum
 from typing import Any, Optional
 
 from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, false, func
@@ -14,11 +13,6 @@ from api.infrastructure.configuration import DEFAULT_TIMEOUT
 Base = declarative_base()
 
 UtcDateTime = DateTime(timezone=True)
-
-
-class CollectionVisibility(StrEnum):
-    PRIVATE = "private"
-    PUBLIC = "public"
 
 
 class Usage(Base):
