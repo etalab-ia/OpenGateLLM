@@ -11,7 +11,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import MetaData, Table, create_engine
+from sqlalchemy import MetaData, Table, create_engine, make_url
 from sqlalchemy import select as sa_select
 
 from api.infrastructure.configuration import get_configuration
@@ -44,13 +44,13 @@ def upgrade() -> None:
         logging.warning("Playground database url not set in the config file to migrate user passwords; skipping user password migration")
         return
 
-    playground_url = configuration.playground.postgres.get("url").replace("+asyncpg", "")
+    playground_url = configuration.playground.postgres.get("url")
     if not playground_url:
         logging.warning("Playground database url not set in the config file to migrate user passwords; skipping user password migration")
         return
 
     # Create an engine to the playground DB and reflect its `user` table
-    pg_engine = create_engine(playground_url)
+    pg_engine = create_engine(make_url(playground_url).set(drivername="postgresql+psycopg2"))
     pg_meta = MetaData()
     pg_meta.reflect(bind=pg_engine)
 
