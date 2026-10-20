@@ -160,4 +160,8 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_role_name"), table_name="role")
     op.drop_index(op.f("ix_role_id"), table_name="role")
     op.drop_table("role")
+    # drop_table leaves behind the enum types its columns created.
+    op.execute("DROP TYPE IF EXISTS limittype")
+    op.execute("DROP TYPE IF EXISTS permissiontype")
+    op.execute("DROP TYPE IF EXISTS collectionvisibility")
     # ### end Alembic commands ###
