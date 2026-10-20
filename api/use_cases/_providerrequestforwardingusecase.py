@@ -20,7 +20,7 @@ from api.domain.provider.errors import (
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContext
+from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import PromptTokensDetails, Usage
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
@@ -77,6 +77,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_context: UsageContext,
+        usage_repository: UsageRepository,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
@@ -89,6 +90,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self.router_repository = router_repository
 
         self.usage_context = usage_context
+        self.usage_repository = usage_repository
 
     async def execute(self, command: TCommand) -> TResult:
         authenticated_user = command.authenticated_user
@@ -227,6 +229,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 return error
 
         self.usage_context.record_usage(usage=usage, latency=latency)
+        self.usage_repository.save_record(record=self.usage_context.get_record())
         self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return provider_response
@@ -247,9 +250,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             if is_incremented:
                 await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
 
-    def _build_usage(
-        self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, cached_tokens: int, latency: int
-    ) -> Usage:
+    def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, cached_tokens: int, latency: int) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(
             model_active_params=provider.model_active_params,
             model_total_params=provider.model_total_params,

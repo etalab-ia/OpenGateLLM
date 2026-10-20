@@ -227,6 +227,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         )
         ttft = self.usage_context.elapsed_ms(at=first_token_at) if first_token_at is not None else None
         self.usage_context.record_usage(usage=usage, latency=latency, ttft=ttft)
+        self.usage_repository.save_record(record=self.usage_context.get_record())
         self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return usage

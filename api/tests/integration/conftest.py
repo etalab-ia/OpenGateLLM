@@ -18,7 +18,7 @@ from api.dependencies import get_autocommit_postgres_session, get_postgres_sessi
 from api.domain.router import RouterRateLimiter
 from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
 from api.infrastructure.context import GlobalContext, global_context
-from api.infrastructure.fastapi._usagerecorder import _pending_saves
+from api.infrastructure.postgres._postgresusagerepository import _pending_saves
 from api.infrastructure.postgres.models import Base
 from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
@@ -189,12 +189,20 @@ def pytest_addoption(parser):
     )
 
 
+_REQUESTS_HOLDING_THE_SESSION = "requests_holding_the_session"
+
+
 class CurrentDbSessionFactory:
     def __call__(self) -> "CurrentDbSessionFactory":
         return self
 
     async def __aenter__(self) -> AsyncSession:
-        return _current_db_session.get()
+        # In production every session comes from the pool, here they all share the test session: a usage save scheduled
+        # mid-request must wait for the request to release it, or both would drive one AsyncSession at once.
+        session = _current_db_session.get()
+        while session.info.get(_REQUESTS_HOLDING_THE_SESSION):
+            await asyncio.sleep(0.001)
+        return session
 
     async def __aexit__(self, *_) -> bool:
         return False
@@ -251,6 +259,7 @@ async def app(test_configuration, test_redis_pool):
 
     async def override_get_postgres_session():
         session = _current_db_session.get()
+        session.info[_REQUESTS_HOLDING_THE_SESSION] = session.info.get(_REQUESTS_HOLDING_THE_SESSION, 0) + 1
         try:
             yield session
             if session.in_transaction():
@@ -259,6 +268,8 @@ async def app(test_configuration, test_redis_pool):
             if session.in_transaction():
                 await session.rollback()
             raise
+        finally:
+            session.info[_REQUESTS_HOLDING_THE_SESSION] -= 1
 
     async def override_get_redis_client():
         client = redis.Redis(connection_pool=test_redis_pool)

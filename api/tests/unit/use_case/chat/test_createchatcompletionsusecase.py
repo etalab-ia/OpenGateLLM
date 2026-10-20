@@ -15,7 +15,7 @@ from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContext
+from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases.chat import (
@@ -41,6 +41,11 @@ def mock_usage_recorder():
     usage_recorder = create_autospec(UsageContext, instance=True, spec_set=True)
     usage_recorder.get_request_id.return_value = REQUEST_ID
     return usage_recorder
+
+
+@pytest.fixture
+def mock_usage_repository():
+    return create_autospec(UsageRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -87,7 +92,7 @@ def sample_completion():
 
 
 @pytest.fixture
-def use_case(mock_model_tokenizer, mock_usage_recorder) -> CreateChatCompletionsUseCase:
+def use_case(mock_model_tokenizer, mock_usage_recorder, mock_usage_repository) -> CreateChatCompletionsUseCase:
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True),
         model_tokenizer=mock_model_tokenizer,
@@ -98,6 +103,7 @@ def use_case(mock_model_tokenizer, mock_usage_recorder) -> CreateChatCompletions
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
         usage_context=mock_usage_recorder,
+        usage_repository=mock_usage_repository,
     )
 
 
@@ -245,7 +251,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         return [chunk async for chunk in chunks]
 
     @pytest.mark.asyncio
-    async def test_should_append_a_usage_chunk_before_the_done_chunk(self, use_case, router, provider, mock_usage_recorder):
+    async def test_should_append_a_usage_chunk_before_the_done_chunk(self, use_case, router, provider, mock_usage_recorder, mock_usage_repository):  # fmt: off
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         chunks = _chunk_stream(
@@ -267,6 +273,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert usage_chunk["usage"]["completion_tokens"] == 1
         assert chunks[2].content == "data: [DONE]"
         mock_usage_recorder.record_usage.assert_called_once()
+        mock_usage_repository.save_record.assert_called_once_with(record=mock_usage_recorder.get_record.return_value)
         use_case.router_rate_limiter.update_rate_limit_state.assert_called_once()
 
     @pytest.mark.asyncio
@@ -462,7 +469,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         )
 
     @pytest.mark.asyncio
-    async def test_should_record_the_delivered_tokens_when_the_consumer_abandons_the_stream(self, use_case, router, provider, mock_usage_recorder):
+    async def test_should_record_the_delivered_tokens_when_the_consumer_abandons_the_stream(self, use_case, router, provider, mock_usage_recorder, mock_usage_repository):  # fmt: off
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}', "data: [DONE]")
@@ -476,6 +483,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         mock_usage_recorder.record_usage.assert_called_once()
         recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
         assert recorded.completion_tokens == 1, "the chunk the client already received must be billed"
+        mock_usage_repository.save_record.assert_called_once_with(record=mock_usage_recorder.get_record.return_value)
 
     @pytest.mark.asyncio
     async def test_should_bill_the_tokenizer_count_when_a_stream_with_running_counts_is_cut(self, use_case, router, provider, mock_usage_recorder):  # fmt: off
@@ -499,7 +507,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         assert recorded.completion_tokens == 2, "a cut stream is billed the same whether or not the client asked for running counts"
 
     @pytest.mark.asyncio
-    async def test_should_not_record_usage_when_the_consumer_abandons_before_any_chunk(self, use_case, router, provider, mock_usage_recorder):
+    async def test_should_not_record_usage_when_the_consumer_abandons_before_any_chunk(self, use_case, router, provider, mock_usage_recorder, mock_usage_repository):  # fmt: off
         # Arrange: an SSE comment is relayed but never enters the buffer, so nothing was delivered
         chunks = _chunk_stream(": keep-alive", "data: [DONE]")
         stream = _format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3)
@@ -510,6 +518,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
 
         # Assert
         mock_usage_recorder.record_usage.assert_not_called()
+        mock_usage_repository.save_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_release_the_inflight_counter_when_the_consumer_abandons_the_stream(self, use_case, router, provider):

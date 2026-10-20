@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from api.domain.usage.entities import Usage
+from api.domain.usage.entities import Usage, UsageRecord
 
 
 class UsageContext(ABC):
@@ -23,4 +23,8 @@ class UsageContext(ABC):
 
     @abstractmethod
     def record_usage(self, usage: Usage, latency: int, ttft: int | None = None) -> None:
+        pass
+
+    @abstractmethod
+    def get_record(self) -> UsageRecord:
         pass

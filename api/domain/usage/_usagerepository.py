@@ -6,11 +6,9 @@ from api.domain.usage.entities import UsageBucketPage, UsageRecord
 
 class UsageRepository(ABC):
     @abstractmethod
-    def open_record(self, record: UsageRecord) -> None:
-        pass
-
-    @abstractmethod
-    async def save_record(self, record: UsageRecord) -> None:
+    def save_record(self, record: UsageRecord) -> None:
+        """Schedules the write and returns at once: a stream the client abandoned calls it from a cancelled task, where
+        any await would raise before the row is written."""
         pass
 
     @abstractmethod

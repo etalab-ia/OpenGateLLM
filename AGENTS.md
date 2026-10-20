@@ -120,7 +120,7 @@ Three enums address the API surface, and they are **not the same concept**:
 
 A new route needs an `EndpointRoute` member. A new **model-forward** capability also needs a `ProviderEndpoint` member — they are declared separately on purpose.
 
-Their 7 common members carry the **same string** today, and that is a contract, not a coincidence: `usage.endpoint` (a plain `str` column) holds the matched route — `/v1` + the `EndpointRoute` value — and `EndpointUsage` exposes those values through the public `GET /v1/usage` filter, while `LangfuseUsageRepository` filters its traces on `f"/v1{ProviderEndpoint}"`. Changing either value means a data migration on `usage` **and** a breaking API change.
+Their 7 common members carry the **same string** today, and that is a contract, not a coincidence: `usage.endpoint` (a plain `str` column) holds the matched route — `/v1` + the `EndpointRoute` value — and `EndpointUsage` exposes those values through the public `GET /v1/usage` filter; the same value names each Langfuse trace. Changing either value means a data migration on `usage` **and** a breaking API change.
 
 Do not merge them back, and do not reintroduce `f"/{RouterName.X}/..."` inside `EndpointRoute`: the first would make the domain import `api/infrastructure/fastapi/`, the second would let a router rename silently move a public API path.
 
@@ -452,40 +452,43 @@ Rules:
 | first — nothing written yet | the raw content, unframed | `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, so this one becomes the body the client parses; framing it would corrupt it |
 | after the first byte | `event: error\ndata: <content>\n\n` | the status is already fixed and the client is reading an event stream, so the failure can only reach it as an event — same shape the class emits when it catches an exception mid-stream |
 - A non-2xx chunk ends the stream immediately and is forwarded as-is. Record the usage first when chunks were already delivered: the client received those tokens, and nothing downstream will bill them. A stream that fails before delivering anything records none, like a failed non-streamed forward.
-- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage` and `_charge_rate_limits` there — that is the only point where a stream's usage is known. It does **not** close the usage record; `RequestLogMiddleware` does, after the body (see [Usage recording](#usage-recording)).
+- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage`, `usage_repository.save_record` and `_charge_rate_limits` there — that is the only point where a stream's usage is known. It does **not** close the request record; `RequestLogMiddleware` does, after the body (see [Usage recording](#usage-recording)).
 - A provider `usage` is read from every chunk that carries one, and the latest wins: its counts replace the tokenizer's in the final usage chunk, the usage row and the rate-limit charge. A usage-only chunk (`choices: []`) is never relayed; a content chunk carrying `usage` (Mistral reports it on its last content chunk) still is. `ChatCompletionsAdapter` forces `stream_options.include_usage` so OpenAI-compatible providers send a final usage chunk. Without any — or a stream cut before one — the tokenizer counts the buffered deltas. Running counts on content chunks (vLLM `continuous_usage_stats`) are read too, so a cut stream is billed with the provider's last running count when the client asked for them.
 - **The chain closes top-down, and the order is load-bearing.** A client that disconnects leaves every generator parked on its `yield`; `async for` does not close the iterator it consumes, so each level closes the next explicitly: `stream_response`'s `finally` closes `_as_stream_chunks`, which holds its own stream in `aclosing`, which closes the use case's generator, whose `finally` records the tokens already delivered. All of it runs inside the request task, where the `ContextVar` is still the request's; the middleware's `finally` then closes the record and schedules its write. Never let a finalizer do this work: the GC schedules it as a task, and a task copies whatever context is current at creation.
 - **A `CancelledError` escaping the cleanup is expected, not a bug.** Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises as soon as it suspends — measured: the `DECR` still reaches Redis (the command is written before the cancellation lands on the reply) and the provider connection is still closed. Do not "fix" it by detaching that call: it would touch all five forwarding use cases to chase a leak that does not exist.
-- **The usage record survives the disconnect** because the middleware's `finally` schedules its write on an `asyncio` task rather than on FastAPI `BackgroundTasks`, which the cancelled response never reaches. `api/tests/integration/fastapi/test_usagerecordedonclientdisconnect.py` pins the whole chain.
+- **The usage row survives the disconnect** because `save_record` schedules its write on an `asyncio` task without awaiting anything, rather than on FastAPI `BackgroundTasks`, which the cancelled response never reaches. `api/tests/integration/fastapi/test_usagerecordedonclientdisconnect.py` pins the whole chain.
 - Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommitsession.py`.
 
 ### Usage recording
 
-A model-forward request's usage is a record the **HTTP layer owns**. `_usage_recorder` (`api/dependencies.py`) opens a `UsageRecorder` (`api/infrastructure/fastapi/_usagerecorder.py`) when the request arrives and publishes it on `RequestContext`; `RequestLogMiddleware` closes it in its `finally`, once the response has been sent. A use case never opens, closes or saves a record: it is injected the recorder under the narrower `UsageContext` port and records only what it alone knows.
+A model-forward request leaves two records, owned by two layers:
+
+| Record | Owner | Requests | Written by |
+|--------|-------|----------|------------|
+| Langfuse trace (observability) | the HTTP layer | all, failures included | `LangfuseRequestTracer`, only when `dependencies.langfuse` is configured |
+| `usage` row (consumption) | the use case | successful ones only | `PostgresUsageRepository`, always — it also serves `GET /v1/usage` |
+
+`_usage_recorder` (`api/dependencies.py`) opens a `UsageRecorder` (`api/infrastructure/fastapi/_usagerecorder.py`) when the request arrives, publishes it on `RequestContext` and starts the trace — the Langfuse SDK takes the start time, the user and the tags only at creation, and the user is known only once `AccessController` has run, so the trace cannot start in the middleware. `RequestLogMiddleware` closes it in its `finally`, once the response has been sent, and that ends the trace with the answered status. The use case sees the recorder under the narrower `UsageContext` port and records only what it alone knows; it saves the `usage` row itself, right after `record_usage`, at the same point it charges the rate limits.
 
 | Port | Called by | Methods |
 |------|-----------|---------|
-| `UsageContext` | the use case | `get_request_id`, `elapsed_ms`, `record_router`, `record_provider`, `record_usage` |
-| `UsageRepository` | `UsageRecorder` only | `open_record`, `save_record` (plus `get_usage_buckets_page`, the unrelated read of `GET /v1/usage`) |
+| `UsageContext` | the use case | `get_request_id`, `elapsed_ms`, `record_router`, `record_provider`, `record_usage`, `get_record` |
+| `UsageRepository` | the use case | `save_record` (plus `get_usage_buckets_page`, the read of `GET /v1/usage`) |
 
-- The **request id comes from the HTTP layer**: the `X-Request-ID` header, the request log line, `usage.request_id`, the provider request and the ids of the streamed chunks all carry the same `RequestContext.id`.
-- `usage.status` is the status the API **answered**, taken from the ASGI `http.response.start` the middleware saw. A use case returns a domain error and the endpoint decides what it becomes, so the use case never guesses a status — do not reintroduce a `fail_record`. `UsageRecord.error` carries the name of the exception the answer was mapped from.
+- The **request id comes from the HTTP layer**: the `X-Request-ID` header, the request log line, `usage.request_id`, the Langfuse trace id, the provider request and the ids of the streamed chunks all carry the same `RequestContext.id`.
+- The trace's status is the one the API **answered**, taken from the ASGI `http.response.start` the middleware saw. A use case returns a domain error and the endpoint decides what it becomes, so the use case never guesses a status — do not reintroduce a `fail_record`. `UsageRecord.error` carries the name of the exception the answer was mapped from.
+- **The `usage` table holds consumption only**: a failed request consumed nothing, and the team does not want it in the table. The use case only saves on success, so `PostgresUsageRepository` writes `status = 200` by construction. A stream that answered 200 and broke afterwards is saved, since the tokens it delivered are owed.
 - `latency` is set by `record_usage` when the provider was reached, and by `close` otherwise: how long a request took to fail is what an incident needs.
-- **The `usage` table holds consumption only.** `PostgresUsageRepository.save_record` drops a record whose answered status is not 2xx (or missing): a failed request consumed nothing, and the team does not want it in the table. A stream that answered 200 and broke afterwards is kept, since the tokens it delivered are owed. Langfuse still traces failures, as `level=ERROR` observations.
-- The write runs on an `asyncio` task, **not** on FastAPI `BackgroundTasks` — those run inside the response, which a client disconnecting mid-stream never reaches, and the tokens it already received still have to be billed.
-- Because that task outlives the request, `PostgresUsageRepository.save_record` opens a session from an `async_sessionmaker` instead of borrowing the request's, which FastAPI has closed by then. Integration tests bind the session factories to the test session (`CurrentDbSessionFactory`, `api/tests/integration/conftest.py`).
-- Uvicorn waits for in-flight requests only, so the lifespan awaits `UsageRecorder.wait_for_pending_saves` before closing Postgres and Redis. The wait is bounded (`USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS`, `api/lifespan.py`): a save still running at the deadline is logged as lost rather than holding the shutdown.
-
-| When | `UsageRepository` adapter |
-|------|---------------------------|
-| `dependencies.langfuse` is configured | `LangfuseUsageRepository` — `open_record` starts the observation, since an OTel span must be open while the provider is called; `save_record` fills it in and ends it |
-| otherwise (default) | `PostgresUsageRepository` — `save_record` inserts the `usage` row of a request answered 2xx, and nothing for a failure |
+- `save_record` is **synchronous**: it schedules the insert on an `asyncio` task and returns. A stream the client abandoned saves from a cancelled task, where any `await` would raise before the row is written. It is **not** FastAPI `BackgroundTasks` either — those run inside the response, which a client disconnecting mid-stream never reaches.
+- Because that task outlives the request, `PostgresUsageRepository` opens a session from an `async_sessionmaker` instead of borrowing the request's. Integration tests bind the session factories to the test session (`CurrentDbSessionFactory`, `api/tests/integration/conftest.py`), which waits for the request to release it: in a test, the request and the save share one `AsyncSession`.
+- Uvicorn waits for in-flight requests only, so the lifespan awaits `PostgresUsageRepository.wait_for_pending_saves` before closing Postgres and Redis. The wait is bounded (`USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS`, `api/lifespan.py`): a save still running at the deadline is logged as lost rather than holding the shutdown.
+- A trace or a save that fails is logged, never raised: neither may fail a request the client already received.
 
 ### Rate-limit charging
 
 Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `usage_context.record_usage`: in `_send_request`, and in chat's `_record_stream_usage` for streams. Only successful requests are charged (never a 429); admins are skipped.
 
-`RedisRouterRateLimiter.update_rate_limit_state` queues the Redis write on FastAPI `BackgroundTasks`. FastAPI drops those tasks when the endpoint raises an `HTTPException`: anything queued on a failed request never runs. That is why the usage record is not written that way.
+`RedisRouterRateLimiter.update_rate_limit_state` queues the Redis write on FastAPI `BackgroundTasks`. FastAPI drops those tasks when the endpoint raises an `HTTPException`: anything queued on a failed request never runs. That is why the usage row is not written that way.
 
 ---
 
@@ -630,7 +633,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
 | Rate-limit charging | `api/tests/integration/endpoints/test_ocr.py`, `api/tests/integration/endpoints/test_chatcompletions.py` (`*charge*_the_router_limits`) | Redis counters after a real request; a 429 is not charged | The other model-forward endpoints (same non-streaming path) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
-| Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and API queries (real SDK, mocked HTTP) | Use-case policy |
+| Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and scores (real SDK, mocked HTTP) | Use-case policy |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).
 
@@ -729,9 +732,9 @@ When adding a use case that calls a provider (OCR, embeddings, rerank, audio, ch
 
 ### Langfuse adapter
 
-Never mock the Langfuse SDK objects: a bare mock accepts any call, and a hand-written metrics response accepts any query.
+Never mock the Langfuse SDK objects: a bare mock accepts any call.
 
-`test_langfuseusagerepository.py` runs the real SDK: `Langfuse(span_exporter=InMemorySpanExporter())` captures the exported spans, `respx` answers `/api/public/ingestion` (scores) and `/api/public/v2/metrics` with the shape a real Langfuse returns. The metrics mock answers 400 on a filter column the view does not accept, from `ALLOWED_FILTER_COLUMNS` (copied from Langfuse's error message for `scores-numeric`, from the metrics client docstring for `observations`) — no test runs against a real Langfuse, so that list is the only guard on filter columns.
+`test_langfuserequesttracer.py` runs the real SDK: `Langfuse(span_exporter=InMemorySpanExporter())` captures the exported spans, and `respx` answers `/api/public/ingestion` (scores) with the shape a real Langfuse returns.
 
 The SDK caches its resources per public key: a second `Langfuse(...)` with the same key silently reuses the first one's exporter.
 

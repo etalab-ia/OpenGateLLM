@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 from httpx import AsyncClient
@@ -21,8 +20,8 @@ from api.domain.router import RouterRateLimiter
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasNoAccessToRouterError
-from api.infrastructure.fastapi._usagerecorder import _pending_saves
 from api.infrastructure.fastapi.routes import EndpointRoute
+from api.infrastructure.postgres import PostgresUsageRepository
 from api.infrastructure.postgres.models import Usage as UsageTable
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
@@ -134,7 +133,7 @@ class TestCreateOCR:
 
         # Act
         response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
-        await asyncio.gather(*tuple(_pending_saves))
+        await PostgresUsageRepository.wait_for_pending_saves(timeout=5)
 
         # Assert
         assert response.status_code == 200, response.text

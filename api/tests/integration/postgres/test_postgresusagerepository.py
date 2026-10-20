@@ -1,12 +1,15 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
+import logging
+from unittest.mock import create_autospec
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import EntitiesPage
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage, UsageBucket, UsageRecord
-from api.infrastructure.postgres import PostgresUsageRepository
+from api.infrastructure.postgres import PostgresUsageRepository, _postgresusagerepository
 from api.infrastructure.postgres.models import Usage as UsageTable
 from api.tests.integration.conftest import CurrentDbSessionFactory
 from api.tests.integration.factories.sql import KeySQLFactory, ProviderSQLFactory, UsageSQLFactory, UserSQLFactory
@@ -70,14 +73,19 @@ def _window():
     return DAY, THIRD_DAY + timedelta(days=1)
 
 
+async def _save(repository: PostgresUsageRepository, record: UsageRecord) -> None:
+    repository.save_record(record)
+    await PostgresUsageRepository.wait_for_pending_saves(timeout=5)
+
+
 @pytest.mark.asyncio(loop_scope="session")
 class TestSaveRecord:
     async def test_persists_every_field_of_the_record(self, repository, db_session):
-        # Arrange
+        # Arrange: the use case saves before the API answers, so the record carries no status yet
         key, provider = await _seed(db_session)
 
         # Act
-        await repository.save_record(_record(key, provider, ttft=50))
+        await _save(repository, _record(key, provider, status=None, ttft=50))
 
         # Assert
         [row] = await _persisted_rows(db_session)
@@ -103,47 +111,65 @@ class TestSaveRecord:
         assert row.ttft == 50
         assert row.created.tzinfo is not None
 
-    @pytest.mark.parametrize("status", [503, 429, None], ids=["provider-failure", "rate-limited", "no-response"])
-    async def test_persists_nothing_for_a_request_that_did_not_succeed(self, repository, db_session, status):
-        # Arrange
+    async def test_logs_the_row_that_breaks_a_foreign_key(self, repository, db_session, monkeypatch):
+        # Arrange: the write runs on a task nobody awaits, so the failure can only be logged
         key, provider = await _seed(db_session)
-        record = _record(key, provider, provider_id=None, provider_model_name=None, usage=None, status=status, error="NoAvailableProviderError")
+        mock_logger = create_autospec(logging.Logger, instance=True, spec_set=True)
+        monkeypatch.setattr(_postgresusagerepository, "logger", mock_logger)
 
         # Act
-        await repository.save_record(record)
+        await _save(repository, _record(key, provider, user_id=key.user.id + 1_000_000))
 
         # Assert
-        assert await _persisted_rows(db_session) == []
+        mock_logger.exception.assert_called_once_with("Failed to save the usage record.")
 
-    async def test_persists_a_stream_that_answered_200_then_broke(self, repository, db_session):
+
+class _BlockingSessionFactory:
+    def __init__(self, release: asyncio.Event) -> None:
+        self.release = release
+
+    def __call__(self) -> "_BlockingSessionFactory":
+        return self
+
+    async def __aenter__(self):
+        await self.release.wait()
+        return create_autospec(AsyncSession, instance=True)
+
+    async def __aexit__(self, *_) -> bool:
+        return False
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestWaitForPendingSaves:
+    async def test_waits_until_the_pending_saves_are_written(self, db_session):
         # Arrange
-        key, provider = await _seed(db_session)
-        record = _record(key, provider, status=200, error="ProviderNotReachableError")
+        release = asyncio.Event()
+        repository = PostgresUsageRepository(postgres_session=db_session, session_factory=_BlockingSessionFactory(release))
+        repository.save_record(UsageRecord(request_id="3f2a", endpoint=CHAT_COMPLETIONS, created=CREATED))
+        asyncio.get_running_loop().call_soon(release.set)
 
         # Act
-        await repository.save_record(record)
+        await PostgresUsageRepository.wait_for_pending_saves(timeout=1)
 
         # Assert
-        [row] = await _persisted_rows(db_session)
-        assert (row.status, row.completion_tokens) == (200, 5)
+        assert not _postgresusagerepository._pending_saves
 
-    async def test_persists_nothing_when_the_record_is_only_opened(self, repository, db_session):
+    async def test_gives_up_after_the_timeout(self, db_session, monkeypatch):
         # Arrange
-        key, provider = await _seed(db_session)
+        mock_logger = create_autospec(logging.Logger, instance=True, spec_set=True)
+        monkeypatch.setattr(_postgresusagerepository, "logger", mock_logger)
+        repository = PostgresUsageRepository(postgres_session=db_session, session_factory=_BlockingSessionFactory(asyncio.Event()))
+        repository.save_record(UsageRecord(request_id="3f2a", endpoint=CHAT_COMPLETIONS, created=CREATED))
 
         # Act
-        repository.open_record(_record(key, provider))
+        await PostgresUsageRepository.wait_for_pending_saves(timeout=0.01)
 
         # Assert
-        assert await _persisted_rows(db_session) == []
-
-    async def test_raises_when_the_row_breaks_a_foreign_key(self, repository, db_session):
-        # Arrange
-        key, provider = await _seed(db_session)
-
-        # Act / Assert
-        with pytest.raises(IntegrityError):
-            await repository.save_record(_record(key, provider, user_id=key.user.id + 1_000_000))
+        mock_logger.warning.assert_called_once_with("1 usage records were still being saved at shutdown and are lost.")
+        pending = tuple(_postgresusagerepository._pending_saves)
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 @pytest.mark.asyncio(loop_scope="session")

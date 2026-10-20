@@ -18,7 +18,7 @@ from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContext
+from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
@@ -112,6 +112,11 @@ def mock_usage_context():
 
 
 @pytest.fixture
+def mock_usage_repository():
+    return create_autospec(UsageRepository, instance=True, spec_set=True)
+
+
+@pytest.fixture
 def router():
     return RouterFactory(
         id=1,
@@ -167,6 +172,7 @@ def use_case(
     router_rate_limiter,
     router_repository,
     mock_usage_context,
+    mock_usage_repository,
 ) -> ForwardingTestUseCase:
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -178,6 +184,7 @@ def use_case(
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
         usage_context=mock_usage_context,
+        usage_repository=mock_usage_repository,
     )
 
 
@@ -351,6 +358,7 @@ class TestSendRequest:
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         use_case.usage_context.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
         use_case.usage_context.record_usage.assert_not_called()
+        use_case.usage_repository.save_record.assert_not_called()
         use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
 
     @pytest.mark.asyncio
@@ -370,6 +378,7 @@ class TestSendRequest:
         assert result == provider_error
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         use_case.usage_context.record_usage.assert_not_called()
+        use_case.usage_repository.save_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_decrement_inflight_when_the_provider_call_raises(self, use_case, router, provider, payload, user_with_router_access):
@@ -403,6 +412,7 @@ class TestSendRequest:
         assert result == validation_error
         use_case.provider_metrics_logger.decrement_inflight.assert_not_called()
         use_case.usage_context.record_usage.assert_not_called()
+        use_case.usage_repository.save_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_enrich_usage_when_formatted_response_has_data(
@@ -461,6 +471,7 @@ class TestSendRequest:
             ),
             latency=12000,
         )
+        use_case.usage_repository.save_record.assert_called_once_with(record=use_case.usage_context.get_record.return_value)
         use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=router.id, type=LimitType.RPM, value=100)],

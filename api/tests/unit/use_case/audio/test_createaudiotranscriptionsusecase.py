@@ -11,7 +11,7 @@ from api.domain.audio.entities import (
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
-from api.domain.usage import UsageContext
+from api.domain.usage import UsageContext, UsageRepository
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, RouterFactory
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
@@ -35,6 +35,11 @@ def mock_usage_context():
     usage_context = create_autospec(UsageContext, instance=True, spec_set=True)
     usage_context.get_request_id.return_value = REQUEST_ID
     return usage_context
+
+
+@pytest.fixture
+def mock_usage_repository():
+    return create_autospec(UsageRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -87,7 +92,7 @@ def make_command():
 
 
 @pytest.fixture
-def use_case(model_tokenizer, mock_usage_context) -> CreateAudioTranscriptionsUseCase:
+def use_case(model_tokenizer, mock_usage_context, mock_usage_repository) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=MagicMock(),
         model_tokenizer=model_tokenizer,
@@ -98,6 +103,7 @@ def use_case(model_tokenizer, mock_usage_context) -> CreateAudioTranscriptionsUs
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
         usage_context=mock_usage_context,
+        usage_repository=mock_usage_repository,
         audio_file_size_limit=None,
     )
 

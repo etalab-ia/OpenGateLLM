@@ -15,7 +15,6 @@ from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer, get_configuration
 from api.infrastructure.context import global_context
-from api.infrastructure.fastapi import UsageRecorder
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.postgres import (
     AutocommitSession,
@@ -25,6 +24,7 @@ from api.infrastructure.postgres import (
     PostgresProviderRepository,
     PostgresRolesRepository,
     PostgresRouterRepository,
+    PostgresUsageRepository,
     PostgresUserRepository,
 )
 from api.use_cases.admin import (
@@ -60,7 +60,7 @@ async def lifespan(_: FastAPI):
 
     yield
 
-    await UsageRecorder.wait_for_pending_saves(timeout=USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS)
+    await PostgresUsageRepository.wait_for_pending_saves(timeout=USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS)
 
     if global_context.redis_pool:
         await global_context.redis_pool.aclose()

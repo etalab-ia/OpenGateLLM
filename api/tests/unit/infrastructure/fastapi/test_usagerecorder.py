@@ -1,4 +1,3 @@
-import asyncio
 from datetime import UTC, datetime, timedelta
 import logging
 from unittest.mock import create_autospec
@@ -6,26 +5,24 @@ from unittest.mock import create_autospec
 import pytest
 
 from api.domain.key.entities import Key
-from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import UsageRecorder, _usagerecorder
-from api.infrastructure.fastapi._usagerecorder import _pending_saves
+from api.infrastructure.langfuse import LangfuseRequestTracer
 
 USER_ID = 42
 
 
 @pytest.fixture
-def mock_usage_repository():
-    return create_autospec(UsageRepository, instance=True, spec_set=True)
+def mock_tracer():
+    return create_autospec(LangfuseRequestTracer, instance=True, spec_set=True)
 
 
-@pytest.fixture
-def recorder(mock_usage_repository) -> UsageRecorder:
+def _open(tracer: LangfuseRequestTracer | None) -> UsageRecorder:
     now = datetime.now(tz=UTC)
 
     return UsageRecorder.open(
-        usage_repository=mock_usage_repository,
+        tracer=tracer,
         request_id="3f2a",
         endpoint="/v1/chat/completions",
         user=AuthenticatedUserView(id=USER_ID, email="alice@example.com", name="Alice", organization_id=1, permissions=[], limits=[], expires=None),
@@ -33,23 +30,23 @@ def recorder(mock_usage_repository) -> UsageRecorder:
     )
 
 
+@pytest.fixture
+def recorder(mock_tracer) -> UsageRecorder:
+    return _open(mock_tracer)
+
+
 def _usage(cost: float = 0.02) -> Usage:
     return Usage(prompt_tokens=7, completion_tokens=3, total_tokens=10, cost=cost, impacts=EnvironmentalImpacts(kWh=1.5, kgCO2eq=2.5))
 
 
-async def _drain_saves() -> None:
-    if _pending_saves:
-        await asyncio.gather(*tuple(_pending_saves))
-
-
 class TestOpen:
-    def test_should_build_the_record_from_the_authenticated_request(self, recorder, mock_usage_repository):
+    def test_should_build_the_record_from_the_authenticated_request(self, recorder, mock_tracer):
         # Assert
         assert recorder.record.request_id == "3f2a"
         assert recorder.record.endpoint == "/v1/chat/completions"
         assert (recorder.record.user_id, recorder.record.user_email) == (USER_ID, "alice@example.com")
         assert (recorder.record.key_id, recorder.record.key_name) == (7, "my-key")
-        mock_usage_repository.open_record.assert_called_once_with(recorder.record)
+        mock_tracer.start.assert_called_once_with(recorder.record)
 
     def test_should_share_its_request_id_with_the_use_case(self, recorder):
         # Assert
@@ -83,80 +80,66 @@ class TestRecord:
         # Assert
         assert recorder.record.ttft is None
 
+    def test_should_hand_out_a_record_that_closing_the_request_leaves_unchanged(self, recorder):
+        # Arrange
+        recorder.record_usage(usage=_usage(), latency=250)
 
-@pytest.mark.asyncio
+        # Act
+        record = recorder.get_record()
+        recorder.close(status_code=500, error="RuntimeError")
+
+        # Assert
+        assert (record.status, record.error, record.usage) == (None, None, _usage())
+
+
 class TestClose:
-    async def test_should_stamp_the_answered_status_and_save_the_record(self, recorder, mock_usage_repository):
+    def test_should_stamp_the_answered_status_and_end_the_trace(self, recorder, mock_tracer):
         # Arrange
         recorder.record_usage(usage=_usage(), latency=250)
 
         # Act
         recorder.close(status_code=200)
-        await _drain_saves()
 
         # Assert
         assert (recorder.record.status, recorder.record.latency) == (200, 250)
-        mock_usage_repository.save_record.assert_awaited_once_with(recorder.record)
+        mock_tracer.end.assert_called_once_with(recorder.record)
 
-    async def test_should_keep_how_long_a_failed_request_took_when_the_provider_was_never_reached(self, recorder):
+    def test_should_keep_how_long_a_failed_request_took_when_the_provider_was_never_reached(self, recorder):
         # Act
         recorder.close(status_code=503, error="NoAvailableProviderError")
-        await _drain_saves()
 
         # Assert
         assert recorder.record.status == 503
         assert recorder.record.error == "NoAvailableProviderError"
         assert recorder.record.latency is not None
 
-    async def test_should_save_the_record_once_only(self, recorder, mock_usage_repository):
+    def test_should_end_the_trace_once_only(self, recorder, mock_tracer):
         # Act
         recorder.close(status_code=200)
         recorder.close(status_code=500)
-        await _drain_saves()
 
         # Assert
         assert recorder.record.status == 200
-        mock_usage_repository.save_record.assert_awaited_once()
+        mock_tracer.end.assert_called_once()
 
-
-@pytest.mark.asyncio
-class TestWaitForPendingSaves:
-    async def test_should_wait_until_the_pending_saves_are_written(self, recorder, mock_usage_repository):
-        # Arrange
-        release = asyncio.Event()
-        saved = []
-
-        async def slow_save(record):
-            await release.wait()
-            saved.append(record)
-
-        mock_usage_repository.save_record.side_effect = slow_save
-        recorder.close(status_code=200)
-        asyncio.get_running_loop().call_soon(release.set)
-
-        # Act
-        await UsageRecorder.wait_for_pending_saves(timeout=1)
-
-        # Assert
-        assert saved == [recorder.record]
-        assert not _pending_saves
-
-    async def test_should_give_up_after_the_timeout(self, recorder, mock_usage_repository, monkeypatch):
+    def test_should_log_a_trace_that_fails_instead_of_failing_the_request(self, recorder, mock_tracer, monkeypatch):
         # Arrange
         mock_logger = create_autospec(logging.Logger, instance=True, spec_set=True)
         monkeypatch.setattr(_usagerecorder, "logger", mock_logger)
-
-        async def stuck_save(record):
-            await asyncio.Event().wait()
-
-        mock_usage_repository.save_record.side_effect = stuck_save
-        recorder.close(status_code=200)
+        mock_tracer.end.side_effect = RuntimeError("Langfuse is down")
 
         # Act
-        await UsageRecorder.wait_for_pending_saves(timeout=0.01)
+        recorder.close(status_code=200)
 
         # Assert
-        mock_logger.warning.assert_called_once_with("1 usage records were still being saved at shutdown and are lost.")
-        for task in tuple(_pending_saves):
-            task.cancel()
-        await asyncio.gather(*tuple(_pending_saves), return_exceptions=True)
+        mock_logger.exception.assert_called_once_with("Failed to trace the request.")
+
+    def test_should_close_without_a_tracer_when_langfuse_is_not_configured(self):
+        # Arrange
+        recorder = _open(tracer=None)
+
+        # Act
+        recorder.close(status_code=200)
+
+        # Assert
+        assert recorder.is_closed

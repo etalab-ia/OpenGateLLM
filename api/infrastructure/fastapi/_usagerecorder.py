@@ -1,22 +1,20 @@
-import asyncio
 from datetime import UTC, datetime
 import logging
 
 from api.domain.key.entities import Key
-from api.domain.usage import UsageContext, UsageRepository
+from api.domain.usage import UsageContext
 from api.domain.usage.entities import Usage, UsageRecord
 from api.domain.user.views import AuthenticatedUserView
+from api.infrastructure.langfuse import LangfuseRequestTracer
 
 logger = logging.getLogger(__name__)
-
-_pending_saves: set[asyncio.Task] = set()
 
 
 class UsageRecorder(UsageContext):
     @classmethod
     def open(
         cls,
-        usage_repository: UsageRepository,
+        tracer: LangfuseRequestTracer | None,
         request_id: str,
         endpoint: str,
         user: AuthenticatedUserView | None,
@@ -31,13 +29,14 @@ class UsageRecorder(UsageContext):
             key_id=key.id if key else None,
             key_name=key.name if key else None,
         )
-        recorder = cls(usage_repository=usage_repository, record=record)
-        usage_repository.open_record(record)
+        recorder = cls(tracer=tracer, record=record)
+        if tracer is not None:
+            tracer.start(record)
 
         return recorder
 
-    def __init__(self, usage_repository: UsageRepository, record: UsageRecord) -> None:
-        self.usage_repository = usage_repository
+    def __init__(self, tracer: LangfuseRequestTracer | None, record: UsageRecord) -> None:
+        self.tracer = tracer
         self.record = record
         self.is_closed = False
 
@@ -61,6 +60,10 @@ class UsageRecorder(UsageContext):
         if ttft is not None:
             self.record.ttft = ttft
 
+    def get_record(self) -> UsageRecord:
+        # a copy, so that closing the request does not change a row already handed to the repository
+        return self.record.model_copy(deep=True)
+
     def close(self, status_code: int | None, error: str | None = None) -> None:
         if self.is_closed:
             return
@@ -72,21 +75,9 @@ class UsageRecorder(UsageContext):
         if self.record.latency is None:
             self.record.latency = self.elapsed_ms()
 
-        task = asyncio.create_task(self._save(), name=f"usage-save-{self.record.request_id}")
-        _pending_saves.add(task)
-        task.add_done_callback(_pending_saves.discard)
-
-    async def _save(self) -> None:
-        try:
-            await self.usage_repository.save_record(self.record)
-        except Exception:
-            logger.exception("Failed to save the usage record.")
-
-    @staticmethod
-    async def wait_for_pending_saves(timeout: float) -> None:
-        if not _pending_saves:
+        if self.tracer is None:
             return
-
-        _, unfinished = await asyncio.wait(tuple(_pending_saves), timeout=timeout)
-        if unfinished:
-            logger.warning(f"{len(unfinished)} usage records were still being saved at shutdown and are lost.")
+        try:
+            self.tracer.end(self.record)
+        except Exception:
+            logger.exception("Failed to trace the request.")

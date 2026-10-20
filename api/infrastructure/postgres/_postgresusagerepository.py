@@ -1,4 +1,6 @@
+import asyncio
 from datetime import datetime, timedelta
+import logging
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -8,19 +10,24 @@ from api.domain.usage.entities import EnvironmentalImpacts, UsageBucket, UsageBu
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.models import Usage as UsageTable
 
+logger = logging.getLogger(__name__)
+
+
+_pending_saves: set[asyncio.Task] = set()
+
 
 class PostgresUsageRepository(UsageRepository):
     def __init__(self, postgres_session: AsyncSession, session_factory: async_sessionmaker) -> None:
         self.postgres_session = postgres_session
         self.session_factory = session_factory
 
-    def open_record(self, record: UsageRecord) -> None:
-        return
+    def save_record(self, record: UsageRecord) -> None:
+        # a task rather than FastAPI BackgroundTasks, which a client disconnecting mid-stream never reaches
+        task = asyncio.create_task(self._insert(record), name=f"usage-save-{record.request_id}")
+        _pending_saves.add(task)
+        task.add_done_callback(_pending_saves.discard)
 
-    async def save_record(self, record: UsageRecord) -> None:
-        if record.status is None or record.status // 100 != 2:
-            return
-
+    async def _insert(self, record: UsageRecord) -> None:
         row = UsageTable(
             created=record.created,
             request_id=record.request_id,
@@ -33,7 +40,8 @@ class PostgresUsageRepository(UsageRepository):
             router_name=record.router_name,
             provider_id=record.provider_id,
             provider_model_name=record.provider_model_name,
-            status=record.status,
+            # only a request that consumed something is saved, so the row is a success by construction
+            status=200,
             latency=record.latency,
             ttft=record.ttft,
         )
@@ -45,9 +53,21 @@ class PostgresUsageRepository(UsageRepository):
             row.kwh = usage.impacts.kWh
             row.kgco2eq = usage.impacts.kgCO2eq
 
-        async with self.session_factory() as postgres_session:
-            postgres_session.add(row)
-            await postgres_session.commit()
+        try:
+            async with self.session_factory() as postgres_session:
+                postgres_session.add(row)
+                await postgres_session.commit()
+        except Exception:
+            logger.exception("Failed to save the usage record.")
+
+    @staticmethod
+    async def wait_for_pending_saves(timeout: float) -> None:
+        if not _pending_saves:
+            return
+
+        _, unfinished = await asyncio.wait(tuple(_pending_saves), timeout=timeout)
+        if unfinished:
+            logger.warning(f"{len(unfinished)} usage records were still being saved at shutdown and are lost.")
 
     @staticmethod
     def _utc_day_start():

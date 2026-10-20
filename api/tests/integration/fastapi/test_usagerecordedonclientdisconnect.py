@@ -15,9 +15,9 @@ from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, StreamingResponseWithStatusCode, UsageRecorder
-from api.infrastructure.fastapi._usagerecorder import _pending_saves
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.endpoints.chat import _as_stream_chunks
+from api.infrastructure.langfuse import LangfuseRequestTracer
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
 from api.use_cases.chat import CreateChatCompletionsUseCase
 
@@ -49,9 +49,14 @@ def mock_usage_repository():
 
 
 @pytest.fixture
-def usage_recorder(mock_usage_repository) -> UsageRecorder:
+def mock_tracer():
+    return create_autospec(LangfuseRequestTracer, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def usage_recorder(mock_tracer) -> UsageRecorder:
     return UsageRecorder.open(
-        usage_repository=mock_usage_repository,
+        tracer=mock_tracer,
         request_id="req-123",
         endpoint="/v1/chat/completions",
         user=_authenticated_user(),
@@ -60,7 +65,7 @@ def usage_recorder(mock_usage_repository) -> UsageRecorder:
 
 
 @pytest.fixture
-def use_case(usage_recorder) -> CreateChatCompletionsUseCase:
+def use_case(usage_recorder, mock_usage_repository) -> CreateChatCompletionsUseCase:
     tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     impacts = create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True)
@@ -76,6 +81,7 @@ def use_case(usage_recorder) -> CreateChatCompletionsUseCase:
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
         usage_context=usage_recorder,
+        usage_repository=mock_usage_repository,
     )
 
 
@@ -118,7 +124,9 @@ async def _receive() -> dict:
 
 @pytest.mark.asyncio(loop_scope="function")
 class TestUsageRecordedOnClientDisconnect:
-    async def test_should_save_the_usage_record_when_the_client_disconnects(self, use_case, usage_recorder, mock_usage_repository, router, provider):
+    async def test_should_save_the_usage_record_when_the_client_disconnects(
+        self, use_case, usage_recorder, mock_usage_repository, mock_tracer, router, provider
+    ):
         # Arrange: a slow client, so the chain sits parked on its yields when the disconnect lands
         request_context.set(RequestContext(id="req-123", user=_authenticated_user(), usage_recorder=usage_recorder))
         middleware = RequestLogMiddleware(_streaming_app(use_case, router, provider))
@@ -133,11 +141,11 @@ class TestUsageRecordedOnClientDisconnect:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        await asyncio.gather(*tuple(_pending_saves))
 
         # Assert
-        mock_usage_repository.save_record.assert_awaited_once_with(usage_recorder.record)
-        assert usage_recorder.record.usage.completion_tokens == 1, "the chunk the client already received must be billed"
+        [saved] = [call.kwargs["record"] for call in mock_usage_repository.save_record.call_args_list]
+        assert saved.usage.completion_tokens == 1, "the chunk the client already received must be billed"
+        mock_tracer.end.assert_called_once_with(usage_recorder.record)
         assert usage_recorder.record.status == 200, "the stream had already answered 200 when the client left"
 
     async def test_should_save_the_usage_record_when_releasing_the_provider_fails(
@@ -159,8 +167,7 @@ class TestUsageRecordedOnClientDisconnect:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        await asyncio.gather(*tuple(_pending_saves))
 
         # Assert
-        mock_usage_repository.save_record.assert_awaited_once_with(usage_recorder.record)
-        assert usage_recorder.record.usage.completion_tokens == 1
+        [saved] = [call.kwargs["record"] for call in mock_usage_repository.save_record.call_args_list]
+        assert saved.usage.completion_tokens == 1

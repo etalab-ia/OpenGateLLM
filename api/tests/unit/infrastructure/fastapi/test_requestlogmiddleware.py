@@ -10,7 +10,6 @@ import pytest_asyncio
 from starlette.requests import Request
 
 from api.domain.key.entities import Key
-from api.domain.usage import UsageRepository
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import (
     RequestContext,
@@ -20,9 +19,9 @@ from api.infrastructure.fastapi import (
     record_http_exception,
     record_validation_exception,
 )
-from api.infrastructure.fastapi._usagerecorder import _pending_saves
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.endpoints.exceptions import OrganizationAlreadyExistsHTTPException
+from api.infrastructure.langfuse import LangfuseRequestTracer
 
 
 async def get_organization():
@@ -57,14 +56,14 @@ def mock_logger(monkeypatch):
 
 
 @pytest.fixture
-def mock_usage_repository():
-    return create_autospec(UsageRepository, instance=True, spec_set=True)
+def mock_tracer():
+    return create_autospec(LangfuseRequestTracer, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def usage_recorder(mock_usage_repository) -> UsageRecorder:
+def usage_recorder(mock_tracer) -> UsageRecorder:
     recorder = UsageRecorder.open(
-        usage_repository=mock_usage_repository,
+        tracer=mock_tracer,
         request_id="3f2a",
         endpoint="/v1/chat/completions",
         user=None,
@@ -82,8 +81,6 @@ async def authenticated_request_context(usage_recorder):
     token = request_context.set(RequestContext(id="3f2a", user=user, key=key, usage_recorder=usage_recorder))
     yield
     request_context.reset(token)
-    if _pending_saves:
-        await asyncio.gather(*tuple(_pending_saves))
 
 
 @pytest.fixture
@@ -222,7 +219,7 @@ async def test_should_report_the_unhandled_exception_to_sentry_as_a_crash(monkey
 
 
 @pytest.mark.asyncio
-async def test_should_close_the_usage_record_on_the_status_the_api_answered(mock_logger, send, usage_recorder, mock_usage_repository):
+async def test_should_close_the_usage_record_on_the_status_the_api_answered(mock_logger, send, usage_recorder, mock_tracer):
     # Arrange
     async def app(scope, receive, send):
         await send({"type": "http.response.start", "status": 201, "headers": []})
@@ -234,8 +231,7 @@ async def test_should_close_the_usage_record_on_the_status_the_api_answered(mock
     # Assert
     assert usage_recorder.record.status == 201
     assert usage_recorder.is_closed
-    await asyncio.gather(*tuple(_pending_saves))
-    mock_usage_repository.save_record.assert_awaited_once_with(usage_recorder.record)
+    mock_tracer.end.assert_called_once_with(usage_recorder.record)
 
 
 @pytest.mark.asyncio
@@ -253,7 +249,7 @@ async def test_should_close_the_usage_record_on_the_generic_500_when_the_app_rai
 
 
 @pytest.mark.asyncio
-async def test_should_close_the_usage_record_of_a_stream_the_client_abandoned(mock_logger, send, usage_recorder, mock_usage_repository):
+async def test_should_close_the_usage_record_of_a_stream_the_client_abandoned(mock_logger, send, usage_recorder, mock_tracer):
     # Arrange
     async def disconnecting_app(scope, receive, send):
         await send({"type": "http.response.start", "status": 200, "headers": []})
@@ -265,5 +261,4 @@ async def test_should_close_the_usage_record_of_a_stream_the_client_abandoned(mo
 
     # Assert
     assert usage_recorder.record.status == 200
-    await asyncio.gather(*tuple(_pending_saves))
-    mock_usage_repository.save_record.assert_awaited_once_with(usage_recorder.record)
+    mock_tracer.end.assert_called_once_with(usage_recorder.record)
