@@ -162,7 +162,7 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
         )
         assert isinstance(result, CreateAudioTranscriptionsJsonUseCaseSuccess)
         assert result.data is sample_transcriptions
-        assert result.headers == rate_limit_state.build_limit_headers
+        assert result.headers == rate_limit_state.build_limit_headers(1)
         assert result.media_type == "application/json"
 
     @pytest.mark.asyncio
@@ -179,5 +179,5 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
         # Assert
         assert isinstance(result, CreateAudioTranscriptionsTextUseCaseSuccess)
         assert result.text == "hello world"
-        assert result.headers == rate_limit_state.build_limit_headers
+        assert result.headers == rate_limit_state.build_limit_headers(1)
         assert result.media_type == "text/plain"

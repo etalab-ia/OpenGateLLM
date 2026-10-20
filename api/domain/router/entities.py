@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -61,27 +61,38 @@ class Router(BaseModel):
 
 
 class TpmRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 60
+
     value: int | None = None
     remaining: int = 0
     reset: int = 0
 
 
 class TpdRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 86_400
+
     value: int | None = None
     remaining: int = 0
     reset: int = 0
 
 
 class RpmRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 60
+
     value: int | None = 0
     remaining: int = 0
     reset: int = 0
 
 
 class RpdRateLimitState(BaseModel):
+    PERIOD_SECONDS: ClassVar[int] = 86_400
+
     value: int | None = 0
     remaining: int = 0
     reset: int = 0
+
+
+type RateLimitWindowState = TpmRateLimitState | TpdRateLimitState | RpmRateLimitState | RpdRateLimitState
 
 
 class RouterRateLimitState(BaseModel):
@@ -107,39 +118,55 @@ class RouterRateLimitState(BaseModel):
             rpd=RpdRateLimitState(value=None),
         )
 
-    @property
-    def build_limit_headers(self) -> dict[str, str]:
-        def seconds_until_reset(reset_epoch: float) -> int:
-            return max(0, int(reset_epoch - datetime.now(UTC).timestamp()))
+    def build_limit_headers(self, prompt_tokens: int, charged: bool = True) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        request_cost = 1 if charged else 0
+        token_cost = prompt_tokens if charged else 0
 
-        def format_duration(seconds: int) -> str:
-            minutes, secs = divmod(seconds, 60)
-            hours, minutes = divmod(minutes, 60)
-            if hours:
-                return f"{hours}h{minutes}m{secs}s"
+        requests_window = self._most_restrictive_limit(self.rpm, self.rpd)
+        if requests_window is not None:
+            headers.update(self._window_headers(window=requests_window, family="requests", cost=request_cost))
 
-            if minutes:
-                return f"{minutes}m{secs}s"
-
-            return f"{secs}s"
-
-        headers = {}
-        if self.tpd.value == 0:
-            headers["x-ratelimit-limit-token"] = str(self.tpm.value)
-            headers["x-ratelimit-remaining-token"] = str(self.tpm.remaining)
-            headers["x-ratelimit-reset-token"] = format_duration(seconds_until_reset(self.tpm.reset))
-        else:
-            headers["x-ratelimit-limit-token"] = str(self.tpd.value)
-            headers["x-ratelimit-remaining-token"] = str(self.tpd.remaining)
-            headers["x-ratelimit-reset-token"] = format_duration(seconds_until_reset(self.tpd.reset))
-
-        if self.rpm.value == 0:
-            headers["x-ratelimit-limit-request"] = str(self.rpm.value)
-            headers["x-ratelimit-remaining-request"] = str(self.rpm.remaining)
-            headers["x-ratelimit-reset-requests"] = format_duration(seconds_until_reset(self.rpm.reset))
-        else:
-            headers["x-ratelimit-limit-request"] = str(self.rpm.value)
-            headers["x-ratelimit-remaining-request"] = str(self.rpm.remaining)
-            headers["x-ratelimit-reset-requests"] = format_duration(seconds_until_reset(self.rpm.reset))
+        tokens_window = self._most_restrictive_limit(self.tpm, self.tpd)
+        if tokens_window is not None:
+            headers.update(self._window_headers(window=tokens_window, family="tokens", cost=token_cost))
 
         return headers
+
+    @staticmethod
+    def _most_restrictive_limit(*windows: RateLimitWindowState) -> RateLimitWindowState | None:
+        configured = [window for window in windows if window.value is not None]
+        if not configured:
+            return None
+
+        return min(configured, key=lambda window: window.remaining)
+
+    @classmethod
+    def _window_headers(cls, window: RateLimitWindowState, family: str, cost: int) -> dict[str, str]:
+        return {
+            f"x-ratelimit-limit-{family}": str(window.value),
+            f"x-ratelimit-remaining-{family}": str(max(0, window.remaining - cost)),
+            f"x-ratelimit-reset-{family}": cls._format_duration(
+                cls._reset_in_seconds(reset_epoch=window.reset, period_seconds=window.PERIOD_SECONDS)
+            ),
+        }
+
+    @staticmethod
+    def _reset_in_seconds(reset_epoch: float, period_seconds: int) -> int:
+        if reset_epoch <= 0:
+            # reset 0 means the window has not started: it will last the full period
+            return period_seconds
+
+        return max(0, int(reset_epoch - datetime.now(UTC).timestamp()))
+
+    @staticmethod
+    def _format_duration(seconds: int) -> str:
+        minutes, secs = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h{minutes}m{secs}s"
+
+        if minutes:
+            return f"{minutes}m{secs}s"
+
+        return f"{secs}s"
