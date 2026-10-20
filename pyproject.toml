@@ -38,7 +38,7 @@ api = [
     "python-multipart==0.0.32",
     "redis==7.2.1",
     "sentry-sdk[fastapi]==2.71.0",
-    "sqlalchemy-utils==0.42.1",
+    "sqlalchemy-utils==0.43.0",
     "sqlalchemy[asyncio]==2.1.2",
     "tiktoken==0.14.0",
     "uvicorn==0.54.0"
