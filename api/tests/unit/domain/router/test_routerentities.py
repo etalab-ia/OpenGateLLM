@@ -105,6 +105,19 @@ class TestRouterRateLimitStateBuildLimitHeaders:
         assert headers["x-ratelimit-remaining-requests"] == "9"
         assert headers["x-ratelimit-remaining-tokens"] == "90"
 
+    def test_should_not_subtract_the_current_request_when_it_is_not_charged(self):
+        # Arrange
+        state = RouterRateLimitState.admin_rate_limit_state()
+        state.rpm = RpmRateLimitState(value=10, remaining=5, reset=0)
+        state.tpm = TpmRateLimitState(value=100, remaining=50, reset=0)
+
+        # Act
+        headers = state.build_limit_headers(prompt_tokens=100, charged=False)
+
+        # Assert
+        assert headers["x-ratelimit-remaining-requests"] == "5"
+        assert headers["x-ratelimit-remaining-tokens"] == "50"
+
     def test_should_floor_remaining_at_zero(self):
         # Arrange
         state = RouterRateLimitState.admin_rate_limit_state()

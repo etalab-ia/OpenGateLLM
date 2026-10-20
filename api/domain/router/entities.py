@@ -113,16 +113,18 @@ class RouterRateLimitState(BaseModel):
             rpd=RpdRateLimitState(value=None),
         )
 
-    def build_limit_headers(self, prompt_tokens: int) -> dict[str, str]:
+    def build_limit_headers(self, prompt_tokens: int, charged: bool = True) -> dict[str, str]:
         headers: dict[str, str] = {}
+        request_cost = 1 if charged else 0
+        token_cost = prompt_tokens if charged else 0
 
         requests_window = self._most_restrictive_limit((self.rpm, self.MINUTE_WINDOW_SECONDS), (self.rpd, self.DAY_WINDOW_SECONDS))
         if requests_window is not None:
-            headers.update(self._window_headers(window=requests_window[0], period_seconds=requests_window[1], family="requests", cost=1))
+            headers.update(self._window_headers(window=requests_window[0], period_seconds=requests_window[1], family="requests", cost=request_cost))
 
         tokens_window = self._most_restrictive_limit((self.tpm, self.MINUTE_WINDOW_SECONDS), (self.tpd, self.DAY_WINDOW_SECONDS))
         if tokens_window is not None:
-            headers.update(self._window_headers(window=tokens_window[0], period_seconds=tokens_window[1], family="tokens", cost=prompt_tokens))
+            headers.update(self._window_headers(window=tokens_window[0], period_seconds=tokens_window[1], family="tokens", cost=token_cost))
 
         return headers
 

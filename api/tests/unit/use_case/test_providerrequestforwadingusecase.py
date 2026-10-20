@@ -300,7 +300,7 @@ class TestCheckRateLimits:
         assert isinstance(result, RouterRateLimitExceededError)
         assert result.id == router.id
         assert result.limit_type == LimitType.TPM
-        assert result.headers == rate_limit_state.build_limit_headers(10)
+        assert result.headers["x-ratelimit-remaining-tokens"] == "9"
         use_case.router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
