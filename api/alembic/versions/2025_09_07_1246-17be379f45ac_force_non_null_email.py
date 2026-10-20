@@ -43,6 +43,8 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_user_email"), table_name="user")
     op.create_index("ix_user_email", "user", ["email"], unique=False)
     op.create_unique_constraint("uq_user_sub", "user", ["sub"])
+    # Reverse backfill: users created since may have no name, and name becomes NOT NULL again.
+    op.execute('UPDATE "user" SET name = email WHERE name IS NULL;')
     op.create_index("ix_user_name", "user", ["name"], unique=True)
     op.alter_column("user", "name", existing_type=sa.VARCHAR(), nullable=False)
     op.alter_column("user", "email", existing_type=sa.VARCHAR(length=255), nullable=True)
