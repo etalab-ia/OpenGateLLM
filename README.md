@@ -155,7 +155,7 @@
 | api/infrastructure/postgres/\_postgresusagerepository.py                              |       81 |        1 |       18 |        1 |     97.98% |        27 |
 | api/infrastructure/postgres/\_postgresusersrepository.py                              |      112 |        8 |       36 |        3 |     91.22% |105, 123-127, 200, 214 |
 | api/infrastructure/postgres/decorators.py                                             |       25 |        1 |        6 |        1 |     93.55% |        36 |
-| api/infrastructure/postgres/models.py                                                 |      122 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/postgres/models.py                                                 |      118 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/redis/\_keys.py                                                    |        2 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/redis/\_redisproviderloadbalancer.py                               |       32 |        0 |       12 |        1 |     97.73% | 20-\>exit |
 | api/infrastructure/redis/\_redisprovidermetricslogger.py                              |       38 |       12 |        4 |        1 |     64.29% |24-25, 31-32, 48-58 |
@@ -210,7 +210,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                       |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                            |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                             | **6664** |  **575** | **1342** |  **153** | **89.43%** |           |
+| **TOTAL**                                                                             | **6660** |  **575** | **1342** |  **153** | **89.43%** |           |
 
 
 ## Setup coverage badge
