@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_9e5f3e94f6fa24d9__createembeddingsusecase_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-20 14:01 +0000
+            created at 2026-10-20 18:42 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -166,7 +166,7 @@
     <p class="run run2"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">                    <span class="nam">prompt_tokens</span><span class="op">=</span><span class="nam">prompt_tokens</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">                    <span class="nam">request_id</span><span class="op">=</span><span class="nam">request_id</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">                <span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">                <span class="nam">headers</span><span class="op">=</span><span class="nam">rate_limit_state</span><span class="op">.</span><span class="nam">build_limit_headers</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">                <span class="nam">headers</span><span class="op">=</span><span class="nam">rate_limit_state</span><span class="op">.</span><span class="nam">build_limit_headers</span><span class="op">(</span><span class="nam">prompt_tokens</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">        <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -184,7 +184,7 @@
     <p class="run"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">                    <span class="nam">self</span><span class="op">.</span><span class="nam">usage_repository</span><span class="op">.</span><span class="nam">fail_record</span><span class="op">(</span><span class="nam">message</span><span class="op">=</span><span class="nam">type</span><span class="op">(</span><span class="nam">error</span><span class="op">)</span><span class="op">.</span><span class="nam">__name__</span><span class="op">,</span> <span class="nam">status_code</span><span class="op">=</span><span class="num">503</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">                    <span class="key">return</span> <span class="nam">error</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">            <span class="key">return</span> <span class="nam">self</span><span class="op">.</span><span class="nam">_build_success</span><span class="op">(</span><span class="nam">command</span><span class="op">=</span><span class="nam">command</span><span class="op">,</span> <span class="nam">response</span><span class="op">=</span><span class="nam">provider_response</span><span class="op">,</span> <span class="nam">headers</span><span class="op">=</span><span class="nam">rate_limit_state</span><span class="op">.</span><span class="nam">build_limit_headers</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">            <span class="key">return</span> <span class="nam">self</span><span class="op">.</span><span class="nam">_build_success</span><span class="op">(</span><span class="nam">command</span><span class="op">=</span><span class="nam">command</span><span class="op">,</span> <span class="nam">response</span><span class="op">=</span><span class="nam">provider_response</span><span class="op">,</span> <span class="nam">headers</span><span class="op">=</span><span class="nam">rate_limit_state</span><span class="op">.</span><span class="nam">build_limit_headers</span><span class="op">(</span><span class="nam">prompt_tokens</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t104" href="#t104">104</a></span><span class="t">        <span class="key">finally</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t105" href="#t105">105</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">usage_repository</span><span class="op">.</span><span class="nam">end_record</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t106" href="#t106">106</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -348,7 +348,7 @@
             <a class="nav" href="z_9e5f3e94f6fa24d9__createembeddingsusecase_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-20 14:01 +0000
+            created at 2026-10-20 18:42 +0000
         </p>
     </div>
 </footer>

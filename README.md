@@ -40,7 +40,7 @@
 | api/domain/role/errors.py                                                             |        9 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/router/\_routerratelimiter.py                                              |       13 |        3 |        0 |        0 |     76.92% |10, 16, 21 |
 | api/domain/router/\_routerrepository.py                                               |       35 |       10 |        0 |        0 |     71.43% |11, 21, 25, 29, 42, 46, 50, 54, 58, 62 |
-| api/domain/router/entities.py                                                         |       84 |        7 |        8 |        3 |     89.13% |122, 128-130, 137-139 |
+| api/domain/router/entities.py                                                         |       95 |        0 |       12 |        0 |    100.00% |           |
 | api/domain/router/errors.py                                                           |       17 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/usage/\_usagecontext.py                                                    |       12 |        3 |        0 |        0 |     75.00% | 9, 13, 17 |
 | api/domain/usage/\_usagerepository.py                                                 |       23 |        6 |        0 |        0 |     73.91% |22, 26, 30, 34, 38, 52 |
@@ -159,7 +159,7 @@
 | api/infrastructure/redis/\_keys.py                                                    |        2 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/redis/\_redisproviderloadbalancer.py                               |       32 |        0 |       12 |        1 |     97.73% | 20-\>exit |
 | api/infrastructure/redis/\_redisprovidermetricslogger.py                              |       38 |       12 |        4 |        1 |     64.29% |24-25, 31-32, 48-58 |
-| api/infrastructure/redis/\_redisrouterratelimiter.py                                  |      114 |       18 |       40 |       10 |     80.52% |32-33, 51, 59, 64-\>38, 67, 109-110, 114, 119-\>exit, 126, 132-135, 154, 163-164, 168-171 |
+| api/infrastructure/redis/\_redisrouterratelimiter.py                                  |      117 |       16 |       42 |       10 |     83.65% |33-\>exit, 52, 60, 65-\>39, 68, 110-111, 115, 120-\>exit, 127, 137-140, 159, 168-169, 173-176 |
 | api/infrastructure/tiktoken/\_tiktokenmodeltokenizer.py                               |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/lifespan.py                                                                       |      124 |       50 |       52 |        4 |     53.41% |43-64, 68-74, 78, 82, 114-117, 118-\>exit, 152, 155-\>exit, 160-172, 176-184 |
 | api/main.py                                                                           |        2 |        2 |        0 |        0 |      0.00% |       1-3 |
@@ -210,7 +210,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                       |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                            |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                             | **6660** |  **575** | **1342** |  **153** | **89.43%** |           |
+| **TOTAL**                                                                             | **6674** |  **566** | **1348** |  **150** | **89.63%** |           |
 
 
 ## Setup coverage badge
