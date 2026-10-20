@@ -101,7 +101,7 @@ def _streaming_app(use_case, router, provider):
     async def app(scope, receive, send) -> None:
         response = StreamingResponseWithStatusCode(
             content=_as_stream_chunks(
-                use_case._format_stream(
+                use_case._relay_stream(
                     authenticated_user=_authenticated_user(),
                     router=router,
                     provider=provider,

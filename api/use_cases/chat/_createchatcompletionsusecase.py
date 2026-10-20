@@ -1,10 +1,8 @@
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from json import dumps
 
-from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
+from api.domain.chat.entities import ChatCompletion, ChatCompletionStream, CreateChatCompletionsBody
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.usage.entities import Usage
@@ -71,7 +69,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     return error
 
             return CreateChatCompletionsStreamUseCaseSuccess(
-                chunks=self._format_stream(
+                chunks=self._relay_stream(
                     authenticated_user=authenticated_user,
                     router=router,
                     provider=provider,
@@ -95,9 +93,9 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             case error:
                 return error
 
-        return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers(prompt_tokens))
+        return CreateChatCompletionsUseCaseSuccess(data=provider_response.data, headers=rate_limit_state.build_limit_headers(prompt_tokens))
 
-    async def _format_stream(
+    async def _relay_stream(
         self,
         authenticated_user: AuthenticatedUserView,
         router: Router,
@@ -106,10 +104,8 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         prompt_tokens: int,
         request_id: str,
     ) -> AsyncGenerator[ProviderChunkResponse]:
-        buffer: list[dict] = []
-        provider_usage: Usage | None = None
-        first_token_at: datetime | None = None
-        usage_is_recorded = False
+        stream = ChatCompletionStream(model=router.name, request_id=request_id)
+        completed = False
 
         async with self._inflight(provider=provider):
             async with aclosing(chunks):
@@ -119,104 +115,44 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                             yield chunk
                             return
 
-                        parsed_chunk = ChatCompletionChunk.parse_chunk(chunk=chunk.content)
-
-                        if parsed_chunk == "[DONE]":
+                        line = stream.read(chunk.content)
+                        if stream.is_done:
                             break
+                        if line is not None:
+                            yield ProviderChunkResponse(content=line, status_code=chunk.status_code)
 
-                        if parsed_chunk is None:
-                            yield ProviderChunkResponse(content=chunk.content, status_code=chunk.status_code)
-                            continue
-
-                        if parsed_chunk.get("usage"):
-                            provider_usage = Usage.model_validate(parsed_chunk["usage"])
-                            if not parsed_chunk.get("choices"):
-                                continue
-
-                        buffer.append(parsed_chunk)
-                        if first_token_at is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
-                            first_token_at = datetime.now(tz=UTC)
-
-                        relayed = {**parsed_chunk, "model": router.name, "id": request_id}
-                        yield ProviderChunkResponse(content=f"data: {dumps(relayed)}", status_code=chunk.status_code)
-
-                    usage_line = self._build_usage_line(
-                        authenticated_user=authenticated_user,
-                        router=router,
-                        provider=provider,
-                        buffer=buffer,
-                        prompt_tokens=prompt_tokens,
-                        provider_usage=provider_usage,
-                        latency=self.usage_context.elapsed_ms(),
-                        request_id=request_id,
-                        first_token_at=first_token_at,
-                    )
-                    usage_is_recorded = True
-                    yield ProviderChunkResponse(content=usage_line, status_code=200)
-                    yield ProviderChunkResponse(content="data: [DONE]", status_code=200)
+                    completed = True
                 finally:
-                    if not usage_is_recorded and buffer:
-                        self._record_stream_usage(
+                    if completed or stream.has_delivered:
+                        usage = self._record_stream_usage(
                             authenticated_user=authenticated_user,
                             router=router,
                             provider=provider,
-                            buffer=buffer,
                             prompt_tokens=prompt_tokens,
-                            provider_usage=None,
-                            latency=self.usage_context.elapsed_ms(),
-                            first_token_at=first_token_at,
+                            stream=stream,
+                            # a cut stream is billed on the tokenizer count, whether or not the client asked for running counts
+                            provider_usage=stream.provider_usage if completed else None,
                         )
 
-    def _build_usage_line(
-        self,
-        authenticated_user: AuthenticatedUserView,
-        router: Router,
-        provider: Provider,
-        buffer: list[dict],
-        prompt_tokens: int,
-        provider_usage: Usage | None,
-        latency: int,
-        request_id: str,
-        first_token_at: datetime | None,
-    ) -> str:
-        usage = self._record_stream_usage(
-            authenticated_user=authenticated_user,
-            router=router,
-            provider=provider,
-            buffer=buffer,
-            prompt_tokens=prompt_tokens,
-            provider_usage=provider_usage,
-            latency=latency,
-            first_token_at=first_token_at,
-        )
-        usage_chunk = ChatCompletionChunk.build_usage_chunk(
-            last_chunk=buffer[-1] if buffer else {},
-            request_id=request_id,
-            model=router.name,
-            usage=usage,
-        )
-        return f"data: {dumps(usage_chunk)}"
+                if completed:
+                    yield ProviderChunkResponse(content=stream.build_usage_line(usage=usage), status_code=200)
+                    yield ProviderChunkResponse(content="data: [DONE]", status_code=200)
 
     def _record_stream_usage(
         self,
         authenticated_user: AuthenticatedUserView,
         router: Router,
         provider: Provider,
-        buffer: list[dict],
         prompt_tokens: int,
+        stream: ChatCompletionStream,
         provider_usage: Usage | None,
-        latency: int,
-        first_token_at: datetime | None,
     ) -> Usage:
-        if provider_usage is not None:
-            prompt_tokens = provider_usage.prompt_tokens
-            completion_tokens = provider_usage.completion_tokens
-            cached_tokens = provider_usage.prompt_tokens_details.cached_tokens
-        else:
-            completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
-            completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
-            cached_tokens = 0
-
+        latency = self.usage_context.elapsed_ms()
+        prompt_tokens, completion_tokens, cached_tokens = self._count_tokens(
+            prompt_tokens=prompt_tokens,
+            completions=stream.completions,
+            provider_usage=provider_usage,
+        )
         usage = self._build_usage(
             provider=provider,
             router=router,
@@ -225,17 +161,9 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             cached_tokens=cached_tokens,
             latency=latency,
         )
-        ttft = self.usage_context.elapsed_ms(at=first_token_at) if first_token_at is not None else None
+        ttft = self.usage_context.elapsed_ms(at=stream.first_token_at) if stream.first_token_at is not None else None
         self.usage_context.record_usage(usage=usage, latency=latency, ttft=ttft)
         self.usage_repository.save_record(record=self.usage_context.get_record())
         self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return usage
-
-    def _build_success(
-        self,
-        command: CreateChatCompletionsCommand,
-        response: ProviderResponse,
-        headers: dict[str, str],
-    ) -> CreateChatCompletionsUseCaseSuccess:
-        return CreateChatCompletionsUseCaseSuccess(data=response.data, headers=headers)

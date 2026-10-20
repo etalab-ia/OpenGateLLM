@@ -205,14 +205,12 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         match result:
             case ProviderResponse() as provider_response:
-                if provider_response.data is not None and "usage" in provider_response.data.model_fields_set:
-                    prompt_tokens = provider_response.data.usage.prompt_tokens
-                    completion_tokens = provider_response.data.usage.completion_tokens
-                    cached_tokens = provider_response.data.usage.prompt_tokens_details.cached_tokens
-                else:
-                    completion_tokens = self.model_tokenizer.compute_tokens(texts=provider_response.get_completions())
-                    cached_tokens = 0
-
+                has_provider_usage = provider_response.data is not None and "usage" in provider_response.data.model_fields_set
+                prompt_tokens, completion_tokens, cached_tokens = self._count_tokens(
+                    prompt_tokens=prompt_tokens,
+                    completions=provider_response.get_completions(),
+                    provider_usage=provider_response.data.usage if has_provider_usage else None,
+                )
                 usage = self._build_usage(
                     provider=provider,
                     router=router,
@@ -249,6 +247,13 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         finally:
             if is_incremented:
                 await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
+
+    def _count_tokens(self, prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> tuple[int, int, int]:
+        """The provider's own counts when it reports them, else the tokenizer's: (prompt, completion, cached) tokens."""
+        if provider_usage is not None:
+            return provider_usage.prompt_tokens, provider_usage.completion_tokens, provider_usage.prompt_tokens_details.cached_tokens
+
+        return prompt_tokens, self.model_tokenizer.compute_tokens(texts=completions), 0
 
     def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, cached_tokens: int, latency: int) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(
