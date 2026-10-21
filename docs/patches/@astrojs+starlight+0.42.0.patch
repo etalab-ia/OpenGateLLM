@@ -1,6 +1,7 @@
-diff --git a/node_modules/@astrojs/starlight/user-components/Icon.astro b/node_modules/@astrojs/starlight/user-components/Icon.astro
---- a/node_modules/@astrojs/starlight/user-components/Icon.astro
-+++ b/node_modules/@astrojs/starlight/user-components/Icon.astro
+diff --git a/node_modules/@astrojs/starlight/dist/user-components/Icon.astro b/node_modules/@astrojs/starlight/dist/user-components/Icon.astro
+index 1937f24..cda887c 100644
+--- a/node_modules/@astrojs/starlight/dist/user-components/Icon.astro
++++ b/node_modules/@astrojs/starlight/dist/user-components/Icon.astro
 @@ -1,8 +1,9 @@
  ---
  import { Icons, type StarlightIcon } from '../components-internals/Icons';
@@ -12,30 +13,23 @@ diff --git a/node_modules/@astrojs/starlight/user-components/Icon.astro b/node_m
  	label?: string;
  	color?: string;
  	size?: string;
-@@ -11,6 +12,8 @@
+@@ -11,17 +12,32 @@ interface Props {
  
  const { name, label, size = '1em', color } = Astro.props;
  const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden': 'true' } as const);
 +const isExternalIcon = typeof name === 'string' && name.includes(':');
 +const astroIconName = name.startsWith('local:') ? name.slice('local:'.length) : name;
- 
- /**
-  * The fragment around the element is used as a workaround to avoid a trailing whitespace in the output.
-@@ -18,17 +21,30 @@
-  */
  ---
  
--<>
--	<svg
--		{...a11yAttrs}
--		class={Astro.props.class}
--		width="16"
--		height="16"
--		viewBox="0 0 24 24"
--		fill="currentColor"
--		set:html={Icons[name]}
--	/>
--</>
+-<svg
+-	{...a11yAttrs}
+-	class={Astro.props.class}
+-	width="16"
+-	height="16"
+-	viewBox="0 0 24 24"
+-	fill="currentColor"
+-	set:html={Icons[name]}
+-/>
 +{
 +	isExternalIcon ? (
 +		<AstroIcon
@@ -47,17 +41,15 @@ diff --git a/node_modules/@astrojs/starlight/user-components/Icon.astro b/node_m
 +			style={`font-size:${size};color:${color || 'currentColor'}`}
 +		/>
 +	) : (
-+		<>
-+			<svg
-+				{...a11yAttrs}
-+				class={Astro.props.class}
-+				width="16"
-+				height="16"
-+				viewBox="0 0 24 24"
-+				fill="currentColor"
-+				set:html={Icons[name as StarlightIcon]}
-+			/>
-+		</>
++		<svg
++			{...a11yAttrs}
++			class={Astro.props.class}
++			width="16"
++			height="16"
++			viewBox="0 0 24 24"
++			fill="currentColor"
++			set:html={Icons[name as StarlightIcon]}
++		/>
 +	)
 +}
  

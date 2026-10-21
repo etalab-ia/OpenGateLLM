@@ -69,9 +69,7 @@ export default defineConfig({
 			sidebar: [
 				{ 
 					label: 'Overview',
-					autogenerate: {
-						directory: 'overview',
-					},
+					items: [{ autogenerate: { directory: 'overview' } }],
 				},
 				{
 					label: '[lucide:mountain]Roadmap',
@@ -90,32 +88,24 @@ export default defineConfig({
 				},
 				{
 					label: 'Getting started',
-					autogenerate: {
-						directory: 'getting-started',
-					},
+					items: [{ autogenerate: { directory: 'getting-started' } }],
 				},
 				{
 					label: 'Advanced configuration',
-					autogenerate: {
-						directory: 'configuration',
-					},
+					items: [{ autogenerate: { directory: 'configuration' } }],
 				},
 				{
 					label: 'Deployment',
-					autogenerate: {
-						directory: 'deployment',
-					},
+					items: [{ autogenerate: { directory: 'deployment' } }],
 				},
 				{
 					label: 'Features',
-					autogenerate: {
-						directory: 'features',
-					},
+					items: [{ autogenerate: { directory: 'features' } }],
 				},
 				{
 					label: 'Contributing',
 					items: [
-						{ label: '[lucide:book-open] Contributing guide', autogenerate: { directory: 'contributing' } },
+						{ label: '[lucide:book-open] Contributing guide', items: [{ autogenerate: { directory: 'contributing' } }] },
 					],
 				},
 			],
