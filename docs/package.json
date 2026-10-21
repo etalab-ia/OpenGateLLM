@@ -11,6 +11,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.2",
     "@astrojs/starlight": "0.42.0",
     "@iconify-json/lobe": "npm:@proj-airi/lobe-icons@^1.0.19",
     "@iconify-json/lucide": "^1.2.105",
