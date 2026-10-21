@@ -188,14 +188,14 @@ def use_case(
     )
 
 
-class TestResolveRouter:
+class TestGetUsableRouter:
     @pytest.mark.asyncio
     async def test_should_return_repository_error_when_router_does_not_exist(self, use_case, admin_user):
         # Arrange
         use_case.router_repository.get_router_by_name_or_alias.return_value = RouterNotFoundError(name="test-router")
 
         # Act
-        result = await use_case._resolve_router(authenticated_user=admin_user, model_name_or_alias="test-router")
+        result = await use_case._get_usable_router(authenticated_user=admin_user, model_name_or_alias="test-router")
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
@@ -209,7 +209,7 @@ class TestResolveRouter:
         use_case.router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
-        result = await use_case._resolve_router(authenticated_user=admin_user, model_name_or_alias="test-router")
+        result = await use_case._get_usable_router(authenticated_user=admin_user, model_name_or_alias="test-router")
 
         # Assert
         assert isinstance(result, RouterHasNoProvidersError)
@@ -223,7 +223,7 @@ class TestResolveRouter:
         use_case.router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
-        result = await use_case._resolve_router(authenticated_user=admin_user, model_name_or_alias="test-router")
+        result = await use_case._get_usable_router(authenticated_user=admin_user, model_name_or_alias="test-router")
 
         # Assert
         assert isinstance(result, RouterHasWrongTypeError)
@@ -237,7 +237,7 @@ class TestResolveRouter:
         use_case.router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
-        result = await use_case._resolve_router(authenticated_user=user, model_name_or_alias="test-router")
+        result = await use_case._get_usable_router(authenticated_user=user, model_name_or_alias="test-router")
 
         # Assert
         assert isinstance(result, UserHasNoAccessToRouterError)
@@ -249,32 +249,32 @@ class TestResolveRouter:
         use_case.router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
-        result = await use_case._resolve_router(authenticated_user=admin_user, model_name_or_alias="test-router")
+        result = await use_case._get_usable_router(authenticated_user=admin_user, model_name_or_alias="test-router")
 
         # Assert
         assert result is router
         use_case.usage_context.record_router.assert_called_once_with(router_id=router.id, router_name=router.name)
 
 
-class TestCheckRateLimits:
+class TestGetRemainingRateLimits:
     @pytest.mark.asyncio
-    async def test_should_return_admin_rate_limit_state_without_calling_limiter_when_user_is_admin(self, use_case, admin_user, router):
+    async def test_should_return_an_unlimited_state_without_calling_limiter_when_user_is_admin(self, use_case, admin_user, router):
         # Act
-        result = await use_case._check_rate_limits(authenticated_user=admin_user, router=router, prompt_tokens=1)
+        result = await use_case._get_remaining_rate_limits(authenticated_user=admin_user, router=router, estimated_prompt_tokens=1)
 
         # Assert
-        assert result == RouterRateLimitState.admin_rate_limit_state()
+        assert result == RouterRateLimitState.unlimited()
         use_case.router_rate_limiter.get_rate_limit_state.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_rate_limit_exceeded_error_when_a_limit_is_exceeded(self, use_case, user_with_router_access, router):
         # Arrange
-        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
+        rate_limit_state = RouterRateLimitState.unlimited()
         rate_limit_state.rpm = RpmRateLimitState(value=10, remaining=0, reset=0)
         use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
 
         # Act
-        result = await use_case._check_rate_limits(authenticated_user=user_with_router_access, router=router, prompt_tokens=1)
+        result = await use_case._get_remaining_rate_limits(authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1)
 
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
@@ -292,12 +292,12 @@ class TestCheckRateLimits:
         self, use_case, user_with_router_access, router
     ):
         # Arrange
-        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
+        rate_limit_state = RouterRateLimitState.unlimited()
         rate_limit_state.tpm = TpmRateLimitState(value=100, remaining=9, reset=0)
         use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
 
         # Act
-        result = await use_case._check_rate_limits(authenticated_user=user_with_router_access, router=router, prompt_tokens=10)
+        result = await use_case._get_remaining_rate_limits(authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=10)
 
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
@@ -311,13 +311,13 @@ class TestCheckRateLimits:
         )
 
     @pytest.mark.asyncio
-    async def test_should_return_rate_limit_state_when_non_admin_user_is_within_limits(self, use_case, user_with_router_access, router):
+    async def test_should_return_the_remaining_rate_limits_when_non_admin_user_is_within_limits(self, use_case, user_with_router_access, router):
         # Arrange
-        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
+        rate_limit_state = RouterRateLimitState.unlimited()
         use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
 
         # Act
-        result = await use_case._check_rate_limits(authenticated_user=user_with_router_access, router=router, prompt_tokens=1)
+        result = await use_case._get_remaining_rate_limits(authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1)
 
         # Assert
         assert result is rate_limit_state
@@ -328,7 +328,7 @@ class TestCheckRateLimits:
         )
 
 
-class TestSendRequest:
+class TestForwardRequestToProvider:
     @pytest.fixture(autouse=True)
     def configure_provider_flow(self, use_case, provider, sample_data):
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
@@ -345,8 +345,8 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(
-            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
         )
 
         # Assert
@@ -370,8 +370,8 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = provider_error
 
         # Act
-        result = await use_case._send_request(
-            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
         )
 
         # Assert
@@ -387,8 +387,8 @@ class TestSendRequest:
 
         # Act
         with pytest.raises(TypeError):
-            await use_case._send_request(
-                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            await use_case._forward_request_to_provider(
+                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
             )
 
         # Assert
@@ -404,8 +404,8 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = validation_error
 
         # Act
-        result = await use_case._send_request(
-            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
         )
 
         # Assert
@@ -422,13 +422,13 @@ class TestSendRequest:
         use_case.usage_context.elapsed_ms.return_value = 12000
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
             # Act
-            result = await use_case._send_request(
-                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            result = await use_case._forward_request_to_provider(
+                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
             )
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert result.data is sample_data
+        assert result.data.id == sample_data.id
         assert result.data.usage == Usage(
             prompt_tokens=1,
             completion_tokens=1,
@@ -470,6 +470,7 @@ class TestSendRequest:
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
             latency=12000,
+            ttft=None,
         )
         use_case.usage_repository.save_record.assert_called_once_with(record=use_case.usage_context.get_record.return_value)
         use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
@@ -499,8 +500,8 @@ class TestSendRequest:
 
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
             # Act
-            result = await use_case._send_request(
-                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            result = await use_case._forward_request_to_provider(
+                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
             )
 
         # Assert
@@ -513,7 +514,7 @@ class TestSendRequest:
             cost_prompt_tokens=router.cost_prompt_tokens,
             cost_completion_tokens=router.cost_completion_tokens,
         )
-        use_case.usage_context.record_usage.assert_called_once_with(usage=expected_usage, latency=12000)
+        use_case.usage_context.record_usage.assert_called_once_with(usage=expected_usage, latency=12000, ttft=None)
         use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=router.id, type=LimitType.RPM, value=100)],
@@ -532,8 +533,8 @@ class TestSendRequest:
         use_case.provider_client.forward.return_value = ProviderResponse(data=provider_data)
 
         # Act
-        result = await use_case._send_request(
-            authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
         )
 
         # Assert
@@ -549,8 +550,8 @@ class TestSendRequest:
         use_case.usage_context.elapsed_ms.return_value = 12000
         # Act
         with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
-            result = await use_case._send_request(
-                authenticated_user=user_with_router_access, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            result = await use_case._forward_request_to_provider(
+                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
             )
 
         # Assert
@@ -565,12 +566,15 @@ class TestSendRequest:
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
             latency=12000,
+            ttft=None,
         )
 
     @pytest.mark.asyncio
     async def test_should_not_charge_rate_limits_when_user_is_admin(self, use_case, router, payload, admin_user):
         # Act
-        result = await use_case._send_request(authenticated_user=admin_user, router=router, prompt_tokens=1, payload=payload, request_id=REQUEST_ID)
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=admin_user, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -581,16 +585,16 @@ class TestExecute:
     @pytest.fixture(autouse=True)
     def mock_collaborator_methods(self, use_case, router, sample_data):
         formatted_response = ProviderResponse(data=sample_data)
-        use_case._resolve_router = AsyncMock(return_value=router)
-        use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
-        use_case._send_request = AsyncMock(return_value=formatted_response)
+        use_case._get_usable_router = AsyncMock(return_value=router)
+        use_case._get_remaining_rate_limits = AsyncMock(return_value=RouterRateLimitState.unlimited())
+        use_case._forward_request_to_provider = AsyncMock(return_value=formatted_response)
 
     @pytest.fixture
     def command(self, admin_user):
         return ForwardingTestCommand(payload=ForwardingTestPayload(), authenticated_user=admin_user, authenticated_key=KeyFactory())
 
     @pytest.mark.asyncio
-    async def test_should_return_check_command_error_without_resolving_the_router(self, use_case, command):
+    async def test_should_return_check_command_error_without_getting_the_router(self, use_case, command):
         # Arrange
         error = ForwardingTestPreconditionError()
         use_case._check_command = Mock(return_value=error)
@@ -601,32 +605,32 @@ class TestExecute:
         # Assert
         assert result is error
         use_case._check_command.assert_called_once_with(command=command)
-        use_case._resolve_router.assert_not_awaited()
+        use_case._get_usable_router.assert_not_awaited()
         use_case.model_tokenizer.compute_tokens.assert_not_called()
-        use_case._check_rate_limits.assert_not_awaited()
-        use_case._send_request.assert_not_awaited()
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_resolve_router_error_without_checking_rate_limits_or_sending(self, use_case, command, admin_user):
+    async def test_should_return_the_router_error_without_checking_rate_limits_or_forwarding(self, use_case, command, admin_user):
         # Arrange
         error = RouterNotFoundError(name="test-router")
-        use_case._resolve_router.return_value = error
+        use_case._get_usable_router.return_value = error
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
         assert result is error
-        use_case._resolve_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="test-router")
+        use_case._get_usable_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="test-router")
         use_case.model_tokenizer.compute_tokens.assert_not_called()
-        use_case._check_rate_limits.assert_not_awaited()
-        use_case._send_request.assert_not_awaited()
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_rate_limit_error_without_sending_request(self, use_case, command, admin_user, router):
+    async def test_should_return_rate_limit_error_without_forwarding_the_request(self, use_case, command, admin_user, router):
         # Arrange
         error = RouterRateLimitExceededError(id=router.id, limit_type=LimitType.RPM, headers={})
-        use_case._check_rate_limits.return_value = error
+        use_case._get_remaining_rate_limits.return_value = error
 
         # Act
         result = await use_case.execute(command=command)
@@ -634,29 +638,29 @@ class TestExecute:
         # Assert
         assert result is error
         use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello"])
-        use_case._check_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, prompt_tokens=1)
-        use_case._send_request.assert_not_awaited()
+        use_case._get_remaining_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, estimated_prompt_tokens=1)
+        use_case._forward_request_to_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_send_request_error(self, use_case, command, router):
+    async def test_should_return_the_provider_error(self, use_case, command, router):
         # Arrange
         error = TooBusyModelError(status_code=503, detail="busy")
-        use_case._send_request.return_value = error
+        use_case._forward_request_to_provider.return_value = error
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
         assert result is error
-        use_case._send_request.assert_awaited_once_with(
-            authenticated_user=command.authenticated_user, router=router, prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID
+        use_case._forward_request_to_provider.assert_awaited_once_with(
+            authenticated_user=command.authenticated_user, router=router, estimated_prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID
         )
 
     @pytest.mark.asyncio
     async def test_should_return_success_with_formatted_data_and_rate_limit_headers(self, use_case, command, sample_data):
         # Arrange
-        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
-        use_case._check_rate_limits.return_value = rate_limit_state
+        rate_limit_state = RouterRateLimitState.unlimited()
+        use_case._get_remaining_rate_limits.return_value = rate_limit_state
 
         # Act
         result = await use_case.execute(command=command)

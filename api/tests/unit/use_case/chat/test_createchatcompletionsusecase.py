@@ -112,13 +112,13 @@ async def _chunk_stream(*contents: str, status_code: int = 200) -> AsyncGenerato
         yield ProviderChunkResponse(content=content, status_code=status_code)
 
 
-def _relay_stream(use_case, router, provider, chunks, prompt_tokens=1):
-    return use_case._relay_stream(
+def _forward_stream_to_client(use_case, router, provider, provider_chunks, estimated_prompt_tokens=1):
+    return use_case._forward_stream_to_client(
         authenticated_user=AuthenticatedUserFactory(without_permission=True),
         router=router,
         provider=provider,
-        chunks=chunks,
-        prompt_tokens=prompt_tokens,
+        provider_chunks=provider_chunks,
+        estimated_prompt_tokens=estimated_prompt_tokens,
         request_id=REQUEST_ID,
     )
 
@@ -134,9 +134,9 @@ class TestCreateChatCompletionsUseCase:
 class TestCreateChatCompletionsUseCaseExecute:
     @pytest.fixture(autouse=True)
     def mock_collaborator_methods(self, use_case, router, sample_completion, provider):
-        use_case._resolve_router = AsyncMock(return_value=router)
-        use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
-        use_case._send_request = AsyncMock(return_value=ProviderResponse(data=sample_completion))
+        use_case._get_usable_router = AsyncMock(return_value=router)
+        use_case._get_remaining_rate_limits = AsyncMock(return_value=RouterRateLimitState.unlimited())
+        use_case._forward_request_to_provider = AsyncMock(return_value=ProviderResponse(data=sample_completion))
         use_case._select_provider = AsyncMock(return_value=provider)
         use_case.provider_client.forward_stream = AsyncMock(return_value=_chunk_stream())
 
@@ -144,16 +144,16 @@ class TestCreateChatCompletionsUseCaseExecute:
     async def test_should_call_parent_methods_and_return_success(self, use_case, make_command, admin_user, router, sample_completion):
         # Arrange
         command = make_command()
-        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
-        use_case._check_rate_limits.return_value = rate_limit_state
+        rate_limit_state = RouterRateLimitState.unlimited()
+        use_case._get_remaining_rate_limits.return_value = rate_limit_state
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
-        use_case._resolve_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias=MODEL_NAME)
+        use_case._get_usable_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias=MODEL_NAME)
         use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello"])
-        use_case._check_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, prompt_tokens=1)
+        use_case._get_remaining_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, estimated_prompt_tokens=1)
         assert isinstance(result, CreateChatCompletionsUseCaseSuccess)
         assert result.data is sample_completion
         assert result.headers == rate_limit_state.build_limit_headers(1)
@@ -168,7 +168,7 @@ class TestCreateChatCompletionsUseCaseExecute:
 
         # Assert
         assert isinstance(result, CreateChatCompletionsStreamUseCaseSuccess)
-        use_case._send_request.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()  # the generator is returned unconsumed
         forwarded_request = use_case.provider_client.forward_stream.call_args.kwargs["request"]
         assert forwarded_request.id == REQUEST_ID
@@ -195,35 +195,35 @@ class TestCreateChatCompletionsUseCaseExecute:
         assert usage_chunk["id"] == request_id
 
     @pytest.mark.asyncio
-    async def test_should_return_the_error_when_the_router_cannot_be_resolved(self, use_case, make_command):
+    async def test_should_return_the_error_when_no_usable_router_is_found(self, use_case, make_command):
         # Arrange
-        use_case._resolve_router.return_value = RouterNotFoundError(name=MODEL_NAME)
+        use_case._get_usable_router.return_value = RouterNotFoundError(name=MODEL_NAME)
 
         # Act
         result = await use_case.execute(command=make_command())
 
         # Assert
         assert result == RouterNotFoundError(name=MODEL_NAME)
-        use_case._check_rate_limits.assert_not_awaited()
+        use_case._get_remaining_rate_limits.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_rate_limit_is_exceeded(self, use_case, make_command):
         # Arrange
         error = RouterRateLimitExceededError(id=1, limit_type=LimitType.RPM, headers={})
-        use_case._check_rate_limits.return_value = error
+        use_case._get_remaining_rate_limits.return_value = error
 
         # Act
         result = await use_case.execute(command=make_command())
 
         # Assert
         assert result is error
-        use_case._send_request.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_request_fails(self, use_case, make_command):
         # Arrange
         error = TooBusyModelError(status_code=503, detail="provider busy")
-        use_case._send_request.return_value = error
+        use_case._forward_request_to_provider.return_value = error
 
         # Act
         result = await use_case.execute(command=make_command())
@@ -260,7 +260,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         )
 
         # Act
-        chunks = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3))
+        chunks = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=3)
+        )
 
         # Assert
         assert len(chunks) == 3
@@ -290,7 +292,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         # Act
         with patch("api.domain.chat.entities.datetime") as mock_datetime:
             mock_datetime.now.return_value = first_token_at
-            await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+            await self._collect(
+                _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
+            )
 
         # Assert
         mock_usage_recorder.elapsed_ms.assert_any_call(at=first_token_at)
@@ -302,7 +306,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         chunks = _chunk_stream()
 
         # Act
-        collected = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
+        )
 
         # Assert
         usage_chunk = json.loads(collected[0].content.removeprefix("data: "))
@@ -317,7 +323,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}')
 
         # Act
-        chunks = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        chunks = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
+        )
 
         # Assert
         assert len(chunks) == 3
@@ -330,7 +338,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         chunks = _chunk_stream('{"detail": "Model is too busy"}', status_code=503)
 
         # Act
-        chunks = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        chunks = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
+        )
 
         # Assert
         assert len(chunks) == 1
@@ -346,7 +356,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         chunks = _chunk_stream('data: {"id": "chat-1", "model": "provider-internal", "choices": [{"delta": {"content": "hi"}}]}', "data: [DONE]")
 
         # Act
-        collected = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
+        )
 
         # Assert
         relayed = json.loads(collected[0].content.removeprefix("data: "))
@@ -361,7 +373,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": []}', "data: [DONE]", "data: [DONE]")
 
         # Act
-        collected = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
+        )
 
         # Assert
         assert [chunk.content for chunk in collected].count("data: [DONE]") == 1
@@ -374,7 +388,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         chunks = _chunk_stream(": keep-alive", 'data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}', "data: [DONE]")
 
         # Act
-        collected = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
+        )
 
         # Assert
         assert collected[0].content == ": keep-alive"
@@ -392,7 +408,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         )
 
         # Act
-        collected = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3))
+        collected = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=3)
+        )
 
         # Assert
         assert len(collected) == 3  # the content chunk, our usage chunk, [DONE]: the provider's usage chunk is not relayed
@@ -411,7 +429,9 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         )
 
         # Act
-        collected = await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3))
+        collected = await self._collect(
+            _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=3)
+        )
 
         # Assert
         assert len(collected) == 3  # the content chunk, our usage chunk, [DONE]: the content chunk is still relayed
@@ -430,7 +450,12 @@ class TestCreateChatCompletionsUseCaseFormatStream:
             yield ProviderChunkResponse(content='{"detail": "Model is too busy"}', status_code=503)
 
         # Act
-        collected = [chunk async for chunk in _relay_stream(use_case, router=router, provider=provider, chunks=failing_stream(), prompt_tokens=3)]
+        collected = [
+            chunk
+            async for chunk in _forward_stream_to_client(
+                use_case, router=router, provider=provider, provider_chunks=failing_stream(), estimated_prompt_tokens=3
+            )
+        ]
 
         # Assert
         assert [chunk.status_code for chunk in collected] == [200, 503]
@@ -455,7 +480,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
 
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         chunks = provider_stream()  # the local reference is the point: no garbage collection can do this for us
-        stream = _relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1)
+        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
 
         # Act
         await stream.__anext__()
@@ -472,7 +497,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}', "data: [DONE]")
-        stream = _relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3)
+        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=3)
 
         # Act: read the first data chunk, then drop the generator before it reaches the usage event
         await stream.__anext__()
@@ -493,7 +518,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
             'data: {"id": "chat-1", "choices": [{"delta": {"content": " there"}}], "usage": {"prompt_tokens": 12, "completion_tokens": 9, "total_tokens": 21}}',  # fmt: off
             "data: [DONE]",
         )
-        stream = _relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3)
+        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=3)
 
         # Act: read both content chunks, then drop the generator before it reaches the usage event
         await stream.__anext__()
@@ -509,7 +534,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
     async def test_should_not_record_usage_when_the_consumer_abandons_before_any_chunk(self, use_case, router, provider, mock_usage_recorder, mock_usage_repository):  # fmt: off
         # Arrange: an SSE comment is relayed but never enters the buffer, so nothing was delivered
         chunks = _chunk_stream(": keep-alive", "data: [DONE]")
-        stream = _relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3)
+        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=3)
 
         # Act
         await stream.__anext__()
@@ -524,7 +549,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": []}', "data: [DONE]")
-        stream = _relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1)
+        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1)
 
         # Act: read one chunk, then drop the generator without exhausting it
         await stream.__anext__()
@@ -544,7 +569,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         )
 
         # Act
-        await self._collect(_relay_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        await self._collect(_forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=1))
 
         # Assert
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)

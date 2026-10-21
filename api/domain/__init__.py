@@ -19,6 +19,9 @@ UtcDatetime = Annotated[datetime, AfterValidator(_to_utc)]
 
 
 class ForwardablePayload(BaseModel, ABC):
+    """The client's request body. Only what the use case reads is declared; every other field passes through
+    to the provider, since the base model allows extra fields."""
+
     model: str | None
 
     def get_prompts(self) -> list[str]:

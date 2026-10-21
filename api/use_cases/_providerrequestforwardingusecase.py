@@ -98,26 +98,28 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         if (error := self._check_command(command=command)) is not None:
             return error
 
-        result = await self._resolve_router(authenticated_user=authenticated_user, model_name_or_alias=command.model)
+        result = await self._get_usable_router(authenticated_user=authenticated_user, model_name_or_alias=command.model)
         match result:
             case Router() as router:
                 pass
             case error:
                 return error
 
-        prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+        estimated_prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
 
-        result = await self._check_rate_limits(authenticated_user=authenticated_user, router=router, prompt_tokens=prompt_tokens)
+        result = await self._get_remaining_rate_limits(
+            authenticated_user=authenticated_user, router=router, estimated_prompt_tokens=estimated_prompt_tokens
+        )
         match result:
-            case RouterRateLimitState() as rate_limit_state:
+            case RouterRateLimitState() as remaining_rate_limits:
                 pass
             case error:
                 return error
 
-        result = await self._send_request(
+        result = await self._forward_request_to_provider(
             authenticated_user=authenticated_user,
             router=router,
-            prompt_tokens=prompt_tokens,
+            estimated_prompt_tokens=estimated_prompt_tokens,
             payload=command.payload,
             request_id=self.usage_context.get_request_id(),
         )
@@ -127,12 +129,14 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers(prompt_tokens))
+        return self._build_success(
+            command=command, response=provider_response, headers=remaining_rate_limits.build_limit_headers(estimated_prompt_tokens)
+        )
 
     def _check_command(self, command: TCommand) -> TResult | None:
         return None
 
-    async def _resolve_router(
+    async def _get_usable_router(
         self,
         authenticated_user: AuthenticatedUserView,
         model_name_or_alias: str,
@@ -155,36 +159,35 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return router
 
-    async def _check_rate_limits(
+    async def _get_remaining_rate_limits(
         self,
         authenticated_user: AuthenticatedUserView,
         router: Router,
-        prompt_tokens: int,
+        estimated_prompt_tokens: int,
     ) -> RouterRateLimitState | RouterRateLimitExceededError:
+        if authenticated_user.is_admin:
+            return RouterRateLimitState.unlimited()
 
-        if not authenticated_user.is_admin:
-            limits = [limit for limit in authenticated_user.limits if limit.router_id == router.id]
-            rate_limit_state = await self.router_rate_limiter.get_rate_limit_state(
-                user_id=authenticated_user.id,
-                router_limits=limits,
-                router_id=router.id,
+        remaining_rate_limits = await self.router_rate_limiter.get_rate_limit_state(
+            user_id=authenticated_user.id,
+            router_limits=authenticated_user.limits_for(router_id=router.id),
+            router_id=router.id,
+        )
+        exceeded_limit_types = remaining_rate_limits.exceeded_limits(prompt_tokens=estimated_prompt_tokens)
+        if exceeded_limit_types:
+            return RouterRateLimitExceededError(
+                id=router.id,
+                limit_type=exceeded_limit_types[0],
+                headers=remaining_rate_limits.build_limit_headers(estimated_prompt_tokens, charged=False),
             )
-            exceeded_limits = rate_limit_state.exceeded_limits(prompt_tokens=prompt_tokens)
-            if exceeded_limits:
-                limit_type = exceeded_limits[0]
-                return RouterRateLimitExceededError(
-                    id=router.id, limit_type=limit_type, headers=rate_limit_state.build_limit_headers(prompt_tokens, charged=False)
-                )
-        else:
-            rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
 
-        return rate_limit_state
+        return remaining_rate_limits
 
-    async def _send_request(
+    async def _forward_request_to_provider(
         self,
         authenticated_user: AuthenticatedUserView,
         router: Router,
-        prompt_tokens: int,
+        estimated_prompt_tokens: int,
         payload: ForwardablePayload,
         request_id: str,
     ) -> (
@@ -199,19 +202,18 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         provider = await self._select_provider(router=router)
         request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=payload)
 
-        async with self._inflight(provider=provider):
+        async with self._count_ongoing_request(provider=provider):
             result = await self.provider_client.forward(provider=provider, request=request)
             latency = self.usage_context.elapsed_ms()
 
         match result:
             case ProviderResponse() as provider_response:
-                has_provider_usage = provider_response.data is not None and "usage" in provider_response.data.model_fields_set
-                prompt_tokens, completion_tokens, cached_tokens = self._count_tokens(
-                    prompt_tokens=prompt_tokens,
+                prompt_tokens, completion_tokens, cached_tokens = self._get_billed_tokens(
+                    estimated_prompt_tokens=estimated_prompt_tokens,
                     completions=provider_response.get_completions(),
-                    provider_usage=provider_response.data.usage if has_provider_usage else None,
+                    provider_usage=provider_response.get_usage(),
                 )
-                usage = self._build_usage(
+                usage = self._compute_usage(
                     provider=provider,
                     router=router,
                     prompt_tokens=prompt_tokens,
@@ -220,14 +222,12 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                     latency=latency,
                 )
 
-                if provider_response.data is not None:
-                    provider_response.data.usage = usage
+                provider_response = provider_response.with_usage(usage)
 
             case error:
                 return error
 
-        self.usage_context.record_usage(usage=usage, latency=latency)
-        self.usage_repository.save_record(record=self.usage_context.get_record())
+        self._record_and_save_usage(usage=usage, latency=latency)
         self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return provider_response
@@ -240,7 +240,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         return provider
 
     @asynccontextmanager
-    async def _inflight(self, provider: Provider) -> AsyncIterator[None]:
+    async def _count_ongoing_request(self, provider: Provider) -> AsyncIterator[None]:
         is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
         try:
             yield
@@ -248,14 +248,15 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             if is_incremented:
                 await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
 
-    def _count_tokens(self, prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> tuple[int, int, int]:
-        """The provider's own counts when it reports them, else the tokenizer's: (prompt, completion, cached) tokens."""
+    def _get_billed_tokens(self, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> tuple[int, int, int]:
         if provider_usage is not None:
             return provider_usage.prompt_tokens, provider_usage.completion_tokens, provider_usage.prompt_tokens_details.cached_tokens
 
-        return prompt_tokens, self.model_tokenizer.compute_tokens(texts=completions), 0
+        return estimated_prompt_tokens, self.model_tokenizer.compute_tokens(texts=completions), 0
 
-    def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, cached_tokens: int, latency: int) -> Usage:
+    def _compute_usage(
+        self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, cached_tokens: int, latency: int
+    ) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(
             model_active_params=provider.model_active_params,
             model_total_params=provider.model_total_params,
@@ -279,13 +280,17 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             prompt_tokens_details=PromptTokensDetails(cached_tokens=cached_tokens),
         )
 
+    def _record_and_save_usage(self, usage: Usage, latency: int, ttft: int | None = None) -> None:
+        self.usage_context.record_usage(usage=usage, latency=latency, ttft=ttft)
+        self.usage_repository.save_record(record=self.usage_context.get_record())
+
     def _charge_rate_limits(self, authenticated_user: AuthenticatedUserView, router: Router, usage: Usage) -> None:
         if authenticated_user.is_admin:
             return
 
         self.router_rate_limiter.update_rate_limit_state(
             user_id=authenticated_user.id,
-            router_limits=[limit for limit in authenticated_user.limits if limit.router_id == router.id],
+            router_limits=authenticated_user.limits_for(router_id=router.id),
             router_id=router.id,
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,

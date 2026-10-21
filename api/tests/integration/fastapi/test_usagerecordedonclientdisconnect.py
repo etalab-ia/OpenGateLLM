@@ -101,12 +101,12 @@ def _streaming_app(use_case, router, provider):
     async def app(scope, receive, send) -> None:
         response = StreamingResponseWithStatusCode(
             content=_as_stream_chunks(
-                use_case._relay_stream(
+                use_case._forward_stream_to_client(
                     authenticated_user=_authenticated_user(),
                     router=router,
                     provider=provider,
-                    chunks=_provider_stream(),
-                    prompt_tokens=1,
+                    provider_chunks=_provider_stream(),
+                    estimated_prompt_tokens=1,
                     request_id="req-123",
                 )
             ),

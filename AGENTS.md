@@ -351,11 +351,11 @@ ROUTER_TYPE, ENDPOINT      class attributes
 __init__                   wiring — it sets the stage, it is not part of the narrative
 execute                    the flow
   _check_command             …in the order execute calls them
-  _resolve_router
-  _check_rate_limits
-  _send_request
-    _select_provider           one level below _send_request, its caller
-    _build_usage
+  _get_usable_router
+  _get_remaining_rate_limits
+  _forward_request_to_provider
+    _select_provider           one level below _forward_request_to_provider, its caller
+    _compute_usage
     _charge_rate_limits
   _build_success
 ```
@@ -364,7 +364,7 @@ Reference: `api/use_cases/_providerrequestforwardingusecase.py`. When a helper h
 
 ### Keep business logic inline in `execute()`
 
-Put the full business flow in a single `execute()` so it can be read top-to-bottom in one pass. A step may live in its own method **as long as its branch stays visible at the call site**: it returns `Value | Error` and `execute()` does the `match`. `_resolve_router` in the forwarding template qualifies — reading `execute()` alone tells you that resolving a router can abort the request. The method extracts the *how*, never the *whether*.
+Put the full business flow in a single `execute()` so it can be read top-to-bottom in one pass. A step may live in its own method **as long as its branch stays visible at the call site**: it returns `Value | Error` and `execute()` does the `match`. `_get_usable_router` in the forwarding template qualifies — reading `execute()` alone tells you that getting a usable router can abort the request. The method extracts the *how*, never the *whether*.
 
 What is forbidden is a helper that takes the decision away from `execute()`: one that aborts on its own behalf, or that hides a branch behind a neutral name — `_sync_user` choosing between create and update, `_handle_x` swallowing an error. **If you cannot tell, from `execute()` alone, which paths the request can take, the extraction is wrong.**
 
@@ -409,7 +409,7 @@ Two kinds, and neither is an exception to the rule above: both keep every branch
 
 Do **not** inline them. Conversely, do not introduce new hooks of this kind unless the extension point is a published, documented contract.
 
-**Template steps.** `ProviderRequestForwardingUseCase` keeps one `execute()` for every model-forward use case and lets a subclass vary its two ends, so none of them copies the shared middle. The steps it calls — `_resolve_router`, `_check_rate_limits`, `_send_request` — are extractions of the *how*: `execute()` still shows every branch. The two hooks below are its variation points:
+**Template steps.** `ProviderRequestForwardingUseCase` keeps one `execute()` for every model-forward use case and lets a subclass vary its two ends, so none of them copies the shared middle. The steps it calls — `_get_usable_router`, `_get_remaining_rate_limits`, `_forward_request_to_provider` — are extractions of the *how*: `execute()` still shows every branch. The two hooks below are its variation points:
 
 | Hook | Default | Override when |
 |------|---------|---------------|
@@ -428,7 +428,7 @@ ProviderRequestForwardingUseCase[CreateAudioTranscriptionsCommand, CreateAudioTr
 
 Do not give it a PEP 695 default: `requires-python` is `>=3.12` and type-parameter defaults are 3.13 syntax, so ruff rejects them under `target-version = "py312"`.
 
-A subclass whose **flow shape** differs writes its own `execute()` instead — an extra step that can fail mid-way, or a second exit that skips `_send_request`. `CreateChatCompletionsUseCase` does, because streaming returns before the provider call and with another success type. Do not widen the hooks to absorb that case: a hook able to short-circuit the template stops being a template step, and `execute()` stops being readable top-to-bottom.
+A subclass whose **flow shape** differs writes its own `execute()` instead — an extra step that can fail mid-way, or a second exit that skips `_forward_request_to_provider`. `CreateChatCompletionsUseCase` does, because streaming returns before the provider call and with another success type. Do not widen the hooks to absorb that case: a hook able to short-circuit the template stops being a template step, and `execute()` stops being readable top-to-bottom.
 
 ### Streaming
 
@@ -441,10 +441,10 @@ Only chat completions streams today (`api/use_cases/chat/_createchatcompletionsu
 
 Rules:
 
-- **Everything that can still become an HTTP status runs before the generator is returned** — router resolution, rate limits, provider selection, adapter build and request formatting. Once the first byte is sent the status is fixed, so an error found mid-stream can only be *yielded*, never raised.
+- **Everything that can still become an HTTP status runs before the generator is returned** — getting the router, rate limits, provider selection, adapter build and request formatting. Once the first byte is sent the status is fixed, so an error found mid-stream can only be *yielded*, never raised.
 - The split is **before the first byte vs. after**, not streamed vs. not. `forward_stream` is a coroutine returning `AsyncGenerator[ProviderChunkResponse] | ProviderClientStreamError`: failures found while preparing the call come back **typed**, exactly like `forward`, and `execute()` returns them so the endpoint's existing `match` maps them. Never re-decide an HTTP status inside the client — that duplicates the endpoint.
 - The generator is **lazy**: returning the success runs no provider call, which is what lets `execute()` stay awaitable and testable.
-- The generator yields `ProviderChunkResponse(content, status_code)` — **one SSE line without its event separator**, plus the status. That is the unit in both directions: `_httpproviderclient.py` yields the provider's lines as it reads them, and the use case yields the lines it relays, rewrites or synthesizes. Reading the lines belongs to the domain: `ChatCompletionStream` (`api/domain/chat/entities.py`) tells which line to relay and keeps what was delivered (completions, provider usage, first token time). Token counting and usage stay in the use case, and neither writes `\n\n`.
+- The generator yields `ProviderChunkResponse(content, status_code)` — **one SSE line without its event separator**, plus the status. That is the unit in both directions: `_httpproviderclient.py` yields the provider's lines as it reads them, and the use case yields the lines it relays, rewrites or synthesizes. Reading the lines belongs to the domain: `ChatCompletionStreamReader` (`api/domain/chat/entities.py`) tells which line to relay and keeps what was delivered (completions, provider usage, first token time). Token counting and usage stay in the use case, and neither writes `\n\n`.
 - **The endpoint frames the events.** `_as_stream_chunks` (`endpoints/chat.py`) turns each line into `line + "\n\n"`. Network errors → a 503 chunk stay in `_httpproviderclient.py`. A non-2xx chunk is framed by **where it lands**, and the adapter tracks that itself:
 
 | Non-2xx chunk | Sent as | Why |
@@ -452,7 +452,7 @@ Rules:
 | first — nothing written yet | the raw content, unframed | `StreamingResponseWithStatusCode` takes the response status from the **first** chunk, so this one becomes the body the client parses; framing it would corrupt it |
 | after the first byte | `event: error\ndata: <content>\n\n` | the status is already fixed and the client is reading an event stream, so the failure can only reach it as an event — same shape the class emits when it catches an exception mid-stream |
 - A non-2xx chunk ends the stream immediately and is forwarded as-is. Record the usage first when chunks were already delivered: the client received those tokens, and nothing downstream will bill them. A stream that fails before delivering anything records none, like a failed non-streamed forward.
-- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `usage_context.record_usage`, `usage_repository.save_record` and `_charge_rate_limits` there — that is the only point where a stream's usage is known. It does **not** close the request record; `RequestLogMiddleware` does, after the body (see [Usage recording](#usage-recording)).
+- The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `_record_and_save_usage` (`usage_context.record_usage`, then `usage_repository.save_record`) and `_charge_rate_limits` there — that is the only point where a stream's usage is known. It does **not** close the request record; `RequestLogMiddleware` does, after the body (see [Usage recording](#usage-recording)).
 - A provider `usage` is read from every chunk that carries one, and the latest wins: its counts replace the tokenizer's in the final usage chunk, the usage row and the rate-limit charge. A usage-only chunk (`choices: []`) is never relayed; a content chunk carrying `usage` (Mistral reports it on its last content chunk) still is. `ChatCompletionsAdapter` forces `stream_options.include_usage` so OpenAI-compatible providers send a final usage chunk. Without any — or a stream cut before one — the tokenizer counts the buffered deltas. Running counts on content chunks (vLLM `continuous_usage_stats`) are read too, so a cut stream is billed with the provider's last running count when the client asked for them.
 - **The chain closes top-down, and the order is load-bearing.** A client that disconnects leaves every generator parked on its `yield`; `async for` does not close the iterator it consumes, so each level closes the next explicitly: `stream_response`'s `finally` closes `_as_stream_chunks`, which holds its own stream in `aclosing`, which closes the use case's generator, whose `finally` records the tokens already delivered. All of it runs inside the request task, where the `ContextVar` is still the request's; the middleware's `finally` then closes the record and schedules its write. Never let a finalizer do this work: the GC schedules it as a task, and a task copies whatever context is current at creation.
 - **A `CancelledError` escaping the cleanup is expected, not a bug.** Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises as soon as it suspends — measured: the `DECR` still reaches Redis (the command is written before the cancellation lands on the reply) and the provider connection is still closed. Do not "fix" it by detaching that call: it would touch all five forwarding use cases to chase a leak that does not exist.
@@ -486,7 +486,7 @@ A model-forward request leaves two records, owned by two layers:
 
 ### Rate-limit charging
 
-Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `usage_context.record_usage`: in `_send_request`, and in chat's `_record_stream_usage` for streams. Only successful requests are charged (never a 429); admins are skipped.
+Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `_record_and_save_usage`: in `_forward_request_to_provider`, and in chat's `_bill_stream` for streams — after the loop when the stream was fully read, in its `finally` when it was cut. Only successful requests are charged (never a 429); admins are skipped.
 
 `RedisRouterRateLimiter.update_rate_limit_state` queues the Redis write on FastAPI `BackgroundTasks`. FastAPI drops those tasks when the endpoint raises an `HTTPException`: anything queued on a failed request never runs. That is why the usage row is not written that way.
 

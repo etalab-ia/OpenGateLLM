@@ -106,26 +106,26 @@ class ChatCompletionChunk(ChatCompletionChunk):
         return {**fallback, **last_chunk, "choices": [], "id": request_id, "model": model, "usage": usage.model_dump()}
 
 
-class ChatCompletionStream(BaseModel):
+class ChatCompletionStreamReader(BaseModel):
     """Reads a provider's chat completion stream one SSE line at a time: tells what to relay, and keeps what was delivered."""
 
     model: str
     request_id: str
-    completions: list[str] = []
-    last_chunk: dict | None = None
+    delivered_completions: list[str] = []
+    last_delivered_chunk: dict | None = None
     provider_usage: Usage | None = None
     first_token_at: UtcDatetime | None = None
-    is_done: bool = False
+    has_reached_stream_end: bool = False
 
     @property
-    def has_delivered(self) -> bool:
-        return self.last_chunk is not None
+    def has_delivered_chunks(self) -> bool:
+        return self.last_delivered_chunk is not None
 
     def read(self, line: str) -> str | None:
         """The line to relay, rewritten under the router name, or None when it must not reach the client."""
         chunk = ChatCompletionChunk.parse_chunk(chunk=line)
         if chunk == "[DONE]":
-            self.is_done = True
+            self.has_reached_stream_end = True
             return None
         if chunk is None:
             return line
@@ -135,9 +135,9 @@ class ChatCompletionStream(BaseModel):
             if not chunk.get("choices"):
                 return None
 
-        self.last_chunk = chunk
+        self.last_delivered_chunk = chunk
         if content := ChatCompletionChunk.extract_chunk_content(chunk=chunk):
-            self.completions.append(content)
+            self.delivered_completions.append(content)
             if self.first_token_at is None:
                 self.first_token_at = datetime.now(tz=UTC)
 
@@ -145,7 +145,7 @@ class ChatCompletionStream(BaseModel):
 
     def build_usage_line(self, usage: Usage) -> str:
         usage_chunk = ChatCompletionChunk.build_usage_chunk(
-            last_chunk=self.last_chunk or {}, request_id=self.request_id, model=self.model, usage=usage
+            last_chunk=self.last_delivered_chunk or {}, request_id=self.request_id, model=self.model, usage=usage
         )
 
         return f"data: {json.dumps(usage_chunk)}"

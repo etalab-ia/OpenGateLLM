@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+from api.domain.role.entities import Limit, LimitType
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory
 
 
@@ -32,3 +33,13 @@ class TestAuthenticatedUserViewHasExpired:
         # Act & Assert
         assert user.expires.tzinfo == UTC
         assert user.has_expired is True
+
+
+class TestAuthenticatedUserViewLimitsFor:
+    def test_should_keep_only_the_limits_of_the_router(self):
+        # Arrange
+        router_limit = Limit(router_id=1, type=LimitType.RPM, value=10)
+        user = AuthenticatedUserFactory(limits=[router_limit, Limit(router_id=2, type=LimitType.RPM, value=20)])
+
+        # Act & Assert
+        assert user.limits_for(router_id=1) == [router_limit]

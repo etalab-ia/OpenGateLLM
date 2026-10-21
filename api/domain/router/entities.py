@@ -110,7 +110,7 @@ class RouterRateLimitState(BaseModel):
         ]
 
     @classmethod
-    def admin_rate_limit_state(cls) -> "RouterRateLimitState":
+    def unlimited(cls) -> "RouterRateLimitState":
         return cls(
             tpm=TpmRateLimitState(value=None),
             tpd=TpdRateLimitState(value=None),
