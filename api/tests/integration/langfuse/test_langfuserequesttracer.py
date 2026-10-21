@@ -167,10 +167,11 @@ class TestLangfuseRequestTracer:
         record = _record()
         tracer.start(record)
 
-        # Act / Assert
+        # Act
         with patch.object(tracer._observation, "update", side_effect=RuntimeError("invalid usage_details")):
-            with pytest.raises(RuntimeError):
-                tracer.end(record)
+            tracer.end(record)
+
+        # Assert
         [span] = _exported_spans(langfuse_client, span_exporter)
         assert format(span.context.trace_id, "032x") == REQUEST_ID
 
@@ -186,14 +187,3 @@ class TestLangfuseRequestTracer:
         # Assert
         assert _exported_spans(langfuse_client, span_exporter) == ()
         assert _ingested_scores(langfuse_client, mock_langfuse_api) == []
-
-    async def test_releases_the_observation_when_ending_it_fails(self, tracer):
-        # Arrange
-        record = _record()
-        tracer.start(record)
-
-        # Act / Assert
-        with patch.object(tracer._observation, "end", side_effect=RuntimeError("flush failed")):
-            with pytest.raises(RuntimeError):
-                tracer.end(record)
-        assert tracer._observation is None

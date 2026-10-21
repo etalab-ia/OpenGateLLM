@@ -1,20 +1,18 @@
 from datetime import UTC, datetime
-import logging
 
 from api.domain.key.entities import Key
 from api.domain.usage import UsageContext
 from api.domain.usage.entities import Usage, UsageRecord
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.langfuse import LangfuseRequestTracer
 
-logger = logging.getLogger(__name__)
+from ._requesttracer import RequestTracer
 
 
 class UsageRecorder(UsageContext):
     @classmethod
     def open(
         cls,
-        tracer: LangfuseRequestTracer | None,
+        tracer: RequestTracer,
         request_id: str,
         endpoint: str,
         user: AuthenticatedUserView | None,
@@ -30,12 +28,11 @@ class UsageRecorder(UsageContext):
             key_name=key.name if key else None,
         )
         recorder = cls(tracer=tracer, record=record)
-        if tracer is not None:
-            tracer.start(record)
+        tracer.start(record)
 
         return recorder
 
-    def __init__(self, tracer: LangfuseRequestTracer | None, record: UsageRecord) -> None:
+    def __init__(self, tracer: RequestTracer, record: UsageRecord) -> None:
         self.tracer = tracer
         self.record = record
         self.is_closed = False
@@ -79,9 +76,4 @@ class UsageRecorder(UsageContext):
         if self.record.latency is None:
             self.record.latency = self.elapsed_ms()
 
-        if self.tracer is None:
-            return
-        try:
-            self.tracer.end(self.record)
-        except Exception:
-            logger.exception("Failed to trace the request.")
+        self.tracer.end(self.record)

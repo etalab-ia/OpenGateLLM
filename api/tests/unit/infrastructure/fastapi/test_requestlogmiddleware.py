@@ -14,6 +14,7 @@ from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import (
     RequestContext,
     RequestLogMiddleware,
+    RequestTracer,
     UsageRecorder,
     _requestlogmiddleware,
     record_http_exception,
@@ -21,7 +22,6 @@ from api.infrastructure.fastapi import (
 )
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.endpoints.exceptions import OrganizationAlreadyExistsHTTPException
-from api.infrastructure.langfuse import LangfuseRequestTracer
 
 
 async def get_organization():
@@ -57,7 +57,7 @@ def mock_logger(monkeypatch):
 
 @pytest.fixture
 def mock_tracer():
-    return create_autospec(LangfuseRequestTracer, instance=True, spec_set=True)
+    return create_autospec(RequestTracer, instance=True, spec_set=True)
 
 
 @pytest.fixture

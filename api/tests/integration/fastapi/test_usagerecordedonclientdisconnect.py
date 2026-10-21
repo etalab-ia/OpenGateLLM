@@ -14,10 +14,9 @@ from api.domain.router.entities import RouterType
 from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, StreamingResponseWithStatusCode, UsageRecorder
+from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, RequestTracer, StreamingResponseWithStatusCode, UsageRecorder
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.endpoints.chat import _as_stream_chunks
-from api.infrastructure.langfuse import LangfuseRequestTracer
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
 from api.use_cases.chat import CreateChatCompletionsUseCase
 
@@ -50,7 +49,7 @@ def mock_usage_repository():
 
 @pytest.fixture
 def mock_tracer():
-    return create_autospec(LangfuseRequestTracer, instance=True, spec_set=True)
+    return create_autospec(RequestTracer, instance=True, spec_set=True)
 
 
 @pytest.fixture

@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-import logging
 from unittest.mock import create_autospec
 
 import pytest
@@ -7,18 +6,17 @@ import pytest
 from api.domain.key.entities import Key
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import UsageRecorder, _usagerecorder
-from api.infrastructure.langfuse import LangfuseRequestTracer
+from api.infrastructure.fastapi import RequestTracer, UsageRecorder
 
 USER_ID = 42
 
 
 @pytest.fixture
 def mock_tracer():
-    return create_autospec(LangfuseRequestTracer, instance=True, spec_set=True)
+    return create_autospec(RequestTracer, instance=True, spec_set=True)
 
 
-def _open(tracer: LangfuseRequestTracer | None) -> UsageRecorder:
+def _open(tracer: RequestTracer) -> UsageRecorder:
     now = datetime.now(tz=UTC)
 
     return UsageRecorder.open(
@@ -131,25 +129,3 @@ class TestClose:
         # Assert
         assert recorder.record.status == 200
         mock_tracer.end.assert_called_once()
-
-    def test_should_log_a_trace_that_fails_instead_of_failing_the_request(self, recorder, mock_tracer, monkeypatch):
-        # Arrange
-        mock_logger = create_autospec(logging.Logger, instance=True, spec_set=True)
-        monkeypatch.setattr(_usagerecorder, "logger", mock_logger)
-        mock_tracer.end.side_effect = RuntimeError("Langfuse is down")
-
-        # Act
-        recorder.close(status_code=200)
-
-        # Assert
-        mock_logger.exception.assert_called_once_with("Failed to trace the request.")
-
-    def test_should_close_without_a_tracer_when_langfuse_is_not_configured(self):
-        # Arrange
-        recorder = _open(tracer=None)
-
-        # Act
-        recorder.close(status_code=200)
-
-        # Assert
-        assert recorder.is_closed

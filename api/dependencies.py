@@ -24,7 +24,7 @@ from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, get_configuration
 from api.infrastructure.context import global_context
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
-from api.infrastructure.fastapi import UsageRecorder
+from api.infrastructure.fastapi import NoOpRequestTracer, UsageRecorder
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
@@ -206,11 +206,9 @@ def _usage_repository(postgres_session: AutocommitSession = Depends(get_autocomm
 
 
 def _usage_recorder(request: Request) -> UsageContext:
-    """Opens the usage record of a model-forward request. RequestLogMiddleware closes it, and the use case only ever
-    sees the narrower UsageContext port."""
     context = request_context.get()
     recorder = UsageRecorder.open(
-        tracer=LangfuseRequestTracer(client=global_context.langfuse) if global_context.langfuse is not None else None,
+        tracer=LangfuseRequestTracer(client=global_context.langfuse) if global_context.langfuse is not None else NoOpRequestTracer(),
         request_id=context.id,
         # the matched route, so usage.endpoint keeps the value GET /v1/usage filters on
         endpoint=request.scope["route"].path,
