@@ -26,5 +26,9 @@ class UsageContext(ABC):
         pass
 
     @abstractmethod
+    def record_error(self, error: str) -> None:
+        pass
+
+    @abstractmethod
     def get_record(self) -> UsageRecord:
         pass

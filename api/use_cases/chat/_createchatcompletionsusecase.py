@@ -3,6 +3,7 @@ from contextlib import aclosing
 from dataclasses import dataclass
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionStreamReader, CreateChatCompletionsBody
+from api.domain.model.errors import StatusCodeModelError
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.usage.entities import Usage
@@ -116,6 +117,8 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 try:
                     async for chunk in provider_chunks:
                         if chunk.status_code // 100 != 2:
+                            # a stream that already answered 200 fails without any exception the middleware could see
+                            self.usage_context.record_error(error=StatusCodeModelError.__name__)
                             yield chunk
                             return
 

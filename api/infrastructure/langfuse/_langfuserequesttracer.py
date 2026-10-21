@@ -38,19 +38,20 @@ class LangfuseRequestTracer:
             logger.warning("Cannot end Langfuse observation: no active observation (start_observation likely failed)")
             return
 
+        observation, self._observation = self._observation, None
         try:
-            self._observation.update(**self._build_update(record))
+            observation.update(**self._build_update(record))
             if (usage := record.usage) is not None:
-                self._observation.score(name=_KWH_SCORE_COLUMN, value=usage.impacts.kWh, data_type="NUMERIC")
-                self._observation.score(name=_KGCO2EQ_SCORE_COLUMN, value=usage.impacts.kgCO2eq, data_type="NUMERIC")
-            self._observation.end()
+                observation.score(name=_KWH_SCORE_COLUMN, value=usage.impacts.kWh, data_type="NUMERIC")
+                observation.score(name=_KGCO2EQ_SCORE_COLUMN, value=usage.impacts.kgCO2eq, data_type="NUMERIC")
         finally:
-            self._observation = None
+            # an observation left open is never exported, and the failed request would vanish from Langfuse
+            observation.end()
 
     def _build_update(self, record: UsageRecord) -> dict:
         update: dict = {"model": record.router_name, "metadata": self._metadata(record)}
 
-        if record.status is None or record.status // 100 != 2:
+        if record.status is None or record.status // 100 != 2 or record.error is not None:
             update["level"] = "ERROR"
             update["status_message"] = record.error
         if record.ttft is not None:

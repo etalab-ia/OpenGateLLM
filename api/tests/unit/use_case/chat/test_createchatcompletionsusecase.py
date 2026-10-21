@@ -345,6 +345,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         # Assert
         assert len(chunks) == 1
         assert chunks[0].status_code == 503
+        use_case.usage_context.record_error.assert_called_once_with(error="StatusCodeModelError")
         use_case.usage_context.record_usage.assert_not_called()
         use_case.router_rate_limiter.update_rate_limit_state.assert_not_called()
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
@@ -460,6 +461,7 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         # Assert
         assert [chunk.status_code for chunk in collected] == [200, 503]
         assert all("usage" not in chunk.content for chunk in collected), "an error chunk must not be followed by a usage event"
+        mock_usage_recorder.record_error.assert_called_once_with(error="StatusCodeModelError")
         mock_usage_recorder.record_usage.assert_called_once()
         recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
         assert recorded.prompt_tokens == 3

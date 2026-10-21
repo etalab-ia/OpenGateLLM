@@ -149,6 +149,31 @@ class TestLangfuseRequestTracer:
         assert span.attributes["langfuse.observation.status_message"] == "TooBusyModelError"
         assert _ingested_scores(langfuse_client, mock_langfuse_api) == []
 
+    async def test_marks_the_generation_as_error_when_a_stream_failed_after_answering_200(self, tracer, langfuse_client, span_exporter):
+        # Arrange
+        record = _record(status=200, error="StatusCodeModelError")
+
+        # Act
+        tracer.start(record)
+        tracer.end(record)
+
+        # Assert
+        [span] = _exported_spans(langfuse_client, span_exporter)
+        assert span.attributes["langfuse.observation.level"] == "ERROR"
+        assert span.attributes["langfuse.observation.status_message"] == "StatusCodeModelError"
+
+    async def test_still_exports_the_generation_when_updating_it_fails(self, tracer, langfuse_client, span_exporter):
+        # Arrange
+        record = _record()
+        tracer.start(record)
+
+        # Act / Assert
+        with patch.object(tracer._observation, "update", side_effect=RuntimeError("invalid usage_details")):
+            with pytest.raises(RuntimeError):
+                tracer.end(record)
+        [span] = _exported_spans(langfuse_client, span_exporter)
+        assert format(span.context.trace_id, "032x") == REQUEST_ID
+
     async def test_exports_nothing_when_opening_the_observation_fails(self, tracer, langfuse_client, span_exporter, mock_langfuse_api):
         # Arrange
         record = _record()

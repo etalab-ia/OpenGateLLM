@@ -60,6 +60,9 @@ class UsageRecorder(UsageContext):
         if ttft is not None:
             self.record.ttft = ttft
 
+    def record_error(self, error: str) -> None:
+        self.record.error = error
+
     def get_record(self) -> UsageRecord:
         # a copy, so that closing the request does not change a row already handed to the repository
         return self.record.model_copy(deep=True)
@@ -71,7 +74,8 @@ class UsageRecorder(UsageContext):
 
         if status_code is not None:
             self.record.status = status_code
-        self.record.error = error
+        if error is not None:
+            self.record.error = error
         if self.record.latency is None:
             self.record.latency = self.elapsed_ms()
 

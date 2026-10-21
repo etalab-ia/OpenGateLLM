@@ -113,6 +113,16 @@ class TestClose:
         assert recorder.record.error == "NoAvailableProviderError"
         assert recorder.record.latency is not None
 
+    def test_should_keep_the_error_the_use_case_recorded_when_the_middleware_saw_none(self, recorder):
+        # Arrange
+        recorder.record_error(error="StatusCodeModelError")
+
+        # Act
+        recorder.close(status_code=200)
+
+        # Assert
+        assert (recorder.record.status, recorder.record.error) == (200, "StatusCodeModelError")
+
     def test_should_end_the_trace_once_only(self, recorder, mock_tracer):
         # Act
         recorder.close(status_code=200)
