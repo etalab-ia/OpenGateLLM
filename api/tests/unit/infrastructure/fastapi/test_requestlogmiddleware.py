@@ -61,13 +61,23 @@ def mock_tracer():
 
 
 @pytest.fixture
-def usage_recorder(mock_tracer) -> UsageRecorder:
+def user() -> AuthenticatedUserView:
+    return AuthenticatedUserView(id=42, email="alice@example.com", name="Alice", organization_id=1, permissions=[], limits=[], expires=None)
+
+
+@pytest.fixture
+def key() -> Key:
+    return Key(id=5, name="my-key", user_id=42, value="sk-...", expires=None, created=datetime.now(tz=UTC))
+
+
+@pytest.fixture
+def usage_recorder(mock_tracer, user, key) -> UsageRecorder:
     recorder = UsageRecorder.open(
         tracer=mock_tracer,
         request_id="3f2a",
         endpoint="/v1/chat/completions",
-        user=None,
-        key=None,
+        user=user,
+        key=key,
     )
     recorder.record_router(router_id=1, router_name="my-router")
 
@@ -75,9 +85,7 @@ def usage_recorder(mock_tracer) -> UsageRecorder:
 
 
 @pytest_asyncio.fixture(loop_scope="function", autouse=True)
-async def authenticated_request_context(usage_recorder):
-    user = AuthenticatedUserView(id=42, email="alice@example.com", name="Alice", organization_id=1, permissions=[], limits=[], expires=None)
-    key = Key(id=5, name="my-key", user_id=42, value="sk-...", expires=None, created=datetime.now(tz=UTC))
+async def authenticated_request_context(usage_recorder, user, key):
     token = request_context.set(RequestContext(id="3f2a", user=user, key=key, usage_recorder=usage_recorder))
     yield
     request_context.reset(token)

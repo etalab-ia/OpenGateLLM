@@ -15,17 +15,17 @@ class UsageRecorder(UsageContext):
         tracer: RequestTracer,
         request_id: str,
         endpoint: str,
-        user: AuthenticatedUserView | None,
-        key: Key | None,
+        user: AuthenticatedUserView,
+        key: Key,
     ) -> "UsageRecorder":
         record = UsageRecord(
             request_id=request_id,
             endpoint=endpoint,
             created=datetime.now(tz=UTC),
-            user_id=user.id if user else None,
-            user_email=user.email if user else None,
-            key_id=key.id if key else None,
-            key_name=key.name if key else None,
+            user_id=user.id,
+            user_email=user.email,
+            key_id=key.id,
+            key_name=key.name,
         )
         recorder = cls(tracer=tracer, record=record)
         tracer.start(record)
@@ -54,8 +54,7 @@ class UsageRecorder(UsageContext):
     def record_usage(self, usage: Usage, latency: int, ttft: int | None = None) -> None:
         self.record.usage = usage
         self.record.latency = latency
-        if ttft is not None:
-            self.record.ttft = ttft
+        self.record.ttft = ttft
 
     def record_error(self, error: str) -> None:
         self.record.error = error
@@ -69,8 +68,7 @@ class UsageRecorder(UsageContext):
             return
         self.is_closed = True
 
-        if status_code is not None:
-            self.record.status = status_code
+        self.record.status = status_code
         if error is not None:
             self.record.error = error
         if self.record.latency is None:
