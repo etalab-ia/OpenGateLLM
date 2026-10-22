@@ -71,7 +71,7 @@ class ChatCompletionChunk(ChatCompletionChunk):
         if not chunk.startswith("data: "):
             return None
 
-        chunk = chunk.split("data: ")[1].strip()
+        chunk = chunk.removeprefix("data: ").strip()
         if not chunk:
             return None
         if chunk == "[DONE]":

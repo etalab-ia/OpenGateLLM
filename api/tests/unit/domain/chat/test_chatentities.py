@@ -160,6 +160,18 @@ class TestChatCompletionStreamReader:
         assert stream_reader.delivered_completions == ["hi"]
         assert stream_reader.has_delivered_chunks
 
+    def test_should_relay_and_count_a_content_chunk_whose_text_contains_the_data_prefix(self):
+        stream_reader = _stream_reader()
+
+        line = stream_reader.read('data: {"id": "chat-1", "model": "provider-internal", "choices": [{"delta": {"content": "see data: here"}}]}')
+
+        assert json.loads(line.removeprefix("data: ")) == {
+            "id": "req-1",
+            "model": "chat-router",
+            "choices": [{"delta": {"content": "see data: here"}}],
+        }
+        assert stream_reader.delivered_completions == ["see data: here"]
+
     def test_should_stop_at_the_done_sentinel_without_relaying_it(self):
         stream_reader = _stream_reader()
 
