@@ -21,10 +21,10 @@ from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTy
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_audio_transcriptions_responses
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.vllm import VllmAudioTranscriptionsResponseFactory
+from api.tests.integration.globalcontext import override_global_context
 from api.use_cases.audio import CreateAudioTranscriptionsTextUseCaseSuccess
 
 URL = f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}"

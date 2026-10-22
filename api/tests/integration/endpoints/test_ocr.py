@@ -24,10 +24,10 @@ from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres import PostgresUsageRepository
 from api.infrastructure.postgres.models import Usage as UsageTable
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.globalcontext import override_global_context
 
 URL = f"/v1{EndpointRoute.OCR}"
 
