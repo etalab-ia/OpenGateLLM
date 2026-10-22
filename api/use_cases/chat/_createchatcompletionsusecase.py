@@ -1,12 +1,13 @@
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 from dataclasses import dataclass
+from datetime import datetime
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionStreamReader, CreateChatCompletionsBody
 from api.domain.model.errors import StatusCodeModelError
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
-from api.domain.usage.entities import Usage
+from api.domain.usage.entities import BilledTokens, Usage
 from api.domain.user.views import AuthenticatedUserView
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 
@@ -132,23 +133,31 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 finally:
                     stream_was_cut_after_delivery = not stream_was_fully_read and stream_reader.has_delivered_chunks
                     if stream_was_cut_after_delivery:
+                        billed_tokens_from_tokenizer = self._get_billed_tokens(
+                            estimated_prompt_tokens=estimated_prompt_tokens,
+                            completions=stream_reader.delivered_completions,
+                            provider_usage=None,
+                        )
                         self._bill_stream(
                             authenticated_user=authenticated_user,
                             router=router,
                             provider=provider,
-                            estimated_prompt_tokens=estimated_prompt_tokens,
-                            stream_reader=stream_reader,
-                            provider_usage=None,
+                            billed_tokens=billed_tokens_from_tokenizer,
+                            first_token_at=stream_reader.first_token_at,
                         )
 
                 if stream_was_fully_read:
+                    billed_tokens = self._get_billed_tokens(
+                        estimated_prompt_tokens=estimated_prompt_tokens,
+                        completions=stream_reader.delivered_completions,
+                        provider_usage=stream_reader.provider_usage,
+                    )
                     usage = self._bill_stream(
                         authenticated_user=authenticated_user,
                         router=router,
                         provider=provider,
-                        estimated_prompt_tokens=estimated_prompt_tokens,
-                        stream_reader=stream_reader,
-                        provider_usage=stream_reader.provider_usage,
+                        billed_tokens=billed_tokens,
+                        first_token_at=stream_reader.first_token_at,
                     )
                     yield ProviderChunkResponse(content=stream_reader.build_usage_line(usage=usage), status_code=200)
                     yield ProviderChunkResponse(content="data: [DONE]", status_code=200)
@@ -158,45 +167,13 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         authenticated_user: AuthenticatedUserView,
         router: Router,
         provider: Provider,
-        estimated_prompt_tokens: int,
-        stream_reader: ChatCompletionStreamReader,
-        provider_usage: Usage | None,
+        billed_tokens: BilledTokens,
+        first_token_at: datetime | None,
     ) -> Usage:
         latency = self.usage_context.elapsed_ms()
-        usage = self._compute_stream_usage(
-            router=router,
-            provider=provider,
-            estimated_prompt_tokens=estimated_prompt_tokens,
-            stream_reader=stream_reader,
-            provider_usage=provider_usage,
-            latency=latency,
-        )
-        ttft = self.usage_context.elapsed_ms(at=stream_reader.first_token_at) if stream_reader.first_token_at is not None else None
+        usage = self._compute_usage(provider=provider, router=router, billed_tokens=billed_tokens, latency=latency)
+        ttft = self.usage_context.elapsed_ms(at=first_token_at) if first_token_at is not None else None
         self._record_and_save_usage(usage=usage, latency=latency, ttft=ttft)
         self._charge_rate_limits(authenticated_user=authenticated_user, router=router, usage=usage)
 
         return usage
-
-    def _compute_stream_usage(
-        self,
-        router: Router,
-        provider: Provider,
-        estimated_prompt_tokens: int,
-        stream_reader: ChatCompletionStreamReader,
-        provider_usage: Usage | None,
-        latency: int,
-    ) -> Usage:
-        prompt_tokens, completion_tokens, cached_tokens = self._get_billed_tokens(
-            estimated_prompt_tokens=estimated_prompt_tokens,
-            completions=stream_reader.delivered_completions,
-            provider_usage=provider_usage,
-        )
-
-        return self._compute_usage(
-            provider=provider,
-            router=router,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            cached_tokens=cached_tokens,
-            latency=latency,
-        )

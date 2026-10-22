@@ -21,7 +21,7 @@ from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
-from api.domain.usage.entities import PromptTokensDetails, Usage
+from api.domain.usage.entities import BilledTokens, PromptTokensDetails, Usage
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 
@@ -208,19 +208,12 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         match result:
             case ProviderResponse() as provider_response:
-                prompt_tokens, completion_tokens, cached_tokens = self._get_billed_tokens(
+                billed_tokens = self._get_billed_tokens(
                     estimated_prompt_tokens=estimated_prompt_tokens,
                     completions=provider_response.get_completions(),
                     provider_usage=provider_response.get_usage(),
                 )
-                usage = self._compute_usage(
-                    provider=provider,
-                    router=router,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    cached_tokens=cached_tokens,
-                    latency=latency,
-                )
+                usage = self._compute_usage(provider=provider, router=router, billed_tokens=billed_tokens, latency=latency)
 
                 provider_response = provider_response.with_usage(usage)
 
@@ -248,36 +241,38 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             if is_incremented:
                 await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
 
-    def _get_billed_tokens(self, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> tuple[int, int, int]:
-        if provider_usage is not None:
-            return provider_usage.prompt_tokens, provider_usage.completion_tokens, provider_usage.prompt_tokens_details.cached_tokens
+    def _get_billed_tokens(self, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> BilledTokens:
+        if provider_usage is None:
+            return BilledTokens(prompt_tokens=estimated_prompt_tokens, completion_tokens=self.model_tokenizer.compute_tokens(texts=completions))
 
-        return estimated_prompt_tokens, self.model_tokenizer.compute_tokens(texts=completions), 0
+        return BilledTokens(
+            prompt_tokens=provider_usage.prompt_tokens,
+            completion_tokens=provider_usage.completion_tokens,
+            cached_tokens=provider_usage.prompt_tokens_details.cached_tokens,
+        )
 
-    def _compute_usage(
-        self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, cached_tokens: int, latency: int
-    ) -> Usage:
+    def _compute_usage(self, provider: Provider, router: Router, billed_tokens: BilledTokens, latency: int) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(
             model_active_params=provider.model_active_params,
             model_total_params=provider.model_total_params,
             model_zone=provider.model_hosting_zone,
-            completion_tokens=completion_tokens,
+            completion_tokens=billed_tokens.completion_tokens,
             request_latency=latency,
         )
         cost = Usage.compute_request_cost(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
+            prompt_tokens=billed_tokens.prompt_tokens,
+            completion_tokens=billed_tokens.completion_tokens,
             cost_prompt_tokens=router.cost_prompt_tokens,
             cost_completion_tokens=router.cost_completion_tokens,
         )
 
         return Usage(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=prompt_tokens + completion_tokens,
+            prompt_tokens=billed_tokens.prompt_tokens,
+            completion_tokens=billed_tokens.completion_tokens,
+            total_tokens=billed_tokens.prompt_tokens + billed_tokens.completion_tokens,
             cost=cost,
             impacts=environmental_impacts,
-            prompt_tokens_details=PromptTokensDetails(cached_tokens=cached_tokens),
+            prompt_tokens_details=PromptTokensDetails(cached_tokens=billed_tokens.cached_tokens),
         )
 
     def _record_and_save_usage(self, usage: Usage, latency: int, ttft: int | None = None) -> None:

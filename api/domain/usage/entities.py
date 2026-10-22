@@ -17,6 +17,12 @@ class PromptTokensDetails(BaseModel):
     cached_tokens: int = 0
 
 
+class BilledTokens(BaseModel):
+    prompt_tokens: int
+    completion_tokens: int
+    cached_tokens: int = 0
+
+
 class Usage(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
