@@ -164,12 +164,12 @@ class TestCreateChatCompletions:
         router_id = router.id
         user_id = self.user.id
         mock_chat_completions_stream(respx_mock=respx, provider_type=ProviderType.VLLM, lines=STREAM_LINES)
-        first_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
-        assert first_response.status_code == 200, first_response.text
+        allowed_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
+        assert allowed_response.status_code == 200, allowed_response.text
 
-        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
+        rate_limited_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
 
-        assert response.status_code == 429, response.text
+        assert rate_limited_response.status_code == 429, rate_limited_response.text
         state = await self._get_rate_limit_state(router_rate_limiter, router_id=router_id, user_id=user_id, limits=limits)
         assert state.rpd.remaining == limits[LimitType.RPD] - 1
 

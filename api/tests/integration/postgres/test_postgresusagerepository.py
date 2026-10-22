@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import EntitiesPage
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage, UsageBucket, UsageRecord
+from api.infrastructure.context import global_context
 from api.infrastructure.postgres import PostgresUsageRepository, _postgresusagerepository
 from api.infrastructure.postgres.models import Usage as UsageTable
-from api.tests.integration.conftest import CurrentDbSessionFactory
 from api.tests.integration.factories.sql import KeySQLFactory, ProviderSQLFactory, UsageSQLFactory, UserSQLFactory
 
 CHAT_COMPLETIONS = "/v1/chat/completions"
@@ -35,7 +35,7 @@ def _usage() -> Usage:
 
 @pytest.fixture
 def repository(db_session):
-    return PostgresUsageRepository(postgres_session=db_session, session_factory=CurrentDbSessionFactory())
+    return PostgresUsageRepository(postgres_session=db_session, session_factory=global_context.autocommit_postgres_session_factory)
 
 
 async def _seed(db_session):

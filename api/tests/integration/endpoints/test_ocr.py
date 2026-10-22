@@ -186,15 +186,15 @@ class TestCreateOCR:
             body=MistralOcrResponseFactory(page_count=1),
             status_code=MistralOcrResponseFactory._status_code,
         )
-        first_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
-        assert first_response.status_code == 200, first_response.text
-        total_tokens = first_response.json()["usage"]["total_tokens"]
+        allowed_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+        assert allowed_response.status_code == 200, allowed_response.text
+        total_tokens = allowed_response.json()["usage"]["total_tokens"]
 
         # Act
-        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+        rate_limited_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
 
-        # Assert: only the first request is counted
-        assert response.status_code == 429, response.text
+        # Assert: only the allowed request is counted
+        assert rate_limited_response.status_code == 429, rate_limited_response.text
         state = await self._get_rate_limit_state(router_rate_limiter, router_id=router_id, user_id=user_id, limits=limits)
         assert state.rpm.remaining == 0
         assert state.rpd.remaining == limits[LimitType.RPD] - 1

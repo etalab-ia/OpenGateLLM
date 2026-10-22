@@ -1,7 +1,6 @@
 import asyncio
-from collections.abc import AsyncGenerator
-from contextlib import contextmanager
-from contextvars import ContextVar
+from collections.abc import AsyncGenerator, AsyncIterator, Iterator
+from contextlib import AbstractAsyncContextManager, asynccontextmanager, contextmanager
 import os
 
 import asyncpg
@@ -11,14 +10,14 @@ import pytest
 import pytest_asyncio
 import redis.asyncio as redis
 from sqlalchemy import event, make_url
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, create_async_engine
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
 from api.domain.router import RouterRateLimiter
 from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
 from api.infrastructure.context import GlobalContext, global_context
-from api.infrastructure.postgres._postgresusagerepository import _pending_saves
+from api.infrastructure.postgres import PostgresUsageRepository
 from api.infrastructure.postgres.models import Base
 from api.infrastructure.redis import RedisRouterRateLimiter
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
@@ -46,7 +45,7 @@ def _test_redis_url() -> str:
 TEST_POSTGRES_URL = _test_postgres_url()
 TEST_REDIS_URL = _test_redis_url()
 
-_current_db_session: ContextVar[AsyncSession | None] = ContextVar("_current_db_session", default=None)
+_shared_test_session: "SharedTestSession | None" = None
 
 
 @pytest.fixture(scope="session")
@@ -189,59 +188,89 @@ def pytest_addoption(parser):
     )
 
 
-_REQUESTS_HOLDING_THE_SESSION = "requests_holding_the_session"
+class SharedTestSession:
+    """In production, HTTP requests and usage saves each take a session from the pool. Here they share the test session,
+    which cannot run two operations at once. A usage save runs in its own asyncio task, which outlives the request, so
+    they take turns: a usage save waits for the HTTP requests using the session, an HTTP request waits for the usage
+    saves. Counters rather than a lock: one HTTP request takes the session through two dependencies."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self._turns = asyncio.Condition()
+        self._http_requests_using_session = 0
+        self._usage_saves_using_session = 0
+
+    @asynccontextmanager
+    async def session_for_http_request(self) -> AsyncIterator[AsyncSession]:
+        async with self._turns:
+            await self._turns.wait_for(lambda: self._usage_saves_using_session == 0)
+            self._http_requests_using_session += 1
+        try:
+            yield self.session
+        finally:
+            async with self._turns:
+                self._http_requests_using_session -= 1
+                self._turns.notify_all()
+
+    @asynccontextmanager
+    async def session_for_usage_save(self) -> AsyncIterator[AsyncSession]:
+        async with self._turns:
+            await self._turns.wait_for(lambda: self._http_requests_using_session == 0)
+            self._usage_saves_using_session += 1
+        try:
+            yield self.session
+        finally:
+            async with self._turns:
+                self._usage_saves_using_session -= 1
+                self._turns.notify_all()
 
 
-class CurrentDbSessionFactory:
-    def __call__(self) -> "CurrentDbSessionFactory":
-        return self
-
-    async def __aenter__(self) -> AsyncSession:
-        # In production every session comes from the pool, here they all share the test session: a usage save scheduled
-        # mid-request must wait for the request to release it, or both would drive one AsyncSession at once.
-        session = _current_db_session.get()
-        while session.info.get(_REQUESTS_HOLDING_THE_SESSION):
-            await asyncio.sleep(0.001)
-        return session
-
-    async def __aexit__(self, *_) -> bool:
-        return False
-
-
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def _bind_session_factories_to_the_test_session() -> AsyncGenerator[None]:
-    factory = CurrentDbSessionFactory()
-    with override_global_context(postgres_session_factory=factory, autocommit_postgres_session_factory=factory):
-        yield
+def _shared_session_for_usage_save() -> AbstractAsyncContextManager[AsyncSession]:
+    return _shared_test_session.session_for_usage_save()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSession]:
     async with test_postgres_engine.connect() as connection:
-        postgres_outer_transaction = await connection.begin()
-
-        session = AsyncSession(bind=connection, expire_on_commit=False)
-        await session.begin_nested()
-
-        @event.listens_for(session.sync_session, "after_transaction_end")
-        def restart_savepoint(sess, trans):
-            if trans.nested and not trans._parent.nested:
-                sess.begin_nested()
-
-        token = _current_db_session.set(session)
-        with bind_sql_factories(session):
-            try:
+        test_transaction = await connection.begin()
+        async with _nested_session(connection) as session:
+            with _connect_the_app_and_the_factories_to(session):
                 yield session
-            finally:
-                if _pending_saves:
-                    await asyncio.gather(*tuple(_pending_saves), return_exceptions=True)
-                _current_db_session.reset(token)
-                event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
-                await session.close()
-                if request.config.getoption("--commit-db"):
-                    await postgres_outer_transaction.commit()
-                else:
-                    await postgres_outer_transaction.rollback()
+                await PostgresUsageRepository.wait_for_pending_saves(timeout=5)
+        if request.config.getoption("--commit-db"):
+            await test_transaction.commit()
+        else:
+            await test_transaction.rollback()
+
+
+@asynccontextmanager
+async def _nested_session(connection: AsyncConnection) -> AsyncIterator[AsyncSession]:
+    """The code under test commits: each commit only releases a savepoint, and a new one opens right after, so the
+    test transaction stays open until the teardown rolls it back."""
+    session = AsyncSession(bind=connection, expire_on_commit=False)
+    await session.begin_nested()
+
+    @event.listens_for(session.sync_session, "after_transaction_end")
+    def restart_savepoint(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
+    try:
+        yield session
+    finally:
+        event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
+        await session.close()
+
+
+@contextmanager
+def _connect_the_app_and_the_factories_to(session: AsyncSession) -> Iterator[None]:
+    global _shared_test_session
+    _shared_test_session = SharedTestSession(session)
+    try:
+        with bind_sql_factories(session), override_global_context(autocommit_postgres_session_factory=_shared_session_for_usage_save):
+            yield
+    finally:
+        _shared_test_session = None
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -258,18 +287,15 @@ async def app(test_configuration, test_redis_pool):
     app = create_app(test_configuration, skip_lifespan=True)
 
     async def override_get_postgres_session():
-        session = _current_db_session.get()
-        session.info[_REQUESTS_HOLDING_THE_SESSION] = session.info.get(_REQUESTS_HOLDING_THE_SESSION, 0) + 1
-        try:
-            yield session
-            if session.in_transaction():
-                await session.flush()
-        except Exception:
-            if session.in_transaction():
-                await session.rollback()
-            raise
-        finally:
-            session.info[_REQUESTS_HOLDING_THE_SESSION] -= 1
+        async with _shared_test_session.session_for_http_request() as session:
+            try:
+                yield session
+                if session.in_transaction():
+                    await session.flush()
+            except Exception:
+                if session.in_transaction():
+                    await session.rollback()
+                raise
 
     async def override_get_redis_client():
         client = redis.Redis(connection_pool=test_redis_pool)
