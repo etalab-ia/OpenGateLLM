@@ -145,7 +145,7 @@ class TestWaitForPendingSaves:
         # Arrange
         release = asyncio.Event()
         repository = PostgresUsageRepository(postgres_session=db_session, session_factory=_BlockingSessionFactory(release))
-        repository.save_record(UsageRecord(request_id="3f2a", endpoint=CHAT_COMPLETIONS, created=CREATED))
+        repository.save_record(UsageRecord(request_id="3f2a", endpoint=CHAT_COMPLETIONS, created=CREATED, usage=_usage()))
         asyncio.get_running_loop().call_soon(release.set)
 
         # Act
@@ -159,7 +159,7 @@ class TestWaitForPendingSaves:
         mock_logger = create_autospec(logging.Logger, instance=True, spec_set=True)
         monkeypatch.setattr(_postgresusagerepository, "logger", mock_logger)
         repository = PostgresUsageRepository(postgres_session=db_session, session_factory=_BlockingSessionFactory(asyncio.Event()))
-        repository.save_record(UsageRecord(request_id="3f2a", endpoint=CHAT_COMPLETIONS, created=CREATED))
+        repository.save_record(UsageRecord(request_id="3f2a", endpoint=CHAT_COMPLETIONS, created=CREATED, usage=_usage()))
 
         # Act
         await PostgresUsageRepository.wait_for_pending_saves(timeout=0.01)

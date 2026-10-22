@@ -44,7 +44,10 @@ class LangfuseRequestTracer(RequestTracer):
         except Exception:
             logger.exception("Failed to update the Langfuse trace.")
 
-        self._observation.end()
+        try:
+            self._observation.end()
+        except Exception:
+            logger.exception("Failed to end the Langfuse trace.")
 
     def _build_update(self, record: UsageRecord) -> dict:
         update: dict = {

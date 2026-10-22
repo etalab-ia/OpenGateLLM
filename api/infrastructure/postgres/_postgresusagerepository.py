@@ -28,32 +28,30 @@ class PostgresUsageRepository(UsageRepository):
         task.add_done_callback(_pending_saves.discard)
 
     async def _insert(self, record: UsageRecord) -> None:
-        row = UsageTable(
-            created=record.created,
-            request_id=record.request_id,
-            endpoint=record.endpoint,
-            user_id=record.user_id,
-            user_email=record.user_email,
-            token_id=record.key_id,
-            token_name=record.key_name,
-            router_id=record.router_id,
-            router_name=record.router_name,
-            provider_id=record.provider_id,
-            provider_model_name=record.provider_model_name,
-            # only a request that consumed something is saved, so the row is a success by construction
-            status=200,
-            latency=record.latency,
-            ttft=record.ttft,
-        )
-        if (usage := record.usage) is not None:
-            row.prompt_tokens = usage.prompt_tokens
-            row.completion_tokens = usage.completion_tokens
-            row.total_tokens = usage.total_tokens
-            row.cost = usage.cost
-            row.kwh = usage.impacts.kWh
-            row.kgco2eq = usage.impacts.kgCO2eq
-
         try:
+            row = UsageTable(
+                created=record.created,
+                request_id=record.request_id,
+                endpoint=record.endpoint,
+                user_id=record.user_id,
+                user_email=record.user_email,
+                token_id=record.key_id,
+                token_name=record.key_name,
+                router_id=record.router_id,
+                router_name=record.router_name,
+                provider_id=record.provider_id,
+                provider_model_name=record.provider_model_name,
+                # only a request that consumed something is saved, so the row is a success by construction
+                status=200,
+                latency=record.latency,
+                ttft=record.ttft,
+                prompt_tokens=record.usage.prompt_tokens,
+                completion_tokens=record.usage.completion_tokens,
+                total_tokens=record.usage.total_tokens,
+                cost=record.usage.cost,
+                kwh=record.usage.impacts.kWh,
+                kgco2eq=record.usage.impacts.kgCO2eq,
+            )
             async with self.session_factory() as postgres_session:
                 postgres_session.add(row)
                 await postgres_session.commit()

@@ -175,6 +175,18 @@ class TestLangfuseRequestTracer:
         [span] = _exported_spans(langfuse_client, span_exporter)
         assert format(span.context.trace_id, "032x") == REQUEST_ID
 
+    async def test_does_not_raise_when_ending_the_generation_fails(self, tracer, langfuse_client, mock_langfuse_api):
+        # Arrange
+        record = _record()
+        tracer.start(record)
+
+        # Act
+        with patch.object(tracer._observation, "end", side_effect=RuntimeError("langfuse down")):
+            tracer.end(record)
+
+        # Assert
+        assert len(_ingested_scores(langfuse_client, mock_langfuse_api)) == 2
+
     async def test_exports_nothing_when_opening_the_observation_fails(self, tracer, langfuse_client, span_exporter, mock_langfuse_api):
         # Arrange
         record = _record()

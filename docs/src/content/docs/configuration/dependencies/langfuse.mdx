@@ -31,6 +31,8 @@ Each model-forward request (chat completions, embeddings, OCR, rerank, audio tra
 
 Prompts and completions are not sent to Langfuse.
 
+A stream that fails after answering `200` (the provider breaks mid-stream) is marked `ERROR` in Langfuse, while its PostgreSQL `usage` row keeps status `200` and the tokens already delivered: the client received them, so they are billed.
+
 ## Langfuse and PostgreSQL
 
 | | Langfuse | PostgreSQL `usage` table |
