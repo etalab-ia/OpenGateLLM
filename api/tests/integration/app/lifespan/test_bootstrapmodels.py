@@ -7,7 +7,7 @@ from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotRe
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.lifespan import bootstrap_models
-from api.use_cases.models import BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
+from api.use_cases.models import BootstrapModelsCommand, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
 
 BOOTSTRAP_ADMIN_USER_ID = 1
 
@@ -49,8 +49,10 @@ class TestBootstrapModels:
 
         assert result == expected_count
         mock_use_case.execute.assert_awaited_once_with(
-            routers_to_create=bootstrap_configuration.models,
-            bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
+            BootstrapModelsCommand(
+                routers_to_create=bootstrap_configuration.models,
+                bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
+            )
         )
 
     @pytest.mark.asyncio

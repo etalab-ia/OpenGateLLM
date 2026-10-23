@@ -4,13 +4,44 @@ import logging
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderRepository
+from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.domain.router.errors import RouterNameAlreadyExistsError
-from api.infrastructure.configuration import Model as ModelConfiguration
 from api.use_cases.services import ProviderCapabilitiesProbe
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ProviderToCreate:
+    type: ProviderType
+    url: str
+    key: str | None
+    basic_auth: BasicAuth | None
+    timeout: int
+    model_name: str
+    model_hosting_zone: HostingZone
+    model_total_params: int
+    model_active_params: int
+
+
+@dataclass
+class RouterToCreate:
+    name: str
+    type: RouterType
+    aliases: list[str]
+    load_balancing_strategy: RouterLoadBalancingStrategy
+    cost_prompt_tokens: float
+    cost_completion_tokens: float
+    providers: list[ProviderToCreate]
+
+
+@dataclass
+class BootstrapModelsCommand:
+    routers_to_create: list[RouterToCreate]
+    bootstrap_admin_user_id: int
 
 
 @dataclass
@@ -47,18 +78,14 @@ class BootstrapModelsUseCase:
         self.provider_repository = provider_repository
         self.provider_capabilities_probe = provider_capabilities_probe
 
-    async def execute(
-        self,
-        routers_to_create: list[ModelConfiguration],
-        bootstrap_admin_user_id: int,
-    ) -> BootstrapModelsUseCaseResult:
+    async def execute(self, command: BootstrapModelsCommand) -> BootstrapModelsUseCaseResult:
         routers = await self.router_repository.get_all_routers()
         if len(routers) > 0:
             return BootstrapModelsUseCaseSkipped(number_of_routers=len(routers))
 
         # check if no duplicates router name or alias
         router_to_create_names = []
-        for i, router_to_create in enumerate(routers_to_create):
+        for i, router_to_create in enumerate(command.routers_to_create):
             router_to_create_names.append(router_to_create.name)
             router_to_create_names.extend(router_to_create.aliases)
 
@@ -75,14 +102,14 @@ class BootstrapModelsUseCase:
         if duplicates:
             return RouterNameAlreadyExistsError(name=duplicates[0])
 
-        for router_to_create in routers_to_create:
+        for router_to_create in command.routers_to_create:
             router = await self.router_repository.create_router(
                 name=router_to_create.name,
                 router_type=router_to_create.type,
                 load_balancing_strategy=router_to_create.load_balancing_strategy,
                 cost_prompt_tokens=router_to_create.cost_prompt_tokens,
                 cost_completion_tokens=router_to_create.cost_completion_tokens,
-                user_id=bootstrap_admin_user_id,
+                user_id=command.bootstrap_admin_user_id,
                 aliases=router_to_create.aliases,
             )
 
@@ -137,7 +164,7 @@ class BootstrapModelsUseCase:
 
                 result = await self.provider_repository.create_provider(
                     router_id=router.id,
-                    user_id=bootstrap_admin_user_id,
+                    user_id=command.bootstrap_admin_user_id,
                     provider_type=provider_to_create.type,
                     url=provider_to_create.url,
                     key=provider_to_create.key,
@@ -151,4 +178,4 @@ class BootstrapModelsUseCase:
                     vector_size=vector_size,
                 )
 
-        return BootstrapModelsUseCaseSuccess(number_of_routers=len(routers_to_create))
+        return BootstrapModelsUseCaseSuccess(number_of_routers=len(command.routers_to_create))
