@@ -18,7 +18,7 @@ use_cases/        Command, UseCase, UseCaseSuccess, execute()
 infrastructure/
   fastapi/        endpoints, schemas, HTTP exceptions, AccessController, routes, monitoring
   postgres/       Postgres*Repository / Postgres*Query adapters, AutocommitSession
-  configuration.py  Settings + get_configuration() — read lazily: library modules never read it at import time (entry points such as api/main.py and alembic/env.py may); DI factories take Depends(get_configuration)
+  configuration.py  Settings + get_configuration() — read lazily: library modules never read it at import time (entry points such as api/main.py and alembic/env.py may). create_app stores it on app.state; DI factories take Depends(get_app_configuration), lifespan reads app.state.configuration
   context.py      GlobalContext — the process-wide infrastructure handles
   logging.py      configure_logging — configures the "api" logger (or applies the settings.log_config file), every module uses getLogger(__name__)
 app.py            create_app: middleware, router registration, monitoring
@@ -647,7 +647,7 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 - Async integration: `@pytest.mark.asyncio(loop_scope="session")` (including HTTP adapters)
 - Postgres: `repository` fixture from `db_session` — do not construct the repo inside each test
 - Factories: SQL `UserSQLFactory` / `RoleSQLFactory` / `KeySQLFactory` ; unit `UserFactory`. Add a factory field when the column is new
-- Configuration: integration tests get `test_configuration` through `app.dependency_overrides[get_configuration]` and never read `CONFIG_FILE`. `TEST_CONFIG_FILE=<path>` takes its `settings` from a file instead, keeping the test secret and Prometheus off; dependencies stay the fixtures'. A test that needs another value overrides `get_configuration` itself
+- Configuration: integration tests get `test_configuration` through `create_app(test_configuration)`, which request dependencies read from `app.state`, and never read `CONFIG_FILE`. `TEST_CONFIG_FILE=<path>` takes its `settings` from a file instead, keeping the test secret and Prometheus off; dependencies stay the fixtures'. A test that needs another value overrides `get_app_configuration` itself
 - Databases: `TEST_POSTGRES_URL` and `TEST_REDIS_URL` override the test Postgres and Redis (defaults: `test_db` and Redis db `1` on localhost). Never point them at a database holding data: the fixtures drop every table and flush Redis. Under `pytest -n <workers>` (pytest-xdist), each worker suffixes the database (`test_db_gw0`…) and offsets the Redis db (`/1`, `/2`…), so `TEST_REDIS_URL` must end with a db number and at most 15 workers fit. A test that reads server-wide state (`pg_stat_activity`, `CREATE DATABASE`, a Redis command spanning every db) must scope it to its own worker's database
 - Integration fixtures: `api/tests/integration/conftest.py` keeps the configuration and the app; the Postgres and Redis fixtures live in `postgresfixtures.py` and `redisfixtures.py`, which `conftest.py` imports (pytest only collects fixtures from a conftest, and refuses `pytest_plugins` outside the root one). `override_global_context` lives in `globalcontext.py`
 - Do not use a mutable module-level dict to pass IDs from a fixture into a DI factory — close over the values (see `api/tests/integration/endpoints/test_auth_sso_login.py`)

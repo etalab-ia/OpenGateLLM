@@ -43,6 +43,7 @@ def create_app(
         redoc_url=configuration.settings.swagger_redoc_url,
         lifespan=None if skip_lifespan else lifespan,
     )
+    app.state.configuration = configuration
 
     _setup_middleware(app, configuration)
     _setup_exception_handlers(app)
