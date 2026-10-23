@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_10fae538ba4e8521_main_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-23 08:22 +0000
+            created at 2026-10-23 08:35 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -97,7 +97,7 @@
     <p class="run"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">domain</span><span class="op">.</span><span class="nam">provider</span><span class="op">.</span><span class="nam">errors</span> <span class="key">import</span> <span class="nam">ProviderAlreadyExistsError</span><span class="op">,</span> <span class="nam">ProviderInvalidResponseError</span><span class="op">,</span> <span class="nam">ProviderNotReachableError</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">domain</span><span class="op">.</span><span class="nam">router</span><span class="op">.</span><span class="nam">errors</span> <span class="key">import</span> <span class="nam">RouterNameAlreadyExistsError</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">infrastructure</span><span class="op">.</span><span class="nam">bcrypt</span> <span class="key">import</span> <span class="nam">BcryptUserPasswordEncoder</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">infrastructure</span><span class="op">.</span><span class="nam">configuration</span> <span class="key">import</span> <span class="nam">Configuration</span><span class="op">,</span> <span class="nam">Tokenizer</span><span class="op">,</span> <span class="nam">get_configuration</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">infrastructure</span><span class="op">.</span><span class="nam">configuration</span> <span class="key">import</span> <span class="nam">Configuration</span><span class="op">,</span> <span class="nam">Tokenizer</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">infrastructure</span><span class="op">.</span><span class="nam">configuration</span> <span class="key">import</span> <span class="nam">Model</span> <span class="key">as</span> <span class="nam">ModelConfiguration</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t18" href="#t18">18</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">infrastructure</span><span class="op">.</span><span class="nam">context</span> <span class="key">import</span> <span class="nam">global_context</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t"><span class="key">from</span> <span class="nam">api</span><span class="op">.</span><span class="nam">infrastructure</span><span class="op">.</span><span class="nam">http</span> <span class="key">import</span> <span class="nam">HttpProviderAdapterBuilder</span><span class="op">,</span> <span class="nam">HttpProviderClient</span>&nbsp;</span><span class="r"></span></p>
@@ -134,8 +134,8 @@
     <p class="pln"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t51" href="#t51">51</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t52" href="#t52">52</a></span><span class="t"><span class="op">@</span><span class="nam">asynccontextmanager</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t"><span class="key">async</span> <span class="key">def</span> <span class="nam">lifespan</span><span class="op">(</span><span class="nam">_</span><span class="op">:</span> <span class="nam">FastAPI</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t54" href="#t54">54</a></span><span class="t">    <span class="nam">configuration</span> <span class="op">=</span> <span class="nam">get_configuration</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t"><span class="key">async</span> <span class="key">def</span> <span class="nam">lifespan</span><span class="op">(</span><span class="nam">app</span><span class="op">:</span> <span class="nam">FastAPI</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t54" href="#t54">54</a></span><span class="t">    <span class="nam">configuration</span> <span class="op">=</span> <span class="nam">app</span><span class="op">.</span><span class="nam">state</span><span class="op">.</span><span class="nam">configuration</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t55" href="#t55">55</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t56" href="#t56">56</a></span><span class="t">    <span class="nam">global_context</span><span class="op">.</span><span class="nam">redis_pool</span> <span class="op">=</span> <span class="key">await</span> <span class="nam">create_redis_pool</span><span class="op">(</span><span class="nam">configuration</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t57" href="#t57">57</a></span><span class="t">    <span class="nam">global_context</span><span class="op">.</span><span class="nam">postgres_engine</span> <span class="op">=</span> <span class="nam">create_postgres_engine</span><span class="op">(</span><span class="nam">configuration</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -320,7 +320,7 @@
             <a class="nav" href="z_10fae538ba4e8521_main_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-23 08:22 +0000
+            created at 2026-10-23 08:35 +0000
         </p>
     </div>
 </footer>
