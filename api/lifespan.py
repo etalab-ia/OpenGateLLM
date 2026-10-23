@@ -24,6 +24,7 @@ from api.infrastructure.postgres import (
     PostgresProviderRepository,
     PostgresRolesRepository,
     PostgresRouterRepository,
+    PostgresUsageRepository,
     PostgresUserRepository,
 )
 from api.use_cases.admin import (
@@ -36,6 +37,8 @@ from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseS
 from api.use_cases.services import ProviderCapabilitiesProbe
 
 logger = logging.getLogger(__name__)
+
+USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS = 10
 
 
 @asynccontextmanager
@@ -56,6 +59,8 @@ async def lifespan(_: FastAPI):
     global_context.tokenizer = initialize_tokenizer(configuration=configuration)
 
     yield
+
+    await PostgresUsageRepository.wait_for_pending_saves(timeout=USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS)
 
     if global_context.redis_pool:
         await global_context.redis_pool.aclose()

@@ -20,7 +20,7 @@ from api.use_cases.audio import (
     CreateAudioTranscriptionsUseCase,
 )
 
-TRACE_ID = "a" * 32
+REQUEST_ID = "a" * 32
 
 
 @pytest.fixture
@@ -31,15 +31,15 @@ def model_tokenizer():
 
 
 @pytest.fixture
-def usage_repository():
-    return create_autospec(UsageContext, instance=True, spec_set=True)
+def mock_usage_context():
+    usage_context = create_autospec(UsageContext, instance=True, spec_set=True)
+    usage_context.get_request_id.return_value = REQUEST_ID
+    return usage_context
 
 
 @pytest.fixture
-def trace_recorder():
-    recorder = create_autospec(UsageRepository, instance=True, spec_set=True)
-    recorder.start_record.return_value = TRACE_ID
-    return recorder
+def mock_usage_repository():
+    return create_autospec(UsageRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def make_command():
 
 
 @pytest.fixture
-def use_case(model_tokenizer, usage_repository, trace_recorder) -> CreateAudioTranscriptionsUseCase:
+def use_case(model_tokenizer, mock_usage_context, mock_usage_repository) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=MagicMock(),
         model_tokenizer=model_tokenizer,
@@ -102,8 +102,8 @@ def use_case(model_tokenizer, usage_repository, trace_recorder) -> CreateAudioTr
         provider_repository=AsyncMock(),
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
-        usage_context=usage_repository,
-        usage_repository=trace_recorder,
+        usage_context=mock_usage_context,
+        usage_repository=mock_usage_repository,
         audio_file_size_limit=None,
     )
 
@@ -120,9 +120,9 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
     @pytest.fixture(autouse=True)
     def mock_collaborator_methods(self, use_case, router, sample_transcriptions):
         formatted_response = ProviderResponse(data=sample_transcriptions)
-        use_case._resolve_router = AsyncMock(return_value=router)
-        use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
-        use_case._send_request = AsyncMock(return_value=formatted_response)
+        use_case._get_usable_router = AsyncMock(return_value=router)
+        use_case._get_remaining_rate_limits = AsyncMock(return_value=RouterRateLimitState.unlimited())
+        use_case._forward_request_to_provider = AsyncMock(return_value=formatted_response)
 
     @pytest.mark.asyncio
     async def test_should_return_file_size_limit_exceeded_error_when_file_is_too_large(self, use_case, make_command, admin_user):
@@ -135,11 +135,10 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
 
         # Assert
         assert result == AudioFileSizeLimitExceededError(size=10, expected_size=5)
-        use_case._resolve_router.assert_not_awaited()
+        use_case._get_usable_router.assert_not_awaited()
         use_case.model_tokenizer.compute_tokens.assert_not_called()
-        use_case._check_rate_limits.assert_not_awaited()
-        use_case._send_request.assert_not_awaited()
-        use_case.usage_repository.start_record.assert_not_called()
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_call_parent_methods_and_return_json_success_when_formatted_response_has_data(
@@ -147,18 +146,18 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
     ):
         # Arrange
         command = make_command(admin_user)
-        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
-        use_case._check_rate_limits.return_value = rate_limit_state
+        rate_limit_state = RouterRateLimitState.unlimited()
+        use_case._get_remaining_rate_limits.return_value = rate_limit_state
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
-        use_case._resolve_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="audio-router")
+        use_case._get_usable_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="audio-router")
         use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["transcribe this"])
-        use_case._check_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, prompt_tokens=1)
-        use_case._send_request.assert_awaited_once_with(
-            authenticated_user=admin_user, router=router, prompt_tokens=1, payload=command.payload, request_id=TRACE_ID
+        use_case._get_remaining_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, estimated_prompt_tokens=1)
+        use_case._forward_request_to_provider.assert_awaited_once_with(
+            authenticated_user=admin_user, router=router, estimated_prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID
         )
         assert isinstance(result, CreateAudioTranscriptionsJsonUseCaseSuccess)
         assert result.data is sample_transcriptions
@@ -169,9 +168,9 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
     async def test_should_return_text_success_when_formatted_response_has_no_data(self, use_case, make_command, admin_user):
         # Arrange
         command = make_command(admin_user, response_format=AudioTranscriptionsResponseFormat.TEXT)
-        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
-        use_case._check_rate_limits.return_value = rate_limit_state
-        use_case._send_request.return_value = ProviderResponse(text="hello world")
+        rate_limit_state = RouterRateLimitState.unlimited()
+        use_case._get_remaining_rate_limits.return_value = rate_limit_state
+        use_case._forward_request_to_provider.return_value = ProviderResponse(text="hello world")
 
         # Act
         result = await use_case.execute(command=command)

@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field
 
-from api.domain import ForwardablePayload
+from api.domain import BaseModel, ForwardablePayload, UtcDatetime
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
@@ -71,7 +71,7 @@ class ChatCompletionChunk(ChatCompletionChunk):
         if not chunk.startswith("data: "):
             return None
 
-        chunk = chunk.split("data: ")[1].strip()
+        chunk = chunk.removeprefix("data: ").strip()
         if not chunk:
             return None
         if chunk == "[DONE]":
@@ -104,3 +104,48 @@ class ChatCompletionChunk(ChatCompletionChunk):
         fallback = {"object": "chat.completion.chunk", "created": int(datetime.now(tz=UTC).timestamp())}
 
         return {**fallback, **last_chunk, "choices": [], "id": request_id, "model": model, "usage": usage.model_dump()}
+
+
+class ChatCompletionStreamReader(BaseModel):
+    """Reads a provider's chat completion stream one SSE line at a time: tells what to relay, and keeps what was delivered."""
+
+    model: str
+    request_id: str
+    delivered_completions: list[str] = []
+    last_delivered_chunk: dict | None = None
+    provider_usage: Usage | None = None
+    first_token_at: UtcDatetime | None = None
+    has_reached_stream_end: bool = False
+
+    @property
+    def has_delivered_chunks(self) -> bool:
+        return self.last_delivered_chunk is not None
+
+    def read(self, line: str) -> str | None:
+        """The line to relay, rewritten under the router name, or None when it must not reach the client."""
+        chunk = ChatCompletionChunk.parse_chunk(chunk=line)
+        if chunk == "[DONE]":
+            self.has_reached_stream_end = True
+            return None
+        if chunk is None:
+            return line
+
+        if chunk.get("usage"):
+            self.provider_usage = Usage.model_validate(chunk["usage"])
+            if not chunk.get("choices"):
+                return None
+
+        self.last_delivered_chunk = chunk
+        if content := ChatCompletionChunk.extract_chunk_content(chunk=chunk):
+            self.delivered_completions.append(content)
+            if self.first_token_at is None:
+                self.first_token_at = datetime.now(tz=UTC)
+
+        return f"data: {json.dumps({**chunk, 'model': self.model, 'id': self.request_id})}"
+
+    def build_usage_line(self, usage: Usage) -> str:
+        usage_chunk = ChatCompletionChunk.build_usage_chunk(
+            last_chunk=self.last_delivered_chunk or {}, request_id=self.request_id, model=self.model, usage=usage
+        )
+
+        return f"data: {json.dumps(usage_chunk)}"

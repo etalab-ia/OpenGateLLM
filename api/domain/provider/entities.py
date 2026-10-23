@@ -7,6 +7,7 @@ from pydantic import Field, model_validator
 
 from api.domain import BaseModel, EntitiesPage, ForwardablePayload, UtcDatetime
 from api.domain.router.entities import Router, RouterType
+from api.domain.usage.entities import Usage
 
 
 class ProviderEndpoint(StrEnum):
@@ -169,3 +170,15 @@ class ProviderResponse(BaseModel):
             return self.data.get_completions()
         else:
             return [self.text.strip()]
+
+    def get_usage(self) -> Usage | None:
+        if self.data is None or "usage" not in self.data.model_fields_set:
+            return None
+
+        return self.data.usage
+
+    def with_usage(self, usage: Usage) -> "ProviderResponse":
+        if self.data is None:
+            return self
+
+        return self.model_copy(update={"data": self.data.model_copy(update={"usage": usage})})

@@ -1,9 +1,18 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 
-from api.domain.usage.entities import Usage
+from api.domain.usage.entities import Usage, UsageRecord
 
 
 class UsageContext(ABC):
+    @abstractmethod
+    def get_request_id(self) -> str:
+        pass
+
+    @abstractmethod
+    def elapsed_ms(self, at: datetime | None = None) -> int:
+        pass
+
     @abstractmethod
     def record_router(self, router_id: int, router_name: str) -> None:
         pass
@@ -13,5 +22,13 @@ class UsageContext(ABC):
         pass
 
     @abstractmethod
-    def record_usage(self, request_id: str | None, usage: Usage) -> None:
+    def record_usage(self, usage: Usage, latency: int, ttft: int | None = None) -> None:
+        pass
+
+    @abstractmethod
+    def record_error(self, error: str) -> None:
+        pass
+
+    @abstractmethod
+    def get_record(self) -> UsageRecord:
         pass

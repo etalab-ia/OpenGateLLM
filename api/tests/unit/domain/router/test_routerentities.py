@@ -8,15 +8,13 @@ from api.domain.router.entities import RouterRateLimitState, RpdRateLimitState, 
 class TestRouterRateLimitStateExceededLimits:
     @staticmethod
     def _state_with_tpm(remaining: int) -> RouterRateLimitState:
-        # start with admin state - no limits
-        state = RouterRateLimitState.admin_rate_limit_state()
-        # set user's TPM limits to 100, and remaining to arg value
+        state = RouterRateLimitState.unlimited()
         state.tpm = TpmRateLimitState(value=100, remaining=remaining)
         return state
 
     @staticmethod
     def _state_with_tpd(remaining: int) -> RouterRateLimitState:
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.tpd = TpdRateLimitState(value=1_000, remaining=remaining)
         return state
 
@@ -50,7 +48,7 @@ class TestRouterRateLimitStateExceededLimits:
 
     def test_should_report_nothing_when_no_limit_is_configured(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
 
         # Act & Assert
         assert state.exceeded_limits(prompt_tokens=10_000) == []
@@ -68,7 +66,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_report_the_requests_window_with_the_lowest_remaining(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=5, reset=0)
         state.rpd = RpdRateLimitState(value=1_000, remaining=500, reset=0)
 
@@ -81,7 +79,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_report_the_tokens_window_with_the_lowest_remaining(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.tpm = TpmRateLimitState(value=100, remaining=50, reset=0)
         state.tpd = TpdRateLimitState(value=1_000, remaining=500, reset=0)
 
@@ -94,7 +92,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_subtract_the_current_request_and_the_prompt_tokens_from_remaining(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=10, reset=0)
         state.tpm = TpmRateLimitState(value=100, remaining=100, reset=0)
 
@@ -107,7 +105,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_not_subtract_the_current_request_when_it_is_not_charged(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=5, reset=0)
         state.tpm = TpmRateLimitState(value=100, remaining=50, reset=0)
 
@@ -120,7 +118,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_floor_remaining_at_zero(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=0, reset=0)
 
         # Act
@@ -131,7 +129,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_report_the_full_period_as_reset_when_the_window_has_not_started(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=10, reset=0)
         state.tpd = TpdRateLimitState(value=1_000, remaining=1_000, reset=0)
 
@@ -144,7 +142,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_not_fall_back_to_the_period_when_the_reset_is_merely_in_the_past(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=10, reset=int(datetime.now(UTC).timestamp()))
 
         # Act
@@ -155,7 +153,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_report_seconds_until_reset_when_the_window_has_started(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=10, reset=int(datetime.now(UTC).timestamp()) + 3_600)
 
         # Act
@@ -166,7 +164,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_only_report_the_families_with_a_configured_limit(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
         state.rpm = RpmRateLimitState(value=10, remaining=10, reset=0)
 
         # Act
@@ -177,7 +175,7 @@ class TestRouterRateLimitStateBuildLimitHeaders:
 
     def test_should_report_no_headers_when_no_limit_is_configured(self):
         # Arrange
-        state = RouterRateLimitState.admin_rate_limit_state()
+        state = RouterRateLimitState.unlimited()
 
         # Act
         headers = state.build_limit_headers(prompt_tokens=10)

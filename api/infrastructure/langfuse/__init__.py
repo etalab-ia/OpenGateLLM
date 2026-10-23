@@ -1,3 +1,3 @@
-from ._langfuseusagerepository import LangfuseUsageRepository
+from ._langfuserequesttracer import LangfuseRequestTracer
 
-__all__ = ["LangfuseUsageRepository"]
+__all__ = ["LangfuseRequestTracer"]

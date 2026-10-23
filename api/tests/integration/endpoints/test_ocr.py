@@ -4,6 +4,7 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 import respx
+from sqlalchemy import select
 
 from api.dependencies import create_ocr_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
@@ -20,11 +21,13 @@ from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.routes import EndpointRoute
+from api.infrastructure.postgres import PostgresUsageRepository
+from api.infrastructure.postgres.models import Usage as UsageTable
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.globalcontext import override_global_context
 
 URL = f"/v1{EndpointRoute.OCR}"
 
@@ -117,6 +120,36 @@ class TestCreateOCR:
         )
 
     @respx.mock
+    async def test_saves_the_usage_row_of_the_answered_request(self, client: AsyncClient, db_session):
+        # Arrange
+        limits = {LimitType.RPM: 100, LimitType.RPD: 200, LimitType.TPM: 1000, LimitType.TPD: 2000}
+        router = await self._create_router_with_limits(db_session, limits=limits)
+        mock_ocr_responses(
+            respx_mock=respx,
+            provider_type=ProviderType.MISTRAL,
+            body=MistralOcrResponseFactory(page_count=1),
+            status_code=MistralOcrResponseFactory._status_code,
+        )
+
+        # Act
+        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+        await PostgresUsageRepository.wait_for_pending_saves(timeout=5)
+
+        # Assert
+        assert response.status_code == 200, response.text
+        [row] = (await db_session.scalars(select(UsageTable))).all()
+        assert row.request_id == response.headers["X-Request-ID"], "the row, the log line and the header share one id"
+        assert row.endpoint == URL
+        assert row.user_id == self.user.id
+        assert row.user_email == self.user.email
+        assert row.token_id == self.key.id
+        assert row.router_id == router.id
+        assert row.router_name == DEFAULT_MODEL_NAME
+        assert row.status == 200
+        assert row.completion_tokens == 10
+        assert row.latency is not None
+
+    @respx.mock
     async def test_charges_the_router_limits(self, client: AsyncClient, db_session, router_rate_limiter):
         # Arrange
         limits = {LimitType.RPM: 100, LimitType.RPD: 200, LimitType.TPM: 1000, LimitType.TPD: 2000}
@@ -153,15 +186,15 @@ class TestCreateOCR:
             body=MistralOcrResponseFactory(page_count=1),
             status_code=MistralOcrResponseFactory._status_code,
         )
-        first_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
-        assert first_response.status_code == 200, first_response.text
-        total_tokens = first_response.json()["usage"]["total_tokens"]
+        allowed_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+        assert allowed_response.status_code == 200, allowed_response.text
+        total_tokens = allowed_response.json()["usage"]["total_tokens"]
 
         # Act
-        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
+        rate_limited_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body())
 
-        # Assert: only the first request is counted
-        assert response.status_code == 429, response.text
+        # Assert: only the allowed request is counted
+        assert rate_limited_response.status_code == 429, rate_limited_response.text
         state = await self._get_rate_limit_state(router_rate_limiter, router_id=router_id, user_id=user_id, limits=limits)
         assert state.rpm.remaining == 0
         assert state.rpd.remaining == limits[LimitType.RPD] - 1

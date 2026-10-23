@@ -17,10 +17,10 @@ from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTy
 from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_chat_completions_responses, mock_chat_completions_stream
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.vllm import VllmChatCompletionsResponseFactory
+from api.tests.integration.globalcontext import override_global_context
 
 URL = f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
 
@@ -164,12 +164,12 @@ class TestCreateChatCompletions:
         router_id = router.id
         user_id = self.user.id
         mock_chat_completions_stream(respx_mock=respx, provider_type=ProviderType.VLLM, lines=STREAM_LINES)
-        first_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
-        assert first_response.status_code == 200, first_response.text
+        allowed_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
+        assert allowed_response.status_code == 200, allowed_response.text
 
-        response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
+        rate_limited_response = await client.post(url=URL, headers={"Authorization": f"Bearer {self.key.token}"}, json=_valid_body(stream=True))
 
-        assert response.status_code == 429, response.text
+        assert rate_limited_response.status_code == 429, rate_limited_response.text
         state = await self._get_rate_limit_state(router_rate_limiter, router_id=router_id, user_id=user_id, limits=limits)
         assert state.rpd.remaining == limits[LimitType.RPD] - 1
 
