@@ -52,7 +52,7 @@
 | api/domain/user/errors.py                                                             |       24 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                              |       23 |        0 |        6 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                              |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration.py                                                   |      250 |       99 |       50 |        4 |     52.33% |37-79, 82, 91-92, 122-129, 132, 156, 175-179, 295-298, 334-339, 344-347, 352-364, 376-377, 381-396, 400-419, 424 |
+| api/infrastructure/configuration.py                                                   |      250 |      102 |       50 |        3 |     50.33% |37-79, 82, 91-92, 122-129, 132, 154-158, 175-179, 295-298, 334-339, 344-347, 352-364, 376-377, 381-396, 400-419, 424 |
 | api/infrastructure/context.py                                                         |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/ecologit/\_ecologitmodelenvironmentalimpactscomputer.py            |       12 |        0 |        2 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/\_requestcontext.py                                        |       12 |        0 |        0 |        0 |    100.00% |           |
@@ -162,7 +162,7 @@
 | api/infrastructure/redis/\_redisprovidermetricslogger.py                              |       38 |       12 |        4 |        1 |     64.29% |24-25, 31-32, 48-58 |
 | api/infrastructure/redis/\_redisrouterratelimiter.py                                  |      117 |       16 |       42 |       10 |     83.65% |33-\>exit, 52, 60, 65-\>39, 68, 110-111, 115, 120-\>exit, 127, 137-140, 159, 168-169, 173-176 |
 | api/infrastructure/tiktoken/\_tiktokenmodeltokenizer.py                               |        9 |        0 |        2 |        0 |    100.00% |           |
-| api/lifespan.py                                                                       |      126 |       51 |       52 |        4 |     53.37% |46-69, 73-79, 83, 87, 119-122, 123-\>exit, 157, 160-\>exit, 165-177, 181-189 |
+| api/lifespan.py                                                                       |      130 |       51 |       52 |        4 |     54.40% |54-77, 81-87, 91, 95, 127-130, 131-\>exit, 169, 172-\>exit, 205-217, 221-229 |
 | api/main.py                                                                           |        2 |        2 |        0 |        0 |      0.00% |       1-3 |
 | api/use\_cases/\_providerrequestforwardingusecase.py                                  |      135 |        0 |       28 |        0 |    100.00% |           |
 | api/use\_cases/admin/\_bootstrapadminusecase.py                                       |       73 |        0 |       30 |        7 |     93.20% |71-\>79, 76-\>79, 82-\>110, 84-\>110, 89-\>97, 94-\>97, 107-\>110 |
@@ -204,14 +204,14 @@
 | api/use\_cases/health/\_gethealthmodelsusecase.py                                     |       64 |        0 |       32 |        4 |     95.83% |78-\>50, 84-\>50, 85-\>50, 86-\>88 |
 | api/use\_cases/me/\_getmeusecase.py                                                   |       10 |        0 |        0 |        0 |    100.00% |           |
 | api/use\_cases/me/\_updatemeusecase.py                                                |       32 |        0 |        8 |        0 |    100.00% |           |
-| api/use\_cases/models/\_bootstrapmodelsusecase.py                                     |       70 |        0 |       26 |        0 |    100.00% |           |
+| api/use\_cases/models/\_bootstrapmodelsusecase.py                                     |       77 |        0 |       26 |        0 |    100.00% |           |
 | api/use\_cases/models/\_getmodelsusecase.py                                           |       15 |        0 |        0 |        0 |    100.00% |           |
 | api/use\_cases/models/\_getonemodelusecase.py                                         |       23 |        0 |        6 |        1 |     96.55% |   32-\>35 |
 | api/use\_cases/ocr/\_createocrusecase.py                                              |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/reranks/\_creatererankusecase.py                                       |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                            |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                             | **6637** |  **562** | **1344** |  **149** | **89.69%** |           |
+| **TOTAL**                                                                             | **6648** |  **565** | **1344** |  **148** | **89.63%** |           |
 
 
 ## Setup coverage badge
