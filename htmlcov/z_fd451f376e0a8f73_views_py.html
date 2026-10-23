@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">21 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">21<span class="text"> run</span></button>
+            <span class="text">23 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">23<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_f8b1326121a1d418__bcryptuserpasswordencoder_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-21 14:40 +0000
+            created at 2026-10-23 08:18 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -109,18 +109,21 @@
     <p class="run"><span class="n"><a id="t25" href="#t25">25</a></span><span class="t">    <span class="key">def</span> <span class="nam">has_expired</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">bool</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t26" href="#t26">26</a></span><span class="t">        <span class="key">return</span> <span class="nam">self</span><span class="op">.</span><span class="nam">expires</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">expires</span> <span class="op">&lt;</span> <span class="nam">datetime</span><span class="op">.</span><span class="nam">now</span><span class="op">(</span><span class="nam">tz</span><span class="op">=</span><span class="nam">UTC</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t27" href="#t27">27</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t28" href="#t28">28</a></span><span class="t">    <span class="key">def</span> <span class="nam">cannot_access_router</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">router_id</span><span class="op">:</span> <span class="nam">int</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">bool</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t29" href="#t29">29</a></span><span class="t">        <span class="key">if</span> <span class="nam">PermissionType</span><span class="op">.</span><span class="nam">ADMIN</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">permissions</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t">            <span class="key">return</span> <span class="key">False</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t31" href="#t31">31</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t32" href="#t32">32</a></span><span class="t">        <span class="nam">router_limits</span> <span class="op">=</span> <span class="op">[</span><span class="nam">limit</span> <span class="key">for</span> <span class="nam">limit</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">limits</span> <span class="key">if</span> <span class="nam">limit</span><span class="op">.</span><span class="nam">router_id</span> <span class="op">==</span> <span class="nam">router_id</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t">        <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">router_limits</span><span class="op">)</span> <span class="op">==</span> <span class="num">0</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t">            <span class="key">return</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t">        <span class="key">if</span> <span class="num">0</span> <span class="key">in</span> <span class="op">[</span><span class="nam">limit</span><span class="op">.</span><span class="nam">value</span> <span class="key">for</span> <span class="nam">limit</span> <span class="key">in</span> <span class="nam">router_limits</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t28" href="#t28">28</a></span><span class="t">    <span class="key">def</span> <span class="nam">limits_for</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">router_id</span><span class="op">:</span> <span class="nam">int</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">list</span><span class="op">[</span><span class="nam">Limit</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t29" href="#t29">29</a></span><span class="t">        <span class="key">return</span> <span class="op">[</span><span class="nam">limit</span> <span class="key">for</span> <span class="nam">limit</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">limits</span> <span class="key">if</span> <span class="nam">limit</span><span class="op">.</span><span class="nam">router_id</span> <span class="op">==</span> <span class="nam">router_id</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t31" href="#t31">31</a></span><span class="t">    <span class="key">def</span> <span class="nam">cannot_access_router</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">router_id</span><span class="op">:</span> <span class="nam">int</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">bool</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t32" href="#t32">32</a></span><span class="t">        <span class="key">if</span> <span class="nam">PermissionType</span><span class="op">.</span><span class="nam">ADMIN</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">permissions</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t">            <span class="key">return</span> <span class="key">False</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t">        <span class="nam">router_limits</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">limits_for</span><span class="op">(</span><span class="nam">router_id</span><span class="op">=</span><span class="nam">router_id</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t">        <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">router_limits</span><span class="op">)</span> <span class="op">==</span> <span class="num">0</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t">            <span class="key">return</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t38" href="#t38">38</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t">        <span class="key">return</span> <span class="key">False</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t">        <span class="key">if</span> <span class="num">0</span> <span class="key">in</span> <span class="op">[</span><span class="nam">limit</span><span class="op">.</span><span class="nam">value</span> <span class="key">for</span> <span class="nam">limit</span> <span class="key">in</span> <span class="nam">router_limits</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t40" href="#t40">40</a></span><span class="t">            <span class="key">return</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t41" href="#t41">41</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t42" href="#t42">42</a></span><span class="t">        <span class="key">return</span> <span class="key">False</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -130,7 +133,7 @@
             <a class="nav" href="z_f8b1326121a1d418__bcryptuserpasswordencoder_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-21 14:40 +0000
+            created at 2026-10-23 08:18 +0000
         </p>
     </div>
 </footer>
