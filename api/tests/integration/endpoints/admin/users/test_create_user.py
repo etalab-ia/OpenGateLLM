@@ -1,14 +1,15 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 
-from api.dependencies import create_user_use_case_factory
+from api.dependencies import _get_user_authorization, create_user_use_case_factory
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
+from api.domain.user import UserAuthorization
 from api.domain.user.errors import UserAlreadyExistsError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres.models import User as UserTable
@@ -32,9 +33,11 @@ def _valid_body(role_id: int, organization_id: int = 1, **overrides) -> dict:
 @pytest.mark.asyncio(loop_scope="session")
 class TestCreateUser:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.token = await create_key(db_session, name="admin_token", user=self.admin_user)
+        self.mock_user_authorization = create_autospec(UserAuthorization, instance=True, spec_set=True)
+        app.dependency_overrides[_get_user_authorization] = lambda: self.mock_user_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         role = RoleSQLFactory()
