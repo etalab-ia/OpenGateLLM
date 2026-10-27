@@ -37,10 +37,17 @@ class TestGetLimits:
         data = response.json()
         assert data["object"] == "list"
         assert data["data"] == [
-            {"object": "limit", "router_id": router.id, "model": "router_1", "type": "tpm", "value": None, "remaining": 0},
-            {"object": "limit", "router_id": router.id, "model": "router_1", "type": "tpd", "value": 10000, "remaining": 10000},
-            {"object": "limit", "router_id": router.id, "model": "router_1", "type": "rpm", "value": 20, "remaining": 20},
-            {"object": "limit", "router_id": router.id, "model": "router_1", "type": "rpd", "value": 10000, "remaining": 10000},
+            {
+                "object": "model_limits",
+                "router_id": router.id,
+                "model": "router_1",
+                "limits": [
+                    {"type": "tpm", "value": None, "remaining": 0},
+                    {"type": "tpd", "value": 10000, "remaining": 10000},
+                    {"type": "rpm", "value": 20, "remaining": 20},
+                    {"type": "rpd", "value": 10000, "remaining": 10000},
+                ],
+            }
         ]
 
     @pytest.mark.parametrize(

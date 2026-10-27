@@ -6,7 +6,7 @@ from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
-from api.infrastructure.fastapi.schemas.limits import LimitResponse, LimitsResponse
+from api.infrastructure.fastapi.schemas.limits import LimitsResponse, ModelLimitsResponse
 from api.use_cases.limits import GetLimitsCommand, GetLimitsUseCase, GetLimitsUseCaseSuccess
 
 router = APIRouter(prefix="/v1", tags=[RouterName.LIMITS.title()])
@@ -30,4 +30,4 @@ async def get_limits(
 
     match result:
         case GetLimitsUseCaseSuccess(limits=limits):
-            return LimitsResponse(data=[LimitResponse.model_validate(limit, from_attributes=True) for limit in limits])
+            return LimitsResponse(data=[ModelLimitsResponse.model_validate(model_limits, from_attributes=True) for model_limits in limits])

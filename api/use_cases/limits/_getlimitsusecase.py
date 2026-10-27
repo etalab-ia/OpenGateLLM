@@ -4,7 +4,7 @@ from api.domain.model import ModelQuery
 from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter
 from api.domain.router.entities import RouterRateLimitState
-from api.domain.router.views import RouterLimitView
+from api.domain.router.views import RouterLimitsView, RouterLimitView
 from api.domain.user.views import AuthenticatedUserView
 
 
@@ -15,7 +15,7 @@ class GetLimitsCommand:
 
 @dataclass
 class GetLimitsUseCaseSuccess:
-    limits: list[RouterLimitView]
+    limits: list[RouterLimitsView]
 
 
 type GetLimitsUseCaseResult = GetLimitsUseCaseSuccess
@@ -42,16 +42,11 @@ class GetLimitsUseCase:
                     user_id=user.id, router_limits=user.limits_for(router_id=model.router_id), router_id=model.router_id
                 )
 
+            router_limits = []
             for limit_type in LimitType:
                 window = getattr(state, limit_type.value)
-                limits.append(
-                    RouterLimitView(
-                        router_id=model.router_id,
-                        model=model.id,
-                        type=limit_type,
-                        value=window.value,
-                        remaining=window.remaining,
-                    )
-                )
+                router_limits.append(RouterLimitView(type=limit_type, value=window.value, remaining=window.remaining))
+
+            limits.append(RouterLimitsView(router_id=model.router_id, model=model.id, limits=router_limits))
 
         return GetLimitsUseCaseSuccess(limits=limits)

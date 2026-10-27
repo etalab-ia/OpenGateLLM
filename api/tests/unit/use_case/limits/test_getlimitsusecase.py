@@ -6,7 +6,7 @@ from api.domain.model import ModelQuery
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter
 from api.domain.router.entities import RouterRateLimitState, RpdRateLimitState, RpmRateLimitState, TpdRateLimitState, TpmRateLimitState
-from api.domain.router.views import RouterLimitView
+from api.domain.router.views import RouterLimitsView, RouterLimitView
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ModelViewFactory
 from api.use_cases.limits import GetLimitsCommand, GetLimitsUseCase, GetLimitsUseCaseSuccess
 
@@ -48,10 +48,16 @@ class TestGetLimitsUseCase:
         # Assert
         assert isinstance(result, GetLimitsUseCaseSuccess)
         assert result.limits == [
-            RouterLimitView(router_id=1, model="model-1", type=LimitType.TPM, value=None, remaining=0),
-            RouterLimitView(router_id=1, model="model-1", type=LimitType.TPD, value=10000, remaining=5000),
-            RouterLimitView(router_id=1, model="model-1", type=LimitType.RPM, value=20, remaining=1),
-            RouterLimitView(router_id=1, model="model-1", type=LimitType.RPD, value=10000, remaining=40),
+            RouterLimitsView(
+                router_id=1,
+                model="model-1",
+                limits=[
+                    RouterLimitView(type=LimitType.TPM, value=None, remaining=0),
+                    RouterLimitView(type=LimitType.TPD, value=10000, remaining=5000),
+                    RouterLimitView(type=LimitType.RPM, value=20, remaining=1),
+                    RouterLimitView(type=LimitType.RPD, value=10000, remaining=40),
+                ],
+            )
         ]
         mock_router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(user_id=user.id, router_limits=user.limits, router_id=1)
 
@@ -68,7 +74,7 @@ class TestGetLimitsUseCase:
 
         # Assert
         assert isinstance(result, GetLimitsUseCaseSuccess)
-        assert [limit.value for limit in result.limits] == [None, None, None, None]
+        assert [limit.value for limit in result.limits[0].limits] == [None, None, None, None]
         mock_router_rate_limiter.get_rate_limit_state.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -83,5 +89,5 @@ class TestGetLimitsUseCase:
 
         # Assert
         assert isinstance(result, GetLimitsUseCaseSuccess)
-        assert {limit.model for limit in result.limits} == {"model-1"}
+        assert [router_limits.model for router_limits in result.limits] == ["model-1"]
         mock_router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(user_id=user.id, router_limits=user.limits, router_id=1)
