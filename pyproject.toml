@@ -7,7 +7,7 @@ license = { text = "MIT" }
 dependencies = [
     "jinja2==3.1.6",
     "requests==2.34.2",
-    "pydantic==2.13.5",
+    "pydantic==2.14.1",
     "pydantic-settings==2.15.0",
     "httpx==0.28.1",
     "pyyaml==6.0.3",
@@ -16,12 +16,12 @@ dependencies = [
 
 [project.optional-dependencies]
 playground = [
-    "reflex==0.9.12",
-    "sqlalchemy[asyncio]==2.1.2",
+    "reflex==0.10.0",
+    "sqlalchemy[asyncio]==2.1.4",
 ]
 api = [
     "alembic==1.20.0",
-    "asyncpg==0.31.0",
+    "asyncpg==0.32.0",
     "bcrypt==5.0.0",
     "ecologits==0.11.2",
     "fastapi==0.135.1",
@@ -37,15 +37,15 @@ api = [
     "pyjwt==2.15.1",
     "python-multipart==0.0.32",
     "redis==7.2.1",
-    "sentry-sdk[fastapi]==2.71.0",
+    "sentry-sdk[fastapi]==2.72.0",
     "sqlalchemy-utils==0.43.0",
-    "sqlalchemy[asyncio]==2.1.2",
+    "sqlalchemy[asyncio]==2.1.4",
     "tiktoken==0.14.0",
     "uvicorn==0.54.0"
 ]
 dev = [
     "pre-commit>=4.5.1",
-    "ruff==0.16.10",
+    "ruff==0.17.0",
     "tabulate==0.10.0",
     "rich==14.3.4",
 ]
