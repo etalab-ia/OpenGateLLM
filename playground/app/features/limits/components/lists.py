@@ -85,7 +85,8 @@ def limits_list() -> rx.Component:
             rx.heading("Rate limits", size=HEADING_SIZE_SECTION),
             rx.divider(),
             rx.cond(
-                LimitsState.entities_loading,
+                # Only the first load shows the spinner: a refresh updates the table in place.
+                LimitsState.entities_loading & (LimitsState.entities.length() == 0),
                 rx.center(
                     rx.spinner(size=SIZE_MEDIUM),
                     width="100%",
