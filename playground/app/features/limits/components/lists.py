@@ -8,6 +8,7 @@ from app.core.variables import (
     SIZE_MEDIUM,
     SPACING_LARGE,
     SPACING_MEDIUM,
+    SPACING_TINY,
     TEXT_SIZE_LABEL,
 )
 from app.features.limits.models import Limit, ModelLimits
@@ -82,7 +83,15 @@ def limits_list() -> rx.Component:
     """Card holding the limits table, a spinner while loading, or an empty state."""
     return rx.card(
         rx.vstack(
-            rx.heading("Rate limits", size=HEADING_SIZE_SECTION),
+            rx.vstack(
+                rx.heading("Rate limits", size=HEADING_SIZE_SECTION),
+                rx.text(
+                    "Your rate limits on each model and what you have used of them. Limits reset per minute (RPM, TPM) or per day (RPD, TPD).",
+                    size=TEXT_SIZE_LABEL,
+                    color=rx.color("mauve", 11),
+                ),
+                spacing=SPACING_TINY,
+            ),
             rx.divider(),
             rx.cond(
                 # Only the first load shows the spinner: a refresh updates the table in place.
