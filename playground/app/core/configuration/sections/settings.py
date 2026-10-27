@@ -13,6 +13,7 @@ from app.core.variables import DEFAULT_APP_NAME
 class PlaygroundPages(StrEnum):
     ACCOUNT = "account"
     KEYS = "keys"
+    LIMITS = "limits"
     ORGANIZATIONS = "organizations"
     PROVIDERS = "providers"
     ROLES = "roles"
