@@ -7,12 +7,14 @@ from app.features.limits.models import Limit, ModelLimits
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
+# In display order: a model's limits are shown in this order, whatever order the API returns them in.
 LIMIT_TYPE_LABELS = {
-    "rpm": "Requests per minute",
-    "rpd": "Requests per day",
     "tpm": "Tokens per minute",
+    "rpm": "Requests per minute",
     "tpd": "Tokens per day",
+    "rpd": "Requests per day",
 }
+LIMIT_TYPE_ORDER = list(LIMIT_TYPE_LABELS)
 
 
 class LimitsState(EntityState):
@@ -59,7 +61,13 @@ class LimitsState(EntityState):
                 )
                 response.raise_for_status()
                 self.entities = [
-                    ModelLimits(model=model_limits["model"], limits=[self._format_limit(limit) for limit in model_limits["limits"]])
+                    ModelLimits(
+                        model=model_limits["model"],
+                        limits=[
+                            self._format_limit(limit)
+                            for limit in sorted(model_limits["limits"], key=lambda limit: LIMIT_TYPE_ORDER.index(limit["type"]))
+                        ],
+                    )
                     for model_limits in response.json()["data"]
                 ]
 
