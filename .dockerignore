@@ -6,16 +6,12 @@
 !playground/**
 !scripts/
 !scripts/**
-!.github/
-!.github/assets/
-!.github/assets/**
 !pyproject.toml
 !uv.lock
 !config.example.yml
 !config.yml
 
 .git
-.github/workflows
 .ruff_cache
 .states
 .venv
