@@ -4,12 +4,10 @@ import reflex as rx
 
 from app.core.variables import (
     HEADING_SIZE_SECTION,
-    ICON_SIZE_TINY,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_LARGE,
     SPACING_MEDIUM,
-    SPACING_TINY,
     TEXT_SIZE_LABEL,
 )
 from app.features.limits.models import Limit, ModelLimits
@@ -71,18 +69,7 @@ def limits_table() -> rx.Component:
         rx.table.header(
             rx.table.row(
                 rx.table.column_header_cell("Limit"),
-                rx.table.column_header_cell(
-                    rx.tooltip(
-                        rx.hstack(
-                            rx.text("Current usage"),
-                            rx.icon("info", size=ICON_SIZE_TINY),
-                            spacing=SPACING_TINY,
-                            align="center",
-                        ),
-                        content="What is used of each limit in its current minute or day window.",
-                    ),
-                    width="35%",
-                ),
+                rx.table.column_header_cell("Current usage", width="35%"),
                 rx.table.column_header_cell("Used / limit", justify="end"),
             ),
         ),
