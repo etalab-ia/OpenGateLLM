@@ -14,20 +14,6 @@ jobs:
         type=sha,format=long
       push: true
 
-  build-albert-playground:
-    name: Albert playground images
-    uses: ./.github/workflows/_build_albert_playground.yml
-    with:
-      tags: |
-        type=raw,value=latest
-        type=sha,format=long
-    secrets:
-      GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
-      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-      GITLAB_PROJECT_PATH: ${{ secrets.GITLAB_PROJECT_PATH }}
-      VAULT_KEY: ${{ secrets.VAULT_KEY }}
-      AUTH_SSO_CLIENT_SECRET: ${{ secrets.AUTH_SSO_CLIENT_SECRET }}
-
   tests:
     name: Tests
     uses: ./.github/workflows/_run_tests.yml
