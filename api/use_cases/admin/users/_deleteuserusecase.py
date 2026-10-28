@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 
-from api.domain.user import UserRepository
+from api.domain.user import UserAuthorization, UserRepository
 from api.domain.user.entities import User
-from api.domain.user.errors import UserHasProvidersError, UserHasRoutersError, UserNotFoundError
+from api.domain.user.errors import UserCannotDeleteUserError, UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 
 
 @dataclass
 class DeleteUserCommand:
+    authenticated_user_id: int
     user_id: int
 
 
@@ -15,14 +16,20 @@ class DeleteUserUseCaseSuccess:
     user: User
 
 
-type DeleteUserUseCaseResult = DeleteUserUseCaseSuccess | UserNotFoundError | UserHasRoutersError | UserHasProvidersError
+type DeleteUserUseCaseResult = DeleteUserUseCaseSuccess | UserNotFoundError | UserHasRoutersError | UserHasProvidersError | UserCannotDeleteUserError
 
 
 class DeleteUserUseCase:
-    def __init__(self, user_repository: UserRepository):
+    def __init__(self, user_repository: UserRepository, user_authorization: UserAuthorization):
         self.user_repository = user_repository
+        self.user_authorization = user_authorization
 
     async def execute(self, command: DeleteUserCommand) -> DeleteUserUseCaseResult:
+        is_authorized = await self.user_authorization.can_delete_user(user_id=command.authenticated_user_id, target_user_id=command.user_id)
+
+        if not is_authorized:
+            return UserCannotDeleteUserError(user_id=command.authenticated_user_id)
+
         result = await self.user_repository.delete_user(user_id=command.user_id)
 
         match result:
