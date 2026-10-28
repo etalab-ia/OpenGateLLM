@@ -13,3 +13,7 @@ class UserAuthorization(ABC):
     @abstractmethod
     async def grant_platform_admin(self, user_id: int) -> None:
         pass
+
+    @abstractmethod
+    async def revoke_platform_admin(self, user_id: int) -> None:
+        pass

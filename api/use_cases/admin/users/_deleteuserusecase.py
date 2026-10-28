@@ -34,6 +34,7 @@ class DeleteUserUseCase:
 
         match result:
             case User() as user:
+                await self.user_authorization.revoke_platform_admin(user_id=user.id)
                 return DeleteUserUseCaseSuccess(user=user)
             case UserHasRoutersError() as error:
                 return error
