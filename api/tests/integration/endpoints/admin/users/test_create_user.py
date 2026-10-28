@@ -10,7 +10,7 @@ from api.dependencies import _get_user_authorization, create_user_use_case_facto
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserAuthorization
-from api.domain.user.errors import UserAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError, UserCannotCreateUserError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres.models import User as UserTable
 from api.tests.helpers import create_key
@@ -37,6 +37,7 @@ class TestCreateUser:
         self.admin_user = UserSQLFactory(admin_user=True)
         self.token = await create_key(db_session, name="admin_token", user=self.admin_user)
         self.mock_user_authorization = create_autospec(UserAuthorization, instance=True, spec_set=True)
+        self.mock_user_authorization.can_create_user.return_value = True
         app.dependency_overrides[_get_user_authorization] = lambda: self.mock_user_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
@@ -170,6 +171,11 @@ class TestCreateUser:
                 404,
                 "Organization 99 not found.",
             ),
+            (
+                UserCannotCreateUserError(user_id=42),
+                403,
+                "User 42 is not allowed to perform this action.",
+            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -189,6 +195,7 @@ class TestCreateUser:
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+        self.mock_user_authorization.can_create_user.return_value = False
 
         response = await client.post(
             url=URL,
@@ -197,7 +204,7 @@ class TestCreateUser:
         )
 
         assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
+        assert response.json().get("detail") == f"User {regular_user.id} is not allowed to perform this action."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
