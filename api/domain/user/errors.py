@@ -45,3 +45,8 @@ class UserHasNoAccessToRouterError:
 @dataclass
 class IncorrectCurrentPasswordError:
     user_id: int
+
+
+@dataclass
+class UserCannotCreateUserError:
+    user_id: int
