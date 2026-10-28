@@ -21,4 +21,5 @@ config = rx.Config(
     frontend_path=os.environ.get("REFLEX_FRONTEND_PATH", ""),
     redis_url=redis_url,
     state_manager_mode=state_manager_mode,
+    show_built_with_reflex=False,
 )
