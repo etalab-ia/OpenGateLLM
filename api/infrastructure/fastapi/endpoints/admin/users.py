@@ -16,11 +16,14 @@ from api.domain.user.entities import UserSortField
 from api.domain.user.errors import (
     IncorrectCurrentPasswordError,
     UserAlreadyExistsError,
+    UserCannotCreateUserError,
     UserHasProvidersError,
     UserHasRoutersError,
     UserNotFoundError,
 )
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -28,6 +31,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     NotAdminUserHTTPException,
     OrganizationNotFoundHTTPException,
     RoleNotFoundHTTPException,
+    UnauthorizedActionHTTPException,
     UserAlreadyExistsHTTPException,
     UserHasProvidersHTTPException,
     UserHasRoutersHTTPException,
@@ -56,22 +60,24 @@ from api.use_cases.admin.users import (
 
 @router.post(
     path=EndpointRoute.ADMIN_USERS,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=201,
     responses=get_documentation_responses(
         [
             UserAlreadyExistsHTTPException,
             RoleNotFoundHTTPException,
             OrganizationNotFoundHTTPException,
-            NotAdminUserHTTPException,
+            UnauthorizedActionHTTPException,
         ]
     ),
 )
 async def create_user(
     body: CreateUserBody = Body(description="The user creation request."),
     create_user_use_case: CreateUserUseCase = Depends(create_user_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     command = CreateUserCommand(
+        authenticated_user_id=authenticated_user.id,
         email=body.email,
         password=body.password,
         role_id=body.role_id,
@@ -91,6 +97,8 @@ async def create_user(
             raise RoleNotFoundHTTPException(role_id)
         case OrganizationNotFoundError(id=organization_id):
             raise OrganizationNotFoundHTTPException(organization_id)
+        case UserCannotCreateUserError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.get(
