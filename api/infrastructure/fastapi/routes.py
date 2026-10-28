@@ -9,6 +9,7 @@ class RouterName(StrEnum):
     EMBEDDINGS = ("embeddings", "api.infrastructure.fastapi.endpoints.embeddings")
     HEALTH = ("health", "api.infrastructure.fastapi.endpoints.health")
     KEYS = ("keys", "api.infrastructure.fastapi.endpoints.keys")
+    LIMITS = ("limits", "api.infrastructure.fastapi.endpoints.limits")
     ME = ("me", "api.infrastructure.fastapi.endpoints.me")
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
     MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
@@ -40,6 +41,7 @@ class EndpointRoute(StrEnum):
     HEALTH = "/health"
     HEALTH_MODELS = "/health/models"
     KEYS = "/keys"
+    LIMITS = "/limits"
     METRICS = "/metrics"
     ME = "/me"
     ME_USAGE = "/me/usage"

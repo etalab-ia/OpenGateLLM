@@ -92,6 +92,7 @@ def custom_validation_error(suffix: str = ""):
 class PlaygroundPages(StrEnum):
     ACCOUNT = "account"
     KEYS = "keys"
+    LIMITS = "limits"
     ORGANIZATIONS = "organizations"
     PROVIDERS = "providers"
     ROLES = "roles"

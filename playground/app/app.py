@@ -7,6 +7,8 @@ from app.features.auth.state import AuthState
 from app.features.chat.page import chat_page_content
 from app.features.keys.page import keys_page
 from app.features.keys.state import KeysState
+from app.features.limits.page import limits_page
+from app.features.limits.state import LimitsState
 from app.features.organizations.page import organizations_page
 from app.features.organizations.state import OrganizationsState
 from app.features.providers.page import providers_page
@@ -45,6 +47,11 @@ def keys() -> rx.Component:
 def usage() -> rx.Component:
     """Usage page."""
     return authenticated_page(usage_page())
+
+
+def limits() -> rx.Component:
+    """Rate limits page."""
+    return authenticated_page(limits_page())
 
 
 def roles() -> rx.Component:
@@ -133,6 +140,8 @@ if PlaygroundPages.KEYS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=keys, route="/keys", on_load=_on_load(KeysState.load_entities))
 if PlaygroundPages.USAGE not in configuration.settings.playground_disabled_pages:
     app.add_page(component=usage, route="/usage", on_load=_on_load(UsageState.load_entities))
+if PlaygroundPages.LIMITS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=limits, route="/limits", on_load=_on_load(LimitsState.load_entities))
 
 # Admin pages
 if PlaygroundPages.ORGANIZATIONS not in configuration.settings.playground_disabled_pages:

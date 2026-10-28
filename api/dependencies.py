@@ -68,6 +68,7 @@ from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.chat import CreateChatCompletionsUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
+from api.use_cases.limits import GetLimitsUseCase
 from api.use_cases.me import GetMeUseCase, UpdateMeUseCase
 from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
 from api.use_cases.ocr import CreateOCRUseCase
@@ -406,6 +407,14 @@ def get_models_use_case_factory(postgres_session: AsyncSession = Depends(get_pos
 
 def get_one_model_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneModelUseCase:
     return GetOneModelUseCase(model_query=_model_query(postgres_session))
+
+
+# limits use cases
+def get_limits_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
+) -> GetLimitsUseCase:
+    return GetLimitsUseCase(model_query=_model_query(postgres_session), router_rate_limiter=router_rate_limiter)
 
 
 # ocr use cases
