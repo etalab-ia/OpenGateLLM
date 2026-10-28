@@ -709,7 +709,7 @@ through (an organization member reading their own organization, for one).
 
 | Relation                                  | Written by                                                                         | Checked by                    |
 |-------------------------------------------|------------------------------------------------------------------------------------|-------------------------------|
-| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up; `CreateUserUseCase`, admin role only   | — (only via the rules below)  |
+| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up; `CreateUserUseCase`, admin role only; deleted by `DeleteUserUseCase` | — (only via the rules below)  |
 | `platform:api#can_create_organization`    | computed from `admin`, never written                                               | `CreateOrganizationUseCase`   |
 | `platform:api#can_create_user`            | computed from `admin`, never written                                               | `CreateUserUseCase`           |
 | `platform:api#can_delete_user`            | computed from `admin`, never written                                               | `DeleteUserUseCase`           |
@@ -725,7 +725,7 @@ route that needs one is the work, not the modelling.
 |---------------------------------|--------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
 | Intent port (domain)            | `api/domain/<aggregate>/` — `OrganizationAuthorization`, `BootstrapAuthorization`, `UserAuthorization` | business questions returning a `bool`, or an intent          |
 | Adapter (infrastructure)        | `api/infrastructure/openfga/` — `OpenFga<PortName>`                                                    | objects, relations, tuples                                   |
-| Generic client (infrastructure) | `AuthorizationClient` / `OpenFgaAuthorizationClient`                                                   | the raw triple: `check`, `write_relation`, `delete_relation` |
+| Generic client (infrastructure) | `AuthorizationClient` / `OpenFgaAuthorizationClient`                                                   | the raw triple: `check`, `write_relation`, `delete_relation`, `delete_relation_if_exists` |
 
 An intent port lives next to the aggregate it protects, not in `api/domain/authorization/` — that package holds only the
 generic client port and the entities. Each port is named for what it is *for*, so the one used at bootstrap is
@@ -736,7 +736,7 @@ A method that writes a relation is named after the business act, in pairs, never
 | Pair                                           | Act                                                                 | Today                   |
 |------------------------------------------------|---------------------------------------------------------------------|-------------------------|
 | `register_<object>` / `unregister_<object>`    | declare an object to its parent (the relation points to the parent) | `register_organization` / `unregister_organization` |
-| `grant_<scope>_admin` / `revoke_<scope>_admin` | give or take back a privilege                                       | `grant_platform_admin` (`BootstrapAuthorization`, `UserAuthorization`) |
+| `grant_<scope>_admin` / `revoke_<scope>_admin` | give or take back a privilege                                       | `grant_platform_admin` (`BootstrapAuthorization`, `UserAuthorization`) / `revoke_platform_admin` |
 | `add_<scope>_user` / `remove_<scope>_user`     | membership (the relation points into the scope)                     | —                       |
 
 Add the second method of a pair only when a route needs it.
@@ -844,15 +844,22 @@ the Postgres transaction back, so a failed grant cannot leave an admin nobody ca
 the row, before returning success, like registering an organization. No check-before-write here: the id is fresh,
 Postgres sequences never hand it out twice, so a duplicate tuple cannot exist.
 
-Those are the only two paths. A user created with an admin role by SSO login, promoted or demoted through
-`PATCH /users` or `PATCH /roles`, or deleted, writes or removes no tuple, so OpenFGA drifts from the Postgres role until
+**Deleting a user revokes it, whatever the role.** `DeleteUserUseCase` removes `platform:api#admin@user:<id>` through
+`UserAuthorization.revoke_platform_admin` after the row, before returning success, so a failed revoke rolls the
+delete back. It does not read the role first: OpenFGA drifts from it (below), so a user can hold the tuple without an
+admin role. Most deleted users hold none, and deleting a missing tuple is a 400 — hence
+`AuthorizationClient.delete_relation_if_exists` (`on_missing: ignore`). `delete_relation` stays strict: the organization
+registration it removes is guaranteed by the `can_delete` check, so a missing one is a real anomaly.
+
+Those are the only paths. A user created with an admin role by SSO login, or promoted or demoted through
+`PATCH /users` or `PATCH /roles`, writes or removes no tuple, so OpenFGA drifts from the Postgres role until
 something projects one onto the other — still missing. The deployment repo's `openfga_migrations` role backfills the
 admins present when it runs (`m001_platform_admins.py`): a photograph, not a projection.
 
-**Nothing above is covered by tests, with two exceptions.** `api/tests/store.fga.yaml` does not exist yet, so
+**Nothing above is covered by tests, with three exceptions.** `api/tests/store.fga.yaml` does not exist yet, so
 `fga model test --tests api/tests/store.fga.yaml` fails for the moment; CI does not validate `model.fga` either (issue #1209). The exceptions are the
-unit tests of `BootstrapAdminUseCase` and `CreateUserUseCase`, which do cover the grant: which branches write it, and
-which must not.
+unit tests of `BootstrapAdminUseCase`, `CreateUserUseCase` and `DeleteUserUseCase`, which do cover the grant and the
+revoke: which branches write or remove it, and which must not.
 
 ---
 
