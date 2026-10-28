@@ -7,7 +7,7 @@ from api.domain.role import RoleRepository
 from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserAuthorization, UserPasswordEncoder, UserRepository
-from api.domain.user.errors import UserAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError, UserCannotCreateUserError
 from api.tests.unit.use_case.factories import RoleFactory, UserFactory
 from api.use_cases.admin.users import CreateUserCommand, CreateUserUseCase, CreateUserUseCaseSuccess
 
@@ -33,7 +33,9 @@ def mock_user_password_encoder():
 
 @pytest.fixture
 def mock_user_authorization():
-    return create_autospec(UserAuthorization, instance=True, spec_set=True)
+    authorization = create_autospec(UserAuthorization, instance=True, spec_set=True)
+    authorization.can_create_user.return_value = True
+    return authorization
 
 
 @pytest.fixture
@@ -49,6 +51,7 @@ def use_case(mock_user_repository, mock_role_repository, mock_user_password_enco
 @pytest.fixture
 def default_command():
     return CreateUserCommand(
+        authenticated_user_id=1,
         email="newuser@test.com",
         password="s3cr3t",
         role_id=10,
@@ -63,6 +66,7 @@ class TestCreateUserUseCase:
     ):
         # Arrange
         command = CreateUserCommand(
+            authenticated_user_id=1,
             email="newuser@test.com",
             password="s3cr3t",
             role_id=10,
@@ -88,6 +92,7 @@ class TestCreateUserUseCase:
         assert result.user.id == 42
         assert result.user.email == "newuser@test.com"
 
+        mock_user_authorization.can_create_user.assert_awaited_once_with(user_id=1, organization_id=5)
         mock_role_repository.get_role_with_permissions_and_limits_by_id.assert_awaited_once_with(role_id=10)
         mock_user_password_encoder.encode_password.assert_called_once_with(password="s3cr3t")
         mock_user_repository.create_user.assert_awaited_once_with(
@@ -99,6 +104,24 @@ class TestCreateUserUseCase:
             password="encoded:s3cr3t",
             priority=2,
         )
+        mock_user_authorization.attach_admin_to_platform.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_cannot_create_user_error_without_reading_or_writing_when_the_user_is_not_allowed(
+        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, default_command
+    ):
+        # Arrange
+        mock_user_authorization.can_create_user.return_value = False
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert isinstance(result, UserCannotCreateUserError)
+        assert result.user_id == 1
+        mock_user_authorization.can_create_user.assert_awaited_once_with(user_id=1, organization_id=5)
+        mock_role_repository.get_role_with_permissions_and_limits_by_id.assert_not_awaited()
+        mock_user_repository.create_user.assert_not_awaited()
         mock_user_authorization.attach_admin_to_platform.assert_not_awaited()
 
     @pytest.mark.asyncio
