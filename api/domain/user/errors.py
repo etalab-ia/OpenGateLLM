@@ -50,3 +50,8 @@ class IncorrectCurrentPasswordError:
 @dataclass
 class UserCannotCreateUserError:
     user_id: int
+
+
+@dataclass
+class UserCannotDeleteUserError:
+    user_id: int
