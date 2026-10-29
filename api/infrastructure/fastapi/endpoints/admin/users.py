@@ -18,6 +18,7 @@ from api.domain.user.errors import (
     UserAlreadyExistsError,
     UserCannotCreateUserError,
     UserCannotDeleteUserError,
+    UserCannotReadUsersError,
     UserHasProvidersError,
     UserHasRoutersError,
     UserNotFoundError,
@@ -125,9 +126,9 @@ async def get_user(
 
 @router.get(
     path=EndpointRoute.ADMIN_USERS,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException]),
 )
 async def get_users(
     role_id: int | None = Query(default=None, description="The ID of the role to filter the users by."),
@@ -138,8 +139,10 @@ async def get_users(
     sort_by: UserSortField = Query(default=UserSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_users_use_case: GetUsersUseCase = Depends(get_users_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UsersResponse:
     command = GetUsersCommand(
+        authenticated_user_id=authenticated_user.id,
         role_id=role_id,
         organization_id=organization_id,
         email=email,
@@ -157,6 +160,8 @@ async def get_users(
                 limit=limit,
                 data=[UserResponse.model_validate(r, from_attributes=True) for r in user_page.data],
             )
+        case UserCannotReadUsersError(user_id=authenticated_user_id):
+            raise UnauthorizedActionHTTPException(authenticated_user_id)
         case _ as unreachable:
             assert_never(unreachable)
 
