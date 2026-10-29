@@ -1,31 +1,34 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 import pytest
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import ProviderCapabilities
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.tests.unit.use_case.factories import ProviderFactory, ProviderToCreateFactory, RouterFactory, RouterToCreateFactory
 from api.use_cases.models import BootstrapModelsCommand, BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
+from api.use_cases.services import ProviderCapabilitiesProbe
 
 BOOTSTRAP_ADMIN_USER_ID = 1
 
 
 @pytest.fixture
 def router_repository():
-    return AsyncMock()
+    return create_autospec(RouterRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
 def provider_repository():
-    return AsyncMock()
+    return create_autospec(ProviderRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
 def provider_capabilities_probe():
-    return AsyncMock()
+    return create_autospec(ProviderCapabilitiesProbe, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -60,8 +63,8 @@ class TestBootstrapModelsUseCase:
         self, use_case, router_repository, provider_repository, provider_capabilities_probe
     ):
         # Arrange
-        provider_to_create = ProviderToCreateFactory()
-        router_to_create = RouterToCreateFactory(providers=[provider_to_create])
+        provider_to_create = ProviderToCreateFactory(qos_limit=8)
+        router_to_create = RouterToCreateFactory(providers=[provider_to_create], qos_retries_before_reject=3)
         router = RouterFactory(id=10, name=router_to_create.name, type=RouterType.TEXT_GENERATION, max_context_length=4096, vector_size=None)
         provider = ProviderFactory(id=100, router_id=10, user_id=BOOTSTRAP_ADMIN_USER_ID)
 
@@ -80,6 +83,7 @@ class TestBootstrapModelsUseCase:
             name=router_to_create.name,
             router_type=router_to_create.type,
             load_balancing_strategy=router_to_create.load_balancing_strategy,
+            qos_retries_before_reject=router_to_create.qos_retries_before_reject,
             cost_prompt_tokens=router_to_create.cost_prompt_tokens,
             cost_completion_tokens=router_to_create.cost_completion_tokens,
             user_id=BOOTSTRAP_ADMIN_USER_ID,
@@ -101,6 +105,7 @@ class TestBootstrapModelsUseCase:
             key=provider_to_create.key,
             basic_auth=provider_to_create.basic_auth,
             timeout=provider_to_create.timeout,
+            qos_limit=provider_to_create.qos_limit,
             model_name=provider_to_create.model_name,
             model_hosting_zone=provider_to_create.model_hosting_zone,
             model_total_params=provider_to_create.model_total_params,

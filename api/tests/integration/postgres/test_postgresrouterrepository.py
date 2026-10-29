@@ -21,6 +21,7 @@ def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
         type=RouterType(router_sql.type),
         aliases=aliases or [],
         load_balancing_strategy=RouterLoadBalancingStrategy(router_sql.load_balancing_strategy),
+        qos_retries_before_reject=router_sql.qos_retries_before_reject,
         cost_prompt_tokens=router_sql.cost_prompt_tokens or 0.0,
         cost_completion_tokens=router_sql.cost_completion_tokens or 0.0,
         providers=0,
@@ -101,6 +102,7 @@ class TestCreateRouter:
             name="test-router",
             router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            qos_retries_before_reject=4,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
             user_id=user.id,
@@ -111,6 +113,7 @@ class TestCreateRouter:
         assert result.name == "test-router"
         assert result.type == RouterType.TEXT_GENERATION
         assert result.load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE
+        assert result.qos_retries_before_reject == 4
         assert result.cost_prompt_tokens == 0.001
         assert result.cost_completion_tokens == 0.002
         assert result.user_id == user.id
@@ -560,12 +563,15 @@ class TestUpdateRouter:
         await db_session.flush()
 
         # Act
-        result = await repository.update_router(to_router_domain(router).with_cost_prompt_tokens(0.010).with_cost_completion_tokens(0.020))
+        result = await repository.update_router(
+            to_router_domain(router).with_cost_prompt_tokens(0.010).with_cost_completion_tokens(0.020).with_qos_retries_before_reject(3)
+        )
 
         # Assert
         assert isinstance(result, Router)
         assert result.cost_prompt_tokens == 0.010
         assert result.cost_completion_tokens == 0.020
+        assert result.qos_retries_before_reject == 3
 
     async def test_update_router_should_replace_aliases_in_database(self, repository, db_session):
         # Arrange

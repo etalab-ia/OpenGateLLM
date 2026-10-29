@@ -27,6 +27,7 @@ class CreateProviderCommand:
     model_hosting_zone: HostingZone
     model_total_params: int
     model_active_params: int
+    qos_limit: int | None = None
 
 
 @dataclass
@@ -112,6 +113,7 @@ class CreateProviderUseCase:
             key=command.key,
             basic_auth=command.basic_auth,
             timeout=command.timeout,
+            qos_limit=command.qos_limit,
             model_name=command.model_name,
             model_hosting_zone=command.model_hosting_zone,
             model_total_params=command.model_total_params,

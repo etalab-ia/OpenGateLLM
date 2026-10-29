@@ -22,6 +22,7 @@ class ProviderRepository(ABC):
         model_active_params: int,
         vector_size: int,
         max_context_length: int,
+        qos_limit: int | None = None,
     ) -> Provider | ProviderAlreadyExistsError:
         pass
 

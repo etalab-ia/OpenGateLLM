@@ -5,7 +5,9 @@ from datetime import datetime
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionStreamReader, CreateChatCompletionsBody
 from api.domain.model.errors import StatusCodeModelError
+from api.domain.provider import ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
+from api.domain.provider.errors import NoAvailableProviderError
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.usage.entities import BilledTokens, Usage
 from api.domain.user.views import AuthenticatedUserView
@@ -63,20 +65,44 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         request_id = self.usage_context.get_request_id()
 
         if command.stream:
-            provider = await self._select_provider(router=router)
+            providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
             request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=command.payload)
 
-            match await self.provider_client.forward_stream(provider=provider, request=request):
+            result = await self._reserve_provider(
+                providers=providers,
+                strategy=router.load_balancing_strategy,
+                retries_before_reject=router.qos_retries_before_reject,
+                request_id=request_id,
+            )
+            match result:
+                case ProviderReservation() as reservation:
+                    provider = reservation.provider
+                case ProviderReservationRefused():
+                    return NoAvailableProviderError(
+                        router_id=router.id,
+                        retry_after=self._compute_retry_after(retries_before_reject=router.qos_retries_before_reject),
+                    )
+
+            self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+            try:
+                result = await self.provider_client.forward_stream(provider=provider, request=request)
+            except BaseException:
+                await self.provider_concurrency_limiter.release(reservation=reservation)
+                raise
+
+            match result:
                 case AsyncGenerator() as provider_chunks:
                     pass
                 case error:
+                    await self.provider_concurrency_limiter.release(reservation=reservation)
                     return error
 
+            # from here on the stream owns the reservation and releases it once consumed or closed
             return CreateChatCompletionsStreamUseCaseSuccess(
                 chunks=self._forward_stream_to_client(
                     authenticated_user=authenticated_user,
                     router=router,
-                    provider=provider,
+                    reservation=reservation,
                     provider_chunks=provider_chunks,
                     estimated_prompt_tokens=estimated_prompt_tokens,
                     request_id=request_id,
@@ -105,15 +131,16 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         self,
         authenticated_user: AuthenticatedUserView,
         router: Router,
-        provider: Provider,
+        reservation: ProviderReservation,
         provider_chunks: AsyncGenerator[ProviderChunkResponse],
         estimated_prompt_tokens: int,
         request_id: str,
     ) -> AsyncGenerator[ProviderChunkResponse]:
+        provider = reservation.provider
         stream_reader = ChatCompletionStreamReader(model=router.name, request_id=request_id)
         stream_was_fully_read = False
 
-        async with self._count_ongoing_request(provider=provider):
+        try:
             async with aclosing(provider_chunks):
                 try:
                     async for chunk in provider_chunks:
@@ -161,6 +188,8 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     )
                     yield ProviderChunkResponse(content=stream_reader.build_usage_line(usage=usage), status_code=200)
                     yield ProviderChunkResponse(content="data: [DONE]", status_code=200)
+        finally:
+            await self.provider_concurrency_limiter.release(reservation=reservation)
 
     def _bill_stream(
         self,
