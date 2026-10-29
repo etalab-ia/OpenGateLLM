@@ -109,12 +109,13 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
             return
 
         heartbeat.cancel()
-        await asyncio.wait([heartbeat])
 
         try:
             await self.redis_client.zrem(self._load_key(reservation.provider.id), reservation.request_id)
         except RedisError:
             logger.exception("Failed to release the provider reservation of request %s.", reservation.request_id)
+
+        await asyncio.wait([heartbeat])
 
     @classmethod
     def _load_key(cls, provider_id: int) -> str:
