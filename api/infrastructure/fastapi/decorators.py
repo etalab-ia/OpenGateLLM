@@ -1,28 +1,41 @@
 import asyncio
-from contextlib import suppress
 import functools
+import inspect
 
-from fastapi import Request
+import anyio
+from fastapi import Request, Response
+from starlette.types import Receive
+
+CLIENT_CLOSED_REQUEST = 499
 
 
-def cancel_on_disconnect(endpoint_func):
-    @functools.wraps(endpoint_func)
-    async def wrapper(*args, **kwargs):
+def cancel_on_disconnect(endpoint):
+    """Cancel the endpoint as soon as its client goes away, so the provider stops computing an answer nobody will read.
+
+    The endpoint then answers 499 instead of raising, so that `RequestLogMiddleware` sees a status: a `CancelledError`
+    would go past its `except Exception`, and the request log line and the trace would end with no status at all.
+    """
+    if "request" not in inspect.signature(endpoint).parameters:
+        raise TypeError(f"{endpoint.__name__} needs a `request: Request` parameter to be cancelled on disconnect.")
+
+    @functools.wraps(endpoint)
+    async def cancellable_endpoint(*args, **kwargs):
         request: Request = kwargs["request"]
-        endpoint_task = asyncio.create_task(endpoint_func(*args, **kwargs), name=f"request-{request.url.path}")
-        try:
-            while not endpoint_task.done():
-                if await request.is_disconnected():
-                    endpoint_task.cancel()
-                    with suppress(asyncio.CancelledError):
-                        await endpoint_task
-                    raise asyncio.CancelledError()
-                await asyncio.sleep(0.1)
-            return await endpoint_task
-        finally:
-            if not endpoint_task.done():
-                endpoint_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await endpoint_task
 
-    return wrapper
+        with anyio.CancelScope() as endpoint_scope:
+            disconnect_watcher = asyncio.create_task(_cancel_when_client_disconnects(receive=request.receive, scope=endpoint_scope))
+            try:
+                return await endpoint(*args, **kwargs)
+            finally:
+                disconnect_watcher.cancel()
+
+        # Only reached when the watcher cancelled the scope: any other cancellation propagates through it.
+        return Response(status_code=CLIENT_CLOSED_REQUEST)
+
+    return cancellable_endpoint
+
+
+async def _cancel_when_client_disconnects(receive: Receive, scope: anyio.CancelScope) -> None:
+    while (await receive())["type"] != "http.disconnect":
+        pass
+    scope.cancel()

@@ -3,8 +3,10 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from unittest.mock import create_autospec
 
+from fastapi import FastAPI, Request
 import pytest
 
+from api.domain.chat.entities import CreateChatCompletionsBody
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation
@@ -15,10 +17,11 @@ from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext, RequestLogMiddleware, RequestTracer, StreamingResponseWithStatusCode, UsageRecorder
+from api.infrastructure.fastapi.decorators import CLIENT_CLOSED_REQUEST, cancel_on_disconnect
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.fastapi.endpoints.chat import _as_stream_chunks
-from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
-from api.use_cases.chat import CreateChatCompletionsUseCase
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
+from api.use_cases.chat import CreateChatCompletionsCommand, CreateChatCompletionsUseCase
 
 DATA_LINE = 'data: {"id": "chat-1", "object": "chat.completion.chunk", "created": 1, "model": "provider-internal", "choices": [{"index": 0, "delta": {"content": "Hello"}}]}'  # noqa: E501
 USER_ID = 42
@@ -115,6 +118,17 @@ def _streaming_app(use_case, router, provider):
     return app
 
 
+def _non_streaming_app(use_case, command):
+    app = FastAPI()
+
+    @app.post("/v1/chat/completions")
+    @cancel_on_disconnect
+    async def create_chat_completions(request: Request):
+        return await use_case.execute(command)
+
+    return app
+
+
 async def _receive() -> dict:
     await asyncio.Event().wait()
     raise AssertionError("unreachable")
@@ -191,3 +205,50 @@ class TestUsageRecordedOnClientDisconnect:
         use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
             reservation=ProviderReservation(provider=provider, request_id="req-123")
         )
+
+    async def test_should_answer_499_without_saving_usage_when_a_non_streamed_client_disconnects(
+        self, use_case, usage_recorder, mock_usage_repository, mock_tracer, router, provider
+    ):
+        # Arrange: the provider never answers, the client leaves while waiting for it
+        request_context.set(RequestContext(id="req-123", user=_authenticated_user(), usage_recorder=usage_recorder))
+        reservation = ProviderReservation(provider=provider, request_id="req-123")
+        use_case.router_repository.get_router_by_name_or_alias.return_value = router
+        use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
+        use_case.provider_concurrency_limiter.reserve.return_value = reservation
+        provider_called = asyncio.Event()
+
+        async def provider_never_answering(provider, request):
+            provider_called.set()
+            await asyncio.Event().wait()
+
+        use_case.provider_client.forward.side_effect = provider_never_answering
+        command = CreateChatCompletionsCommand(
+            payload=CreateChatCompletionsBody(model=router.name, messages=[{"role": "user", "content": "hello"}], stream=False),
+            authenticated_user=AuthenticatedUserFactory(id=1, admin=True),
+            authenticated_key=KeyFactory(),
+        )
+        middleware = RequestLogMiddleware(_non_streaming_app(use_case, command))
+        messages = iter([{"type": "http.request", "body": b"", "more_body": False}])
+
+        async def receive() -> dict:
+            if (message := next(messages, None)) is not None:
+                return message
+            await provider_called.wait()
+            return {"type": "http.disconnect"}
+
+        sent = []
+
+        async def send(message: dict) -> None:
+            sent.append(message)
+
+        scope = {**SCOPE, "http_version": "1.1", "raw_path": b"/v1/chat/completions", "root_path": "", "scheme": "http", "query_string": b"", "headers": [], "server": ("test", 80)}  # fmt: off
+
+        # Act
+        await middleware(scope, receive, send)
+
+        # Assert
+        assert sent[0]["status"] == CLIENT_CLOSED_REQUEST
+        mock_usage_repository.save_record.assert_not_called()
+        use_case.provider_concurrency_limiter.release.assert_awaited_once_with(reservation=reservation)
+        mock_tracer.end.assert_called_once_with(usage_recorder.record)
+        assert usage_recorder.record.status == CLIENT_CLOSED_REQUEST, "the trace must end with the status the client was answered"
