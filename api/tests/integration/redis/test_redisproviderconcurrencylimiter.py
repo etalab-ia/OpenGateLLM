@@ -2,6 +2,7 @@ import asyncio
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
+import anyio
 import pytest
 from redis.exceptions import RedisError
 
@@ -214,6 +215,21 @@ class TestRedisProviderConcurrencyLimiter:
         reservation = await reserve(provider_concurrency_limiter, "request-1", [candidate], enforce_limit=False)
         await provider_concurrency_limiter.release(reservation=reservation)
         await asyncio.sleep(0.03)
+
+        assert await redis_client.zscore(key, "request-1") is None
+
+    async def test_release_frees_the_place_from_a_cancelled_request(self, provider_concurrency_limiter, redis_client):
+        # Starlette cancels the request scope when a streaming client disconnects: every await in it raises from then on.
+        candidate = provider(1)
+        key = provider_concurrency_limiter._load_key(candidate.id)
+
+        with anyio.CancelScope() as request_scope:
+            reservation = await reserve(provider_concurrency_limiter, "request-1", [candidate], enforce_limit=False)
+            request_scope.cancel()
+            try:
+                await anyio.sleep(1)
+            finally:
+                await provider_concurrency_limiter.release(reservation=reservation)
 
         assert await redis_client.zscore(key, "request-1") is None
 
