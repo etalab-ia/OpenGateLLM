@@ -631,7 +631,7 @@ through (an organization member reading their own organization, for one).
 
 | Relation                                  | Written by                                                                         | Checked by                    |
 |-------------------------------------------|------------------------------------------------------------------------------------|-------------------------------|
-| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up                                         | — (only via the rules below)  |
+| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up; `CreateUserUseCase`, admin role only   | — (only via the rules below)  |
 | `platform:api#can_create_organization`    | computed from `admin`, never written                                               | `CreateOrganizationUseCase`   |
 | `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`    | — (only via the rule below)   |
 | `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                 | `DeleteOrganizationUseCase`   |
@@ -641,11 +641,11 @@ route that needs one is the work, not the modelling.
 
 **Three layers, narrowest first.**
 
-| Layer                           | Lives in                                                                          | Speaks                                                       |
-|---------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------|
-| Intent port (domain)            | `api/domain/<aggregate>/` — `OrganizationAuthorization`, `BootstrapAuthorization` | business questions returning a `bool`, or an intent          |
-| Adapter (infrastructure)        | `api/infrastructure/openfga/` — `OpenFga<PortName>`                               | objects, relations, tuples                                   |
-| Generic client (infrastructure) | `AuthorizationClient` / `OpenFgaAuthorizationClient`                              | the raw triple: `check`, `write_relation`, `delete_relation` |
+| Layer                           | Lives in                                                                                               | Speaks                                                       |
+|---------------------------------|--------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
+| Intent port (domain)            | `api/domain/<aggregate>/` — `OrganizationAuthorization`, `BootstrapAuthorization`, `UserAuthorization` | business questions returning a `bool`, or an intent          |
+| Adapter (infrastructure)        | `api/infrastructure/openfga/` — `OpenFga<PortName>`                                                    | objects, relations, tuples                                   |
+| Generic client (infrastructure) | `AuthorizationClient` / `OpenFgaAuthorizationClient`                                                   | the raw triple: `check`, `write_relation`, `delete_relation` |
 
 An intent port lives next to the aggregate it protects, not in `api/domain/authorization/` — that package holds only the
 generic client port and the entities. Each port is named for what it is *for*, so the one that grants the bootstrap
@@ -741,14 +741,20 @@ covers a genuinely invalid tuple — a relation renamed in `model.fga` without `
 Measured: with five workers on an empty store, four lose. Since the write happens inside the use case, a re-raise rolls
 the Postgres transaction back, so a failed grant cannot leave an admin nobody can use.
 
-Only users holding a Postgres admin role at *bootstrap* get the relation. Promoting an existing user to admin through
-`PATCH /roles` writes no tuple, so OpenFGA will not see it until something projects Postgres roles onto relations —
-still missing. The deployment repo's `openfga_migrations` role backfills the admins present when it runs
-(`m001_platform_admins.py`): a photograph, not a projection.
+**Creating an admin user grants it too.** `CreateUserUseCase` reads the role before inserting the user, and writes
+`platform:api#admin@user:<id>` through `UserAuthorization.attach_admin_to_platform` when the role carries `admin` — after
+the row, before returning success, like the organization attachment. No check-before-write here: the id is fresh,
+Postgres sequences never hand it out twice, so a duplicate tuple cannot exist.
 
-**Nothing above is covered by tests, with one exception.** `api/tests/store.fga.yaml` does not exist yet, so `make fga-test`
-fails for the moment; CI does not validate `model.fga` either (issue #1209). The exception is
-`BootstrapAdminUseCase`'s own unit tests, which do cover the grant: which branches write it, and which must not.
+Those are the only two paths. A user created with an admin role by SSO login, promoted or demoted through
+`PATCH /users` or `PATCH /roles`, or deleted, writes or removes no tuple, so OpenFGA drifts from the Postgres role until
+something projects one onto the other — still missing. The deployment repo's `openfga_migrations` role backfills the
+admins present when it runs (`m001_platform_admins.py`): a photograph, not a projection.
+
+**Nothing above is covered by tests, with two exceptions.** `api/tests/store.fga.yaml` does not exist yet, so `make fga-test`
+fails for the moment; CI does not validate `model.fga` either (issue #1209). The exceptions are the
+unit tests of `BootstrapAdminUseCase` and `CreateUserUseCase`, which do cover the grant: which branches write it, and
+which must not.
 
 ---
 

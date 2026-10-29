@@ -20,7 +20,7 @@ from api.domain.provider import (
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
 from api.domain.usage import UsageContext, UsageRepository
-from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
+from api.domain.user import AuthenticatedUserQuery, UserAuthorization, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration
 from api.infrastructure.context import global_context
@@ -30,7 +30,7 @@ from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.langfuse import LangfuseRequestTracer
-from api.infrastructure.openfga import OpenFgaAuthorizationClient
+from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaUserAuthorization
 from api.infrastructure.openfga._openfgaorganizationauthorization import OpenFgaOrganizationAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
@@ -175,6 +175,10 @@ def _authorization_client() -> AuthorizationClient:
 
 def _get_organization_authorization(openfga_client: OpenFgaAuthorizationClient = Depends(_authorization_client)) -> OrganizationAuthorization:
     return OpenFgaOrganizationAuthorization(openfga_client=openfga_client)
+
+
+def _get_user_authorization(openfga_client: OpenFgaAuthorizationClient = Depends(_authorization_client)) -> UserAuthorization:
+    return OpenFgaUserAuthorization(openfga_client=openfga_client)
 
 
 # repositories
@@ -477,8 +481,16 @@ def update_organization_use_case_factory(postgres_session: AsyncSession = Depend
 
 
 # user use cases
-def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateUserUseCase:
-    return CreateUserUseCase(user_repository=_user_repository(postgres_session), user_password_encoder=_user_password_encoder())
+def create_user_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    user_authorization: UserAuthorization = Depends(_get_user_authorization),
+) -> CreateUserUseCase:
+    return CreateUserUseCase(
+        user_repository=_user_repository(postgres_session),
+        role_repository=_role_repository(postgres_session),
+        user_password_encoder=_user_password_encoder(),
+        user_authorization=user_authorization,
+    )
 
 
 def get_one_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneUserUseCase:
