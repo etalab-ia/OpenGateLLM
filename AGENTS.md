@@ -622,17 +622,19 @@ inconsistency is a bug.
 `AccessController` (`api/infrastructure/fastapi/accesscontroller.py`) takes `only_admin` and `allow_expired`, both
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
-Today **only `POST` and `DELETE /v1/admin/organizations` ask OpenFGA**. They are the organization routes guarded by a
-bare `AccessController()`; the three others still carry `AccessController(only_admin=True)`. Never put both on one route: two
+Today **only `POST` and `DELETE /v1/admin/organizations` and `POST /v1/admin/users` ask OpenFGA**. They are the admin
+routes guarded by a bare `AccessController()`; the other organization and user routes still carry
+`AccessController(only_admin=True)`. Never put both on one route: two
 sources of truth for the same decision drift, and `only_admin` short-circuits any rule that would let a non-admin
 through (an organization member reading their own organization, for one).
 
-**What is actually wired.** Four relations the model declares are reached by code:
+**What is actually wired.** Five relations the model declares are reached by code:
 
 | Relation                                  | Written by                                                                         | Checked by                    |
 |-------------------------------------------|------------------------------------------------------------------------------------|-------------------------------|
 | `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up; `CreateUserUseCase`, admin role only   | — (only via the rules below)  |
 | `platform:api#can_create_organization`    | computed from `admin`, never written                                               | `CreateOrganizationUseCase`   |
+| `platform:api#can_create_user`            | computed from `admin`, never written                                               | `CreateUserUseCase`           |
 | `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`    | — (only via the rule below)   |
 | `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                 | `DeleteOrganizationUseCase`   |
 
@@ -706,7 +708,7 @@ organization` therefore means `organization:42#platform@platform:api`, and writi
 (`relation 'platform#platform' not found`).
 
 **Creation is checked on the platform.** A permission is checked against an object, and the object does not exist yet
-when it is being created — so `can_create_organization` lives on `platform:api`. Anything acting on an existing
+when it is being created — so `can_create_organization` and `can_create_user` live on `platform:api`. Anything acting on an existing
 organization belongs on `organization:<id>`.
 
 **Writing the attachment is part of creating.** A new organization gets `organization:<id>#platform@platform:api`,
