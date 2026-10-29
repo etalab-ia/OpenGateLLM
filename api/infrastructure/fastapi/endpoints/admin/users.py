@@ -17,6 +17,7 @@ from api.domain.user.errors import (
     IncorrectCurrentPasswordError,
     UserAlreadyExistsError,
     UserCannotCreateUserError,
+    UserCannotDeleteUserError,
     UserHasProvidersError,
     UserHasRoutersError,
     UserNotFoundError,
@@ -162,22 +163,23 @@ async def get_users(
 
 @router.delete(
     path=EndpointRoute.ADMIN_USERS + "/{user_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses(
         [
             UserNotFoundHTTPException,
             UserHasRoutersHTTPException,
             UserHasProvidersHTTPException,
-            NotAdminUserHTTPException,
+            UnauthorizedActionHTTPException,
         ]
     ),
 )
 async def delete_user(
     user_id: int = Path(description="The ID of the user to delete."),
     delete_user_use_case: DeleteUserUseCase = Depends(delete_user_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
-    command = DeleteUserCommand(user_id=user_id)
+    command = DeleteUserCommand(authenticated_user_id=authenticated_user.id, user_id=user_id)
     result = await delete_user_use_case.execute(command)
     match result:
         case DeleteUserUseCaseSuccess(user=user):
@@ -188,6 +190,8 @@ async def delete_user(
             raise UserHasRoutersHTTPException(user_id=user_id)
         case UserHasProvidersError(id=user_id):
             raise UserHasProvidersHTTPException(user_id=user_id)
+        case UserCannotDeleteUserError(user_id=authenticated_user_id):
+            raise UnauthorizedActionHTTPException(authenticated_user_id)
         case _ as unreachable:
             assert_never(unreachable)
 

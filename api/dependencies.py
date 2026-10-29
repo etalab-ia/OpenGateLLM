@@ -501,8 +501,11 @@ def get_users_use_case_factory(postgres_session: AsyncSession = Depends(get_post
     return GetUsersUseCase(user_repository=_user_repository(postgres_session))
 
 
-def delete_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteUserUseCase:
-    return DeleteUserUseCase(user_repository=_user_repository(postgres_session))
+def delete_user_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    user_authorization: UserAuthorization = Depends(_get_user_authorization),
+) -> DeleteUserUseCase:
+    return DeleteUserUseCase(user_repository=_user_repository(postgres_session), user_authorization=user_authorization)
 
 
 def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateUserUseCase:
