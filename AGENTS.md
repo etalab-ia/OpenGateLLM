@@ -605,6 +605,7 @@ async def get_roles(
 - Sort query params: `sort_by` / `sort_order`
 - Document errors: `responses=get_documentation_responses([...])`
 - `case RoleNotFoundError(id=role_id, name=name)` **captures** `None`; it does not require an id. Pass both through to the HTTP exception (which already has a generic `"Role not found."` fallback). Map the fields the use case actually returns (`id=` from FK failures, not `name=` unless that path exists).
+- Model-forward endpoints are decorated with `@cancel_on_disconnect` (`api/infrastructure/fastapi/decorators.py`), so a client that leaves stops the provider call instead of letting it run to the end. The endpoint declares `request: Request` (checked at startup) and its body as a parameter: the decorator listens on `request.receive` for the disconnect, so the body must already be read when the endpoint runs. On a disconnect it answers 499 rather than raising, so `RequestLogMiddleware` still logs a status and ends the trace; a cancellation that does not come from the client propagates unchanged.
 
 ---
 
