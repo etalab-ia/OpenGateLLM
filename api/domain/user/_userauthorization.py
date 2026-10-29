@@ -13,3 +13,7 @@ class UserAuthorization(ABC):
     @abstractmethod
     async def attach_admin_to_platform(self, user_id: int) -> None:
         pass
+
+    @abstractmethod
+    async def detach_admin_from_platform(self, user_id: int) -> None:
+        pass

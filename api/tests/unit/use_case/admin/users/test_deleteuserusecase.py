@@ -45,6 +45,7 @@ class TestDeleteUserUseCase:
 
         mock_user_authorization.can_delete_user.assert_awaited_once_with(user_id=1, target_user_id=sample_user.id)
         mock_user_repository.delete_user.assert_awaited_once_with(user_id=sample_user.id)
+        mock_user_authorization.detach_admin_from_platform.assert_awaited_once_with(user_id=sample_user.id)
 
     @pytest.mark.asyncio
     async def test_should_return_user_cannot_delete_user_error_without_deleting_when_the_user_is_not_allowed(
@@ -61,9 +62,10 @@ class TestDeleteUserUseCase:
         assert result.user_id == 1
         mock_user_authorization.can_delete_user.assert_awaited_once_with(user_id=1, target_user_id=42)
         mock_user_repository.delete_user.assert_not_awaited()
+        mock_user_authorization.detach_admin_from_platform.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_user_not_found_error_when_user_does_not_exist(self, use_case, mock_user_repository):
+    async def test_should_return_user_not_found_error_when_user_does_not_exist(self, use_case, mock_user_repository, mock_user_authorization):
         # Arrange
         mock_user_repository.delete_user.return_value = UserNotFoundError(id=99)
 
@@ -74,9 +76,10 @@ class TestDeleteUserUseCase:
         assert isinstance(result, UserNotFoundError)
         assert result.id == 99
         mock_user_repository.delete_user.assert_awaited_once_with(user_id=99)
+        mock_user_authorization.detach_admin_from_platform.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_user_has_routers_error_when_user_has_routers(self, use_case, mock_user_repository):
+    async def test_should_return_user_has_routers_error_when_user_has_routers(self, use_case, mock_user_repository, mock_user_authorization):
         # Arrange
         mock_user_repository.delete_user.return_value = UserHasRoutersError(id=42)
 
@@ -87,9 +90,10 @@ class TestDeleteUserUseCase:
         assert isinstance(result, UserHasRoutersError)
         assert result.id == 42
         mock_user_repository.delete_user.assert_awaited_once_with(user_id=42)
+        mock_user_authorization.detach_admin_from_platform.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_user_has_providers_error_when_user_has_providers(self, use_case, mock_user_repository):
+    async def test_should_return_user_has_providers_error_when_user_has_providers(self, use_case, mock_user_repository, mock_user_authorization):
         # Arrange
         mock_user_repository.delete_user.return_value = UserHasProvidersError(id=42)
 
@@ -100,3 +104,4 @@ class TestDeleteUserUseCase:
         assert isinstance(result, UserHasProvidersError)
         assert result.id == 42
         mock_user_repository.delete_user.assert_awaited_once_with(user_id=42)
+        mock_user_authorization.detach_admin_from_platform.assert_not_awaited()
