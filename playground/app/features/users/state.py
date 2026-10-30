@@ -193,8 +193,8 @@ class UsersState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("User deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -277,8 +277,8 @@ class UsersState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("User created successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -346,8 +346,8 @@ class UsersState(EntityState):
             self.handle_settings_entity_dialog_change(is_open=False)
             yield rx.toast.success("User updated successfully", position="bottom-right")
 
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -381,8 +381,8 @@ class UsersState(EntityState):
         self.search_email_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def set_order_by(self, value: str):
@@ -390,8 +390,8 @@ class UsersState(EntityState):
         self.order_by_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def set_order_direction(self, value: str):
@@ -399,24 +399,24 @@ class UsersState(EntityState):
         self.order_direction_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def prev_page(self):
         if self.page > 1:
             self.page -= 1
             yield
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
 
     @rx.event
     async def next_page(self):
         if self.page < self.total_pages:
             self.page += 1
             yield
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
 
     filter_role_value: str = "All roles"
     filter_organization_value: str = "All organizations"
@@ -426,13 +426,13 @@ class UsersState(EntityState):
         self.filter_role_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def set_filter_organization(self, value: str):
         self.filter_organization_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
