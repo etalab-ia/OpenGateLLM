@@ -15,6 +15,10 @@ class UserAuthorization(ABC):
         pass
 
     @abstractmethod
+    async def can_read_user(self, user_id: int, target_user_id: int) -> bool:
+        pass
+
+    @abstractmethod
     async def grant_platform_admin(self, user_id: int) -> None:
         pass
 
