@@ -156,7 +156,7 @@ class AuthState(rx.State):
                 response.raise_for_status()
                 user_data = response.json()
                 self._apply_session(user_data=user_data, api_key=login_data["value"], api_key_id=login_data["id"], expires=login_data["expires"])
-                yield
+                yield rx.redirect(self.router.url.path, replace=True)
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
@@ -292,19 +292,7 @@ class AuthState(rx.State):
         self._clear_auth_state()
 
     def _clear_auth_state(self):
-        self.is_authenticated = False
-        self.user_id = None
-        self.user_email = None
-        self.user_name = None
-        self.api_key = None
-        self.api_key_id = None
-        self.user_organization_id = None
-        self.user_expires = None
-        self.user_permissions = []
-        self.user_limits = []
-        self.email_input = ""
-        self.password_input = ""
-        self.session_expiration = None
+        self.reset()
 
     @rx.event
     def oidc_logout(self):

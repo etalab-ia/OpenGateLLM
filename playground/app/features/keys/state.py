@@ -55,6 +55,8 @@ class KeysState(EntityState):
             self.entity_to_create.expires = self._default_expiry_date()
 
         self.entities_loading = True
+        self.entities = []
+        self.total = 0
         yield
 
         params = {
@@ -78,7 +80,6 @@ class KeysState(EntityState):
 
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
 
                 for key in data.get("data", []):
                     if key["name"] not in ["_system_playground_key"]:
@@ -129,8 +130,8 @@ class KeysState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Key revoked successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -213,8 +214,8 @@ class KeysState(EntityState):
                 self.entity_to_create = Key(expires=self._default_expiry_date())
 
                 yield rx.toast.success("Key created successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -246,8 +247,8 @@ class KeysState(EntityState):
         self.status_filter = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def set_order_by(self, value: str):
@@ -255,8 +256,8 @@ class KeysState(EntityState):
         self.order_by_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def set_order_direction(self, value: str):
@@ -264,21 +265,21 @@ class KeysState(EntityState):
         self.order_direction_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def prev_page(self):
         if self.page > 1:
             self.page -= 1
             yield
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
 
     @rx.event
     async def next_page(self):
         if self.page < self.total_pages:
             self.page += 1
             yield
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
