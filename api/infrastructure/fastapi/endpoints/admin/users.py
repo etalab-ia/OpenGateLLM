@@ -18,6 +18,7 @@ from api.domain.user.errors import (
     UserAlreadyExistsError,
     UserCannotCreateUserError,
     UserCannotDeleteUserError,
+    UserCannotReadUserError,
     UserCannotReadUsersError,
     UserHasProvidersError,
     UserHasRoutersError,
@@ -105,21 +106,24 @@ async def create_user(
 
 @router.get(
     path=EndpointRoute.ADMIN_USERS + "/{user_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([UserNotFoundHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses([UserNotFoundHTTPException, UnauthorizedActionHTTPException]),
 )
 async def get_user(
     user_id: int = Path(description="The ID of the user to get."),
     get_one_user_use_case: GetOneUserUseCase = Depends(get_one_user_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
-    command = GetOneUserCommand(user_id=user_id)
+    command = GetOneUserCommand(authenticated_user_id=authenticated_user.id, user_id=user_id)
     result = await get_one_user_use_case.execute(command)
     match result:
         case GetOneUserUseCaseSuccess(user=returned_user):
             return UserResponse.model_validate(returned_user, from_attributes=True)
         case UserNotFoundError(id=not_found_id):
             raise UserNotFoundHTTPException(user_id=not_found_id)
+        case UserCannotReadUserError(user_id=authenticated_user_id):
+            raise UnauthorizedActionHTTPException(authenticated_user_id)
         case _ as unreachable:
             assert_never(unreachable)
 

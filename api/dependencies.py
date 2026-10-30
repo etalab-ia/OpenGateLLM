@@ -493,8 +493,11 @@ def create_user_use_case_factory(
     )
 
 
-def get_one_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneUserUseCase:
-    return GetOneUserUseCase(user_repository=_user_repository(postgres_session))
+def get_one_user_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    user_authorization: UserAuthorization = Depends(_get_user_authorization),
+) -> GetOneUserUseCase:
+    return GetOneUserUseCase(user_repository=_user_repository(postgres_session), user_authorization=user_authorization)
 
 
 def get_users_use_case_factory(
