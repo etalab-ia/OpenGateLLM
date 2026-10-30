@@ -27,7 +27,7 @@ class OpenFgaUserAuthorization(UserAuthorization):
         user_subject = AuthorizationObject.user(user_id)
         platform_object = AuthorizationObject.platform()
 
-        res = await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.CAN_READ_USERS, object=platform_object)
+        res = await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.CAN_READ_USER, object=platform_object)
 
         return res
 

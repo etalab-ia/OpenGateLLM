@@ -636,7 +636,7 @@ through (an organization member reading their own organization, for one).
 | `platform:api#can_create_organization`    | computed from `admin`, never written                                               | `CreateOrganizationUseCase`   |
 | `platform:api#can_create_user`            | computed from `admin`, never written                                               | `CreateUserUseCase`           |
 | `platform:api#can_delete_user`            | computed from `admin`, never written                                               | `DeleteUserUseCase`           |
-| `platform:api#can_read_users`             | computed from `admin`, never written                                               | `GetUsersUseCase`             |
+| `platform:api#can_read_user`              | computed from `admin`, never written                                               | `GetUsersUseCase`             |
 | `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`    | — (only via the rule below)   |
 | `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                 | `DeleteOrganizationUseCase`   |
 
@@ -711,7 +711,7 @@ organization` therefore means `organization:42#platform@platform:api`, and writi
 
 **Creation is checked on the platform.** A permission is checked against an object, and the object does not exist yet
 when it is being created — so `can_create_organization` and `can_create_user` live on `platform:api`. Anything acting on an existing
-organization belongs on `organization:<id>`. A list has no single object either, so `can_read_users` lives on the
+organization belongs on `organization:<id>`. A list has no single object either, so `can_read_user` lives on the
 platform too: all or 403, with pagination and filters left to Postgres.
 
 **Writing the attachment is part of creating.** A new organization gets `organization:<id>#platform@platform:api`,
