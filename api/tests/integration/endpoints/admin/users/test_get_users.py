@@ -1,7 +1,12 @@
+from unittest.mock import AsyncMock, create_autospec
+
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
+from api.dependencies import _get_user_authorization, get_users_use_case_factory
+from api.domain.user import UserAuthorization
+from api.domain.user.errors import UserCannotReadUsersError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory, UserSQLFactory
@@ -12,9 +17,12 @@ URL = f"/v1{EndpointRoute.ADMIN_USERS}"
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetUsers:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+        self.mock_user_authorization = create_autospec(UserAuthorization, instance=True, spec_set=True)
+        self.mock_user_authorization.can_read_users.return_value = True
+        app.dependency_overrides[_get_user_authorization] = lambda: self.mock_user_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         role = RoleSQLFactory(name="my-role")
@@ -91,9 +99,33 @@ class TestGetUsers:
         result_ids = {u["id"] for u in data["data"]}
         assert result_ids == {user_1.id, user_2.id}
 
+    @pytest.mark.parametrize(
+        "use_case_result,expected_status,expected_detail",
+        [
+            (
+                UserCannotReadUsersError(user_id=42),
+                403,
+                "User 42 is not allowed to perform this action.",
+            ),
+        ],
+    )
+    async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
+        mock_use_case = AsyncMock()
+        mock_use_case.execute.return_value = use_case_result
+        app.dependency_overrides[get_users_use_case_factory] = lambda: mock_use_case
+
+        response = await client.get(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == expected_status
+        assert response.json().get("detail") == expected_detail
+
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+        self.mock_user_authorization.can_read_users.return_value = False
 
         response = await client.get(
             url=URL,
@@ -101,7 +133,7 @@ class TestGetUsers:
         )
 
         assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
+        assert response.json().get("detail") == f"User {regular_user.id} is not allowed to perform this action."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
