@@ -622,7 +622,7 @@ inconsistency is a bug.
 `AccessController` (`api/infrastructure/fastapi/accesscontroller.py`) takes `only_admin` and `allow_expired`, both
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
-Today **only `POST` and `DELETE` on `/v1/admin/organizations`, and `GET` (list), `POST` and `DELETE` on
+Today **only `POST` and `DELETE` on `/v1/admin/organizations`, and `GET` (list and get-one), `POST` and `DELETE` on
 `/v1/admin/users`, ask OpenFGA**. They are the admin routes guarded by a bare `AccessController()`; the other organization and user routes still carry
 `AccessController(only_admin=True)`. Never put both on one route: two
 sources of truth for the same decision drift, and `only_admin` short-circuits any rule that would let a non-admin
@@ -630,15 +630,15 @@ through (an organization member reading their own organization, for one).
 
 **What is actually wired.** Seven relations the model declares are reached by code:
 
-| Relation                                  | Written by                                                                         | Checked by                    |
-|-------------------------------------------|------------------------------------------------------------------------------------|-------------------------------|
-| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up; `CreateUserUseCase`, admin role only; deleted by `DeleteUserUseCase` | — (only via the rules below)  |
-| `platform:api#can_create_organization`    | computed from `admin`, never written                                               | `CreateOrganizationUseCase`   |
-| `platform:api#can_create_user`            | computed from `admin`, never written                                               | `CreateUserUseCase`           |
-| `platform:api#can_delete_user`            | computed from `admin`, never written                                               | `DeleteUserUseCase`           |
-| `platform:api#can_read_user`              | computed from `admin`, never written                                               | `GetUsersUseCase`             |
-| `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`    | — (only via the rule below)   |
-| `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                 | `DeleteOrganizationUseCase`   |
+| Relation                                  | Written by                                                                                                       | Checked by                             |
+|-------------------------------------------|------------------------------------------------------------------------------------------------------------------|----------------------------------------|
+| `platform:api#admin@user:<id>`            | `BootstrapAdminUseCase`, at every start-up; `CreateUserUseCase`, admin role only; deleted by `DeleteUserUseCase` | — (only via the rules below)           |
+| `platform:api#can_create_organization`    | computed from `admin`, never written                                                                             | `CreateOrganizationUseCase`            |
+| `platform:api#can_create_user`            | computed from `admin`, never written                                                                             | `CreateUserUseCase`                    |
+| `platform:api#can_delete_user`            | computed from `admin`, never written                                                                             | `DeleteUserUseCase`                    |
+| `platform:api#can_read_user`              | computed from `admin`, never written                                                                             | `GetUsersUseCase`, `GetOneUserUseCase` |
+| `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`                                  | — (only via the rule below)            |
+| `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                                               | `DeleteOrganizationUseCase`            |
 
 `can_read` and `can_update` exist in `model.fga` **and** in `OrganizationRelation`, and nothing reads them yet. The schema is ahead of the code on purpose: adding the
 route that needs one is the work, not the modelling.
@@ -712,7 +712,9 @@ organization` therefore means `organization:42#platform@platform:api`, and writi
 **Creation is checked on the platform.** A permission is checked against an object, and the object does not exist yet
 when it is being created — so `can_create_organization` and `can_create_user` live on `platform:api`. Anything acting on an existing
 organization belongs on `organization:<id>`. A list has no single object either, so `can_read_user` lives on the
-platform too: all or 403, with pagination and filters left to Postgres.
+platform too: all or 403, with pagination and filters left to Postgres. Get-one reuses it through
+`UserAuthorization.can_read_user(user_id, target_user_id)`: the adapter ignores the target today, so a finer rule later changes the
+adapter and `model.fga`, not the use case.
 
 **Writing the attachment is part of creating.** A new organization gets `organization:<id>#platform@platform:api`,
 written *after* the row and *before* returning success: a failed write raises out of the use case, which rolls the
