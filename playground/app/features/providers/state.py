@@ -81,6 +81,8 @@ class ProvidersState(EntityState):
             return
 
         self.entities_loading = True
+        self.entities = []
+        self.total = 0
         yield
 
         params = {
@@ -126,7 +128,6 @@ class ProvidersState(EntityState):
 
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
                 self.total = data.get("total", 0)
 
                 for provider in data.get("data", []):

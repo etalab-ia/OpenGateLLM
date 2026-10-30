@@ -69,6 +69,8 @@ class RoutersState(EntityState):
             return
 
         self.entities_loading = True
+        self.entities = []
+        self.total = 0
         yield
 
         params = {
@@ -90,7 +92,6 @@ class RoutersState(EntityState):
 
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
                 self.total = data.get("total", 0)
 
                 for router in data.get("data", []):

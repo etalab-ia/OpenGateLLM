@@ -40,6 +40,8 @@ class OrganizationsState(EntityState):
             return
 
         self.entities_loading = True
+        self.entities = []
+        self.total = 0
         yield
 
         params = {
@@ -65,7 +67,6 @@ class OrganizationsState(EntityState):
 
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
                 for organization in data.get("data", []):
                     self.entities.append(self._format_organization(organization))
 

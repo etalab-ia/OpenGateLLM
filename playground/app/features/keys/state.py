@@ -55,6 +55,8 @@ class KeysState(EntityState):
             self.entity_to_create.expires = self._default_expiry_date()
 
         self.entities_loading = True
+        self.entities = []
+        self.total = 0
         yield
 
         params = {
@@ -78,7 +80,6 @@ class KeysState(EntityState):
 
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
 
                 for key in data.get("data", []):
                     if key["name"] not in ["_system_playground_key"]:

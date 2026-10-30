@@ -70,6 +70,8 @@ class UsersState(EntityState):
             return
 
         self.entities_loading = True
+        self.entities = []
+        self.total = 0
         yield
 
         params = {
@@ -142,7 +144,6 @@ class UsersState(EntityState):
 
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
                 for user in data.get("data", []):
                     self.entities.append(self._format_user(user))
 

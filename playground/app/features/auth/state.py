@@ -292,19 +292,7 @@ class AuthState(rx.State):
         self._clear_auth_state()
 
     def _clear_auth_state(self):
-        self.is_authenticated = False
-        self.user_id = None
-        self.user_email = None
-        self.user_name = None
-        self.api_key = None
-        self.api_key_id = None
-        self.user_organization_id = None
-        self.user_expires = None
-        self.user_permissions = []
-        self.user_limits = []
-        self.email_input = ""
-        self.password_input = ""
-        self.session_expiration = None
+        self.reset()
 
     @rx.event
     def oidc_logout(self):
