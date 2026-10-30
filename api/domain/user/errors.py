@@ -60,3 +60,8 @@ class UserCannotDeleteUserError:
 @dataclass
 class UserCannotReadUsersError:
     user_id: int
+
+
+@dataclass
+class UserCannotReadUserError:
+    user_id: int
