@@ -65,3 +65,8 @@ class UserCannotReadUsersError:
 @dataclass
 class UserCannotReadUserError:
     user_id: int
+
+
+@dataclass
+class UserCannotUpdateUserError:
+    user_id: int
