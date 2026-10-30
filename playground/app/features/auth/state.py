@@ -156,7 +156,7 @@ class AuthState(rx.State):
                 response.raise_for_status()
                 user_data = response.json()
                 self._apply_session(user_data=user_data, api_key=login_data["value"], api_key_id=login_data["id"], expires=login_data["expires"])
-                yield
+                yield rx.redirect(self.router.url.path, replace=True)
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
