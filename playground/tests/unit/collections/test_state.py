@@ -208,3 +208,52 @@ async def test_should_not_start_loading_after_logout():
     # Assert
     state._request.assert_not_awaited()
     assert state.entities_loading is False
+
+
+def test_should_preserve_whitespace_while_typing_names_and_descriptions(mock_collection):
+    # Arrange
+    state = make_state(entity=collection_model(mock_collection, is_owner=True))
+
+    # Act
+    CollectionsState.set_new_entity_attribut.fn(state, "name", "Administrative ")
+    CollectionsState.set_new_entity_attribut.fn(state, "name", state.entity_to_create.name + "guides")
+    CollectionsState.set_edit_entity_attribut.fn(state, "description", "Two words ")
+
+    # Assert
+    assert state.entity_to_create.name == "Administrative guides"
+    assert state.entity.description == "Two words "
+
+
+@pytest.mark.asyncio
+async def test_should_clear_description_on_update(mock_collection):
+    # Arrange
+    state = make_state(entity=collection_model(mock_collection, description="", is_owner=True))
+    no_content = httpx.Response(204, request=httpx.Request("PATCH", "http://rag:8000/v1/collections/42"))
+    state._request = AsyncMock(side_effect=[no_content, response({"data": []})])
+
+    # Act
+    await drive(CollectionsState.edit_entity.fn(state))
+
+    # Assert
+    assert state._request.await_args_list[0].kwargs["json"]["description"] == ""
+
+
+@pytest.mark.asyncio
+async def test_should_show_public_creation_permission_error():
+    # Arrange
+    state = make_state(entity_to_create=Collection(name="Shared collection", visibility="public"))
+    state._request = AsyncMock(return_value=response({"detail": "You do not have permission to create a public collection."}, status_code=403))
+
+    # Act
+    events = await drive(CollectionsState.create_entity.fn(state))
+
+    # Assert
+    assert any(
+        "You do not have permission to create a public collection." in str(getattr(argument, "_js_expr", ""))
+        for item in events
+        for event in (item if isinstance(item, list) else [item])
+        if hasattr(event, "args")
+        for _, argument in event.args
+    )
+    assert state.is_create_dialog_open is True
+    assert state.create_entity_loading is False

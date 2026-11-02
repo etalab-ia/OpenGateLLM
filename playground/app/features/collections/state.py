@@ -174,19 +174,19 @@ class CollectionsState(EntityState):
 
     @rx.event
     def set_new_entity_attribut(self, attribute: str, value: str | bool | None):
-        setattr(self.entity_to_create, attribute, value.strip() if isinstance(value, str) else value)
+        setattr(self.entity_to_create, attribute, value)
 
     @rx.event
     async def create_entity(self):
-        if not self.entity_to_create.name:
+        if not self.entity_to_create.name.strip():
             yield rx.toast.warning("Name is required", position="bottom-right")
             return
         self.create_entity_loading = True
         yield
 
         payload = {
-            "name": self.entity_to_create.name,
-            "description": self.entity_to_create.description or None,
+            "name": self.entity_to_create.name.strip(),
+            "description": self.entity_to_create.description.strip() or None,
             "visibility": self.entity_to_create.visibility,
         }
         response = None
@@ -222,20 +222,20 @@ class CollectionsState(EntityState):
 
     @rx.event
     def set_edit_entity_attribut(self, attribute: str, value: str | bool | None):
-        setattr(self.entity, attribute, value.strip() if isinstance(value, str) else value)
+        setattr(self.entity, attribute, value)
 
     @rx.event
     async def edit_entity(self):
         if not self.entity.is_owner or self.entity.owner != self.user_id:
             yield rx.toast.error("Only the owner can edit this collection", position="bottom-right")
             return
-        if not self.entity.name:
+        if not self.entity.name.strip():
             yield rx.toast.warning("Name is required", position="bottom-right")
             return
         self.edit_entity_loading = True
         yield
 
-        payload = {"name": self.entity.name, "description": self.entity.description or None, "visibility": self.entity.visibility}
+        payload = {"name": self.entity.name.strip(), "description": self.entity.description.strip(), "visibility": self.entity.visibility}
         response = None
         try:
             response = await self._request("PATCH", f"/v1/collections/{self.entity.id}", json=payload)
