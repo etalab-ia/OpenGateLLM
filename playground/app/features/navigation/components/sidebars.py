@@ -45,13 +45,15 @@ def nav_item(label: str, icon: str | None, page: str, is_external: bool = False,
         is_external=is_external,
         text_decoration="none",
         width="100%",
+        **({"data-slot": "drawer-close"} if not is_external else {}),
     )
 
 
-def navigation_sidebar() -> rx.Component:
+def navigation_sidebar(*, drawer: bool = False) -> rx.Component:
     """Left navigation sidebar."""
     user_items = [
         (PlaygroundPages.ACCOUNT, nav_item("Account", "user", "/account")),
+        (PlaygroundPages.COLLECTIONS, nav_item("Collections", "folder", "/collections")),
         (PlaygroundPages.KEYS, nav_item("API Keys", "key", "/keys")),
         (PlaygroundPages.USAGE, nav_item("Usage", "chart_line", "/usage")),
     ]
@@ -215,7 +217,8 @@ def navigation_sidebar() -> rx.Component:
         height="100vh",
         background_color=rx.color("mauve", 3),
         border_right=f"1px solid {rx.color('mauve', 6)}",
-        position="fixed",
+        position="relative" if drawer else "fixed",
         left="0",
         top="0",
+        display="block" if drawer else rx.breakpoints(initial="none", lg="block"),
     )

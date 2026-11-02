@@ -24,15 +24,40 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
         AuthState.is_authenticated,
         rx.box(
             navigation_sidebar(),
+            rx.drawer.root(
+                rx.drawer.trigger(
+                    rx.box(
+                        rx.icon_button(
+                            "menu",
+                            variant="soft",
+                            aria_label="Open navigation",
+                        ),
+                        position="fixed",
+                        top="0.75em",
+                        left="0.75em",
+                        z_index="10",
+                        display=rx.breakpoints(initial="block", lg="none"),
+                    )
+                ),
+                rx.drawer.overlay(),
+                rx.drawer.portal(
+                    rx.drawer.content(
+                        navigation_sidebar(drawer=True),
+                        padding="0",
+                        width="250px",
+                        height="100vh",
+                    )
+                ),
+                direction="left",
+                modal=True,
+            ),
             rx.box(
                 content,
-                position="fixed",
-                top="0",
-                left=margin_left,
-                right=margin_right,
-                width=f"calc(100% - {margin_left} - {margin_right})",
+                width="100%",
                 height="100vh",
                 overflow="auto",
+                padding_left=rx.breakpoints(initial="0px", lg=margin_left or "0px"),
+                padding_right=margin_right or "0px",
             ),
             display="flex",
         ),

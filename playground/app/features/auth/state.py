@@ -156,6 +156,7 @@ class AuthState(rx.State):
                 response.raise_for_status()
                 user_data = response.json()
                 self._apply_session(user_data=user_data, api_key=login_data["value"], api_key_id=login_data["id"], expires=login_data["expires"])
+                yield rx.call_script("window.location.reload()")
                 yield
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -274,6 +275,7 @@ class AuthState(rx.State):
                 response.raise_for_status()
                 user_data = response.json()
                 self._apply_session(user_data=user_data, api_key=login_data["value"], api_key_id=login_data["id"], expires=exp)
+                yield rx.call_script("window.location.reload()")
 
         except Exception as e:
             yield self._redirect_to_status_page(route="/error", message=self._exception_message(exception=e, response=response))
