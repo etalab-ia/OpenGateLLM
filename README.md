@@ -19,7 +19,7 @@
 | api/domain/model/\_modelenvironmentalimpactscomputer.py                               |        7 |        1 |        0 |        0 |     85.71% |        29 |
 | api/domain/model/\_modelquery.py                                                      |       10 |        2 |        0 |        0 |     80.00% |    10, 14 |
 | api/domain/model/\_modeltokenizer.py                                                  |        5 |        1 |        0 |        0 |     80.00% |         7 |
-| api/domain/model/entities.py                                                          |       16 |        0 |        0 |        0 |    100.00% |           |
+| api/domain/model/entities.py                                                          |       10 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/model/errors.py                                                            |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/model/views.py                                                             |        9 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/ocr/entities.py                                                            |       37 |        0 |        2 |        0 |    100.00% |           |
@@ -30,7 +30,7 @@
 | api/domain/provider/\_providerloadbalancer.py                                         |        7 |        1 |        0 |        0 |     85.71% |        10 |
 | api/domain/provider/\_providermetricslogger.py                                        |        8 |        2 |        0 |        0 |     75.00% |     7, 11 |
 | api/domain/provider/\_providerrepository.py                                           |       29 |        8 |        0 |        0 |     72.41% |26, 30, 34, 45, 49, 53, 57, 61 |
-| api/domain/provider/entities.py                                                       |       87 |        4 |       10 |        2 |     93.81% |123, 126, 161, 164 |
+| api/domain/provider/entities.py                                                       |       91 |        4 |       10 |        2 |     94.06% |136, 139, 174, 177 |
 | api/domain/provider/errors.py                                                         |       21 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/rerank/entities.py                                                         |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/role/\_limitrepository.py                                                  |       12 |        3 |        0 |        0 |     75.00% | 9, 16, 23 |
@@ -126,12 +126,12 @@
 | api/infrastructure/http/adapters/metrics/\_metricsadapter.py                          |        8 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/metrics/mistral/\_mistralmetricsadapter.py           |       23 |        0 |        8 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/metrics/vllm/\_vllmmetricsadapter.py                 |       19 |        0 |        8 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/models/\_modelsadapter.py                            |       16 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/http/adapters/models/\_modelsadapter.py                            |       15 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/models/albert/\_albertmodelsadapter.py               |        3 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/models/mistral/\_mistralmodelsadapter.py             |        8 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/http/adapters/models/mistral/\_mistralmodelsadapter.py             |        7 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/models/openai/\_openaimodelsadapter.py               |        3 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/models/tei/\_teimodelsadapter.py                     |        9 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/models/vllm/\_vllmmodelsadapter.py                   |        8 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/http/adapters/models/tei/\_teimodelsadapter.py                     |        8 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/http/adapters/models/vllm/\_vllmmodelsadapter.py                   |        7 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/ocr/\_ocradapter.py                                  |        9 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/ocr/albert/\_albertocradapter.py                     |        3 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/ocr/mistral/\_mistralocradapter.py                   |        3 |        0 |        0 |        0 |    100.00% |           |
@@ -211,7 +211,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                       |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                            |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                             | **6651** |  **565** | **1344** |  **148** | **89.63%** |           |
+| **TOTAL**                                                                             | **6645** |  **565** | **1344** |  **148** | **89.62%** |           |
 
 
 ## Setup coverage badge
