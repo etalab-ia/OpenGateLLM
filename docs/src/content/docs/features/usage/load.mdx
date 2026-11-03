@@ -45,6 +45,8 @@ Configure what a saturated request does with `qos_retries_before_reject` on the 
 - `0`: return 503 as soon as no provider has capacity.
 - Positive integer `n`: retry admission `n` times, every 0.5 seconds, then return 503. The request waits in the gateway. It is sent on only when a provider is under its limit.
 
+When every provider of the router is closed, the request gets a 503 at once, without waiting for retries: no provider could ever accept it.
+
 ### Choosing a provider
 
 `shuffle` picks an eligible provider without looking at its load. `least_busy` picks the provider with the most free capacity. If an uncapped provider is eligible, free capacity cannot be compared, so `least_busy` compares the raw number of active requests.

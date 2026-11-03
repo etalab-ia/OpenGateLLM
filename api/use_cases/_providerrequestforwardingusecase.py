@@ -260,6 +260,9 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         request_id: str,
     ) -> ProviderReservationResult:
         open_providers = [provider for provider in providers if not provider.is_closed]
+        if not open_providers:
+            return ProviderReservationRefused()
+
         remaining_retries = retries_before_reject or 0
 
         while True:
@@ -269,8 +272,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             match result:
                 case ProviderReservation():
                     return result
-                case ProviderLimitsCannotBeEnforced() if not open_providers:
-                    return ProviderReservationRefused()
                 case ProviderLimitsCannotBeEnforced():
                     return ProviderReservation(provider=random.choice(open_providers), request_id=request_id)
                 case ProviderReservationRefused() if remaining_retries == 0:

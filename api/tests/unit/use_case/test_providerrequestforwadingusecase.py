@@ -729,20 +729,19 @@ class TestReserveProvider:
         use_case.provider_concurrency_limiter.reserve.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_refuse_when_the_loads_cannot_be_read_and_every_provider_is_closed(self, use_case):
+    async def test_should_refuse_at_once_without_retrying_when_every_provider_is_closed(self, use_case):
         # Arrange
-        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLimitsCannotBeEnforced()
+        closed_provider = ProviderFactory(id=1, qos_limit=0)
 
         # Act
-        result = await use_case._reserve_provider(
-            providers=[ProviderFactory(id=1, qos_limit=0)],
-            strategy=RouterLoadBalancingStrategy.LEAST_BUSY,
-            retries_before_reject=None,
-            request_id=REQUEST_ID,
-        )
+        with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            result = await use_case._reserve_provider(
+                providers=[closed_provider], strategy=RouterLoadBalancingStrategy.SHUFFLE, retries_before_reject=3, request_id=REQUEST_ID
+            )
 
         # Assert
         assert result == ProviderReservationRefused()
+        mock_sleep.assert_not_awaited()
 
 
 class TestExecute:
