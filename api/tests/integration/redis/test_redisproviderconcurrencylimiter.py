@@ -8,7 +8,7 @@ import anyio
 import pytest
 from redis.exceptions import RedisError
 
-from api.domain.provider import ProviderReservation, ProviderReservationRefused
+from api.domain.provider import ProviderReservation, ProviderReservationRefused, ProviderReservationResult
 from api.domain.provider.entities import Provider, ProviderType
 from api.domain.router.entities import RouterLoadBalancingStrategy
 from api.infrastructure.redis import RedisProviderConcurrencyLimiter
@@ -67,6 +67,16 @@ def read_reservation_expiry(provider_concurrency_limiter, redis_client):
 
 
 @pytest.fixture
+def reserve_a_provider(provider_concurrency_limiter):
+    async def reserve_a_provider(request_id: str) -> ProviderReservationResult:
+        return await provider_concurrency_limiter.reserve(
+            request_id=request_id, providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
+        )
+
+    return reserve_a_provider
+
+
+@pytest.fixture
 def wait_for_next_reservation_expiry(read_reservation_expiry):
     async def wait_for_next_reservation_expiry(provider: Provider, request_id: str, current_expiry: float) -> float:
         async def next_reservation_expiry() -> float:
@@ -81,13 +91,20 @@ def wait_for_next_reservation_expiry(read_reservation_expiry):
 
 class RedisOutage:
     def __init__(self, provider_concurrency_limiter: RedisProviderConcurrencyLimiter, monkeypatch: pytest.MonkeyPatch):
-        self._provider_concurrency_limiter = provider_concurrency_limiter
         self._monkeypatch = monkeypatch
-        self._try_reserve_on_a_reachable_redis = provider_concurrency_limiter._try_reserve
-        monkeypatch.setattr(provider_concurrency_limiter, "_try_reserve", AsyncMock(side_effect=RedisError("unavailable")))
+        self._operations_on_a_reachable_redis = [
+            (provider_concurrency_limiter, "_try_reserve", provider_concurrency_limiter._try_reserve),
+            (provider_concurrency_limiter.redis_client, "time", provider_concurrency_limiter.redis_client.time),
+            (provider_concurrency_limiter.redis_client, "zrem", provider_concurrency_limiter.redis_client.zrem),
+        ]
+
+    def start(self) -> None:
+        for target, name, _ in self._operations_on_a_reachable_redis:
+            self._monkeypatch.setattr(target, name, AsyncMock(side_effect=RedisError("unavailable")))
 
     def end(self) -> None:
-        self._monkeypatch.setattr(self._provider_concurrency_limiter, "_try_reserve", self._try_reserve_on_a_reachable_redis)
+        for target, name, operation in self._operations_on_a_reachable_redis:
+            self._monkeypatch.setattr(target, name, operation)
 
 
 @pytest.fixture
@@ -377,13 +394,13 @@ class TestHeartbeat:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-@pytest.mark.usefixtures("redis_outage")
 class TestRedisOutage:
     async def test_reserve_should_accept_a_reservation_on_a_full_provider_when_redis_is_unreachable(
-        self, provider_concurrency_limiter, create_provider_with_load, read_reservation_expiry
+        self, provider_concurrency_limiter, create_provider_with_load, read_reservation_expiry, redis_outage
     ):
         # ARRANGE
         full_provider = await create_provider_with_load(1, qos_limit=1, ongoing_load=1)
+        redis_outage.start()
 
         # ACT
         result = await provider_concurrency_limiter.reserve(
@@ -394,12 +411,15 @@ class TestRedisOutage:
         assert result == ProviderReservation(provider=full_provider, request_id="request-1")
         assert await read_reservation_expiry(full_provider, request_id="request-1") is None
 
-    async def test_reserve_should_never_pick_a_closed_provider_when_redis_is_unreachable(self, provider_concurrency_limiter, monkeypatch):
+    async def test_reserve_should_never_pick_a_closed_provider_when_redis_is_unreachable(
+        self, provider_concurrency_limiter, redis_outage, monkeypatch
+    ):
         # ARRANGE
         closed_provider = provider(1, qos_limit=0)
         open_provider = provider(2)
         mock_random_choice = create_autospec(random.choice, side_effect=lambda candidates: candidates[0])
         monkeypatch.setattr(random, "choice", mock_random_choice)
+        redis_outage.start()
 
         # ACT
         result = await provider_concurrency_limiter.reserve(
@@ -411,13 +431,12 @@ class TestRedisOutage:
         assert result.provider == open_provider
 
     async def test_release_should_skip_redis_when_the_reservation_was_made_while_redis_was_unreachable(
-        self, provider_concurrency_limiter, monkeypatch
+        self, provider_concurrency_limiter, reserve_a_provider, redis_outage, monkeypatch
     ):
         # ARRANGE
-        reservation_made_during_the_outage = await provider_concurrency_limiter.reserve(
-            request_id="request-1", providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
-        )
         mock_reservation_removal = create_autospec(provider_concurrency_limiter.redis_client.zrem)
+        redis_outage.start()
+        reservation_made_during_the_outage = await reserve_a_provider(request_id="request-1")
         monkeypatch.setattr(provider_concurrency_limiter.redis_client, "zrem", mock_reservation_removal)
 
         # ACT
@@ -426,35 +445,82 @@ class TestRedisOutage:
         # ASSERT
         mock_reservation_removal.assert_not_called()
 
-    async def test_reserve_should_log_a_single_error_when_several_requests_hit_a_redis_outage(self, provider_concurrency_limiter, caplog):
+    async def test_reserve_should_log_a_single_error_when_several_requests_hit_a_redis_outage(self, reserve_a_provider, redis_outage, caplog):
+        # ARRANGE
+        redis_outage.start()
+
         # ACT
         with caplog.at_level(logging.INFO, logger=RedisProviderConcurrencyLimiter.__module__):
             for index in range(3):
-                await provider_concurrency_limiter.reserve(
-                    request_id=f"request-{index}", providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
-                )
+                await reserve_a_provider(request_id=f"request-{index}")
 
         # ASSERT
         logs = [(record.levelno, record.getMessage()) for record in caplog.records]
         assert logs == [(logging.ERROR, "Redis is unreachable: provider limits are no longer enforced.")]
 
-    async def test_reserve_should_log_the_number_of_requests_forwarded_without_applying_qos_when_redis_is_reachable_again(
-        self, provider_concurrency_limiter, redis_outage, caplog
+    async def test_reserve_should_log_the_next_outage_from_scratch_when_redis_has_been_reachable_again(
+        self, reserve_a_provider, redis_outage, caplog
     ):
         # ARRANGE
-        for index in range(2):
-            await provider_concurrency_limiter.reserve(
-                request_id=f"request-{index}", providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
-            )
+        redis_outage.start()
+        await reserve_a_provider(request_id="first-outage-1")
+        await reserve_a_provider(request_id="first-outage-2")
         redis_outage.end()
+        await reserve_a_provider(request_id="between-outages")
         caplog.clear()
 
         # ACT
         with caplog.at_level(logging.INFO, logger=RedisProviderConcurrencyLimiter.__module__):
-            await provider_concurrency_limiter.reserve(
-                request_id="request-2", providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
-            )
+            redis_outage.start()
+            await reserve_a_provider(request_id="second-outage")
+            redis_outage.end()
+            await reserve_a_provider(request_id="after-outages")
 
         # ASSERT
         logs = [(record.levelno, record.getMessage()) for record in caplog.records]
-        assert logs == [(logging.INFO, "Redis is reachable again: 2 requests were forwarded without provider limits.")]
+        assert logs == [
+            (logging.ERROR, "Redis is unreachable: provider limits are no longer enforced."),
+            (logging.INFO, "Redis is reachable again: 1 requests were forwarded without provider limits."),
+        ]
+
+    async def test_heartbeat_should_log_a_failed_renewal_at_debug_level_when_redis_is_unreachable(
+        self, provider_concurrency_limiter, reserve_a_provider, redis_outage, caplog
+    ):
+        # ARRANGE
+        provider_concurrency_limiter.HEARTBEAT_INTERVAL_SECONDS = 0.01
+        await reserve_a_provider(request_id="request-1")
+        redis_outage.start()
+        await reserve_a_provider(request_id="request-revealing-the-outage")
+        caplog.clear()
+
+        async def first_failed_renewal() -> logging.LogRecord:
+            while not (failed_renewals := [record for record in caplog.records if record.getMessage().startswith("Failed to renew")]):
+                await asyncio.sleep(0.005)
+            return failed_renewals[0]
+
+        # ACT
+        with caplog.at_level(logging.DEBUG, logger=RedisProviderConcurrencyLimiter.__module__):
+            failed_renewal = await asyncio.wait_for(first_failed_renewal(), timeout=1)
+
+        # ASSERT
+        assert (failed_renewal.levelno, failed_renewal.getMessage()) == (
+            logging.DEBUG,
+            "Failed to renew the provider reservation of request request-1.",
+        )
+
+    async def test_release_should_log_a_failed_release_at_debug_level_when_redis_is_unreachable(
+        self, provider_concurrency_limiter, reserve_a_provider, redis_outage, caplog
+    ):
+        # ARRANGE
+        reservation_made_before_the_outage = await reserve_a_provider(request_id="request-1")
+        redis_outage.start()
+        await reserve_a_provider(request_id="request-revealing-the-outage")
+        caplog.clear()
+
+        # ACT
+        with caplog.at_level(logging.DEBUG, logger=RedisProviderConcurrencyLimiter.__module__):
+            await provider_concurrency_limiter.release(reservation=reservation_made_before_the_outage)
+
+        # ASSERT
+        logs = [(record.levelno, record.getMessage()) for record in caplog.records]
+        assert logs == [(logging.DEBUG, "Failed to release the provider reservation of request request-1.")]
