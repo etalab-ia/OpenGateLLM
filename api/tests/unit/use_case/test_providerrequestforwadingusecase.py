@@ -6,10 +6,9 @@ import pytest
 
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderJsonResponse, ProviderResponse, ProviderType
 from api.domain.provider.errors import (
     ProviderAdapterValidationRequestError,
     ProviderAdapterValidationResponseError,

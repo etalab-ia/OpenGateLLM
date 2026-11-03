@@ -9,7 +9,7 @@ from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
 from api.domain.chat.entities import _extract_text
-from api.domain.model.entities import ProviderJsonResponse
+from api.domain.provider.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
 

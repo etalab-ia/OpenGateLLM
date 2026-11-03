@@ -35,6 +35,19 @@ class ProviderJsonResponse(BaseModel):
         return []
 
 
+class ProviderModel(BaseModel):
+    id: str
+    type: RouterType
+    aliases: list[str] = []
+    created: int
+    owned_by: str
+    max_context_length: int | None = None
+
+
+class ProviderModels(ProviderJsonResponse):
+    data: list[ProviderModel]
+
+
 class ProviderType(StrEnum):
     ALBERT = "albert"
     OPENAI = "openai"
