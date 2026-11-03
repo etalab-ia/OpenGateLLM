@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
-from api.domain.model.entities import ProviderJsonResponse
+from api.domain.provider.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
 

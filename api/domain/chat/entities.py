@@ -7,7 +7,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload, UtcDatetime
-from api.domain.model.entities import ProviderJsonResponse
+from api.domain.provider.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
 

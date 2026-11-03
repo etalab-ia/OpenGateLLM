@@ -1,5 +1,4 @@
-from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderModel, ProviderModels, ProviderRequest, ProviderResponse
 from api.domain.router.entities import RouterType
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters.models import ModelsAdapter
@@ -12,9 +11,9 @@ class VllmModelsAdapter(ModelsAdapter):
         request: ProviderRequest,
     ) -> ProviderResponse:
         return ProviderResponse(
-            data=Models(
+            data=ProviderModels(
                 data=[
-                    Model(
+                    ProviderModel(
                         id=model["id"],
                         created=model["created"],
                         owned_by=model["owned_by"],
