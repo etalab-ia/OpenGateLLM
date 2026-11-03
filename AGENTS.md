@@ -675,6 +675,10 @@ If the autospec rejects a call, fix the call — or the port declaration if that
 `api/tests/unit/use_case/test_providerrequestforwadingusecase.py` is the reference. Tests still on bare
 mocks are migrated when they are next touched.
 
+A use case never calls `asyncio.sleep`: the pause between admission retries is
+`ProviderConcurrencyLimiter.wait_for_capacity`, so its tests assert on the autospecced limiter instead of patching
+`asyncio.sleep` by its module path.
+
 Cover:
 
 - Happy path (assert calls **and** payloads: `assert_awaited_once_with`, expire timestamps)

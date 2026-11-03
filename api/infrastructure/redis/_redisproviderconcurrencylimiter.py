@@ -128,6 +128,9 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
 
         await asyncio.wait([heartbeat])
 
+    async def wait_for_capacity(self, seconds: float) -> None:
+        await asyncio.sleep(seconds)
+
     @classmethod
     def _load_key(cls, provider_id: int) -> str:
         return f"{cls.LOAD_KEY_PREFIX}:{provider_id}"

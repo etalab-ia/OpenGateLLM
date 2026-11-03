@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import dataclass
 import math
 import random
@@ -278,7 +277,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                     return result
                 case ProviderReservationRefused():
                     remaining_retries -= 1
-                    await asyncio.sleep(self.RESERVATION_RETRY_DELAY_SECONDS)
+                    await self.provider_concurrency_limiter.wait_for_capacity(seconds=self.RESERVATION_RETRY_DELAY_SECONDS)
                 case unexpected:
                     # Without this arm the loop would spin forever without ever awaiting.
                     raise TypeError(f"Unexpected provider reservation result: {unexpected!r}")

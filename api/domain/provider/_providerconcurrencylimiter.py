@@ -40,3 +40,7 @@ class ProviderConcurrencyLimiter(ABC):
     @abstractmethod
     async def release(self, reservation: ProviderReservation) -> None:
         pass
+
+    @abstractmethod
+    async def wait_for_capacity(self, seconds: float) -> None:
+        """Pause before the next reservation attempt, for at most `seconds`."""

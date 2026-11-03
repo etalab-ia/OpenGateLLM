@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import random
-from unittest.mock import AsyncMock, Mock, create_autospec, patch
+from unittest.mock import AsyncMock, Mock, call, create_autospec, patch
 from uuid import uuid4
 
 import pytest
@@ -419,18 +419,19 @@ class TestForwardRequestToProvider:
         ]
 
         # Act
-        with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            result = await use_case._forward_request_to_provider(
-                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
-            )
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert isinstance(result, ProviderResponse)
         assert use_case.provider_concurrency_limiter.reserve.await_count == 3
-        request_ids = {call.kwargs["request_id"] for call in use_case.provider_concurrency_limiter.reserve.await_args_list}
+        request_ids = {
+            reservation_attempt.kwargs["request_id"] for reservation_attempt in use_case.provider_concurrency_limiter.reserve.await_args_list
+        }
         assert len(request_ids) == 1
-        assert all(call.kwargs["limit"] == 2 for call in use_case.provider_concurrency_limiter.reserve.await_args_list)
-        assert [entry.args for entry in mock_sleep.await_args_list] == [(0.5,), (0.5,)]
+        assert all(reservation_attempt.kwargs["limit"] == 2 for reservation_attempt in use_case.provider_concurrency_limiter.reserve.await_args_list)
+        assert use_case.provider_concurrency_limiter.wait_for_capacity.await_args_list == [call(seconds=0.5), call(seconds=0.5)]
         assert use_case.provider_client.forward.await_args.kwargs["request"].id == request_ids.pop()
 
     @pytest.mark.asyncio
@@ -440,10 +441,9 @@ class TestForwardRequestToProvider:
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservationRefused()
 
         # Act
-        with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock):
-            result = await use_case._forward_request_to_provider(
-                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
-            )
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert: 4 retries spaced by 0.5 s, so the client waits between 2 and 4 s
         assert isinstance(result, NoAvailableProviderError)
@@ -639,7 +639,9 @@ class TestReserveProvider:
 
         # Assert
         assert result == ProviderReservation(provider=available_provider, request_id=REQUEST_ID)
-        tried_providers = [call.kwargs["provider"] for call in use_case.provider_concurrency_limiter.reserve.await_args_list]
+        tried_providers = [
+            reservation_attempt.kwargs["provider"] for reservation_attempt in use_case.provider_concurrency_limiter.reserve.await_args_list
+        ]
         assert tried_providers == [full_provider, available_provider]
 
     @pytest.mark.asyncio
@@ -734,14 +736,13 @@ class TestReserveProvider:
         closed_provider = ProviderFactory(id=1, qos_limit=0)
 
         # Act
-        with patch("api.use_cases._providerrequestforwardingusecase.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            result = await use_case._reserve_provider(
-                providers=[closed_provider], strategy=RouterLoadBalancingStrategy.SHUFFLE, retries_before_reject=3, request_id=REQUEST_ID
-            )
+        result = await use_case._reserve_provider(
+            providers=[closed_provider], strategy=RouterLoadBalancingStrategy.SHUFFLE, retries_before_reject=3, request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == ProviderReservationRefused()
-        mock_sleep.assert_not_awaited()
+        use_case.provider_concurrency_limiter.wait_for_capacity.assert_not_awaited()
 
 
 class TestExecute:
