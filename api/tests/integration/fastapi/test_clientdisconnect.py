@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
+import random
 from unittest.mock import create_autospec
 
 from fastapi import FastAPI, Request
@@ -101,6 +102,7 @@ def use_case(usage_recorder, mock_usage_repository) -> CreateChatCompletionsUseC
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
         usage_context=usage_recorder,
         usage_repository=mock_usage_repository,
+        random_generator=random.Random(),
     )
 
 

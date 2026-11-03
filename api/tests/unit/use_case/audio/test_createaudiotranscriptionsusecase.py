@@ -1,3 +1,4 @@
+import random
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
@@ -103,6 +104,7 @@ def use_case(model_tokenizer, mock_usage_context, mock_usage_repository) -> Crea
         router_repository=AsyncMock(),
         usage_context=mock_usage_context,
         usage_repository=mock_usage_repository,
+        random_generator=random.Random(),
         audio_file_size_limit=None,
     )
 

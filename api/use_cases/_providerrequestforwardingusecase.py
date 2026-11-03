@@ -86,6 +86,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         router_repository: RouterRepository,
         usage_context: UsageContext,
         usage_repository: UsageRepository,
+        random_generator: random.Random,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
@@ -98,6 +99,8 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         self.usage_context = usage_context
         self.usage_repository = usage_repository
+
+        self.random_generator = random_generator
 
     async def execute(self, command: TCommand) -> TResult:
         authenticated_user = command.authenticated_user
@@ -272,7 +275,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 case ProviderReservation():
                     return result
                 case ProviderLimitsCannotBeEnforced():
-                    return ProviderReservation(provider=random.choice(open_providers), request_id=request_id)
+                    return ProviderReservation(provider=self.random_generator.choice(open_providers), request_id=request_id)
                 case ProviderReservationRefused() if remaining_retries == 0:
                     return result
                 case ProviderReservationRefused():
@@ -312,7 +315,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     ) -> list[Provider] | ProviderLimitsCannotBeEnforced:
         match strategy:
             case RouterLoadBalancingStrategy.SHUFFLE:
-                return random.sample(providers, k=len(providers))
+                return self.random_generator.sample(providers, k=len(providers))
             case RouterLoadBalancingStrategy.LEAST_BUSY:
                 result = await self.provider_concurrency_limiter.read_loads(providers=providers)
                 match result:
@@ -321,10 +324,9 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                     case limits_cannot_be_enforced:
                         return limits_cannot_be_enforced
 
-    @classmethod
-    def _compute_retry_after(cls, retries_before_reject: int | None) -> int:
-        retry_window = max(1, math.ceil((retries_before_reject or 0) * cls.RESERVATION_RETRY_DELAY_SECONDS))
-        return random.randint(retry_window, 2 * retry_window)
+    def _compute_retry_after(self, retries_before_reject: int | None) -> int:
+        retry_window = max(1, math.ceil((retries_before_reject or 0) * self.RESERVATION_RETRY_DELAY_SECONDS))
+        return self.random_generator.randint(retry_window, 2 * retry_window)
 
     def _get_billed_tokens(self, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> BilledTokens:
         if provider_usage is None:

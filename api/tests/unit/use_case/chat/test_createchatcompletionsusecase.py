@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 import json
+import random
 from unittest.mock import AsyncMock, create_autospec, patch
 
 import pytest
@@ -105,6 +106,7 @@ def use_case(mock_model_tokenizer, mock_usage_recorder, mock_usage_repository) -
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
         usage_context=mock_usage_recorder,
         usage_repository=mock_usage_repository,
+        random_generator=random.Random(),
     )
 
 

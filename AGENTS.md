@@ -677,7 +677,9 @@ mocks are migrated when they are next touched.
 
 A use case never calls `asyncio.sleep`: the pause between admission retries is
 `ProviderConcurrencyLimiter.wait_for_capacity`, so its tests assert on the autospecced limiter instead of patching
-`asyncio.sleep` by its module path.
+`asyncio.sleep` by its module path. Nor does it call the `random` module: the forwarding use cases take a
+`random.Random` (`random_generator`), which the DI factories create and the tests replace with
+`create_autospec(random.Random, instance=True, spec_set=True)`. Never `patch` or `monkeypatch` a use case test.
 
 Cover:
 

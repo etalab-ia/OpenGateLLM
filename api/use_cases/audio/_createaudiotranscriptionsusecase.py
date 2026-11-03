@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import random
 
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsForm
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
@@ -57,6 +58,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
         router_repository: RouterRepository,
         usage_context: UsageContext,
         usage_repository: UsageRepository,
+        random_generator: random.Random,
         audio_file_size_limit: int | None = None,
     ) -> None:
         super().__init__(
@@ -69,6 +71,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
             router_repository=router_repository,
             usage_context=usage_context,
             usage_repository=usage_repository,
+            random_generator=random_generator,
         )
         self.audio_file_size_limit = audio_file_size_limit
 

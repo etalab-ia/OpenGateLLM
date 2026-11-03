@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+import random
 from typing import Any
 
 from fastapi import BackgroundTasks, Depends, Request
@@ -241,6 +242,7 @@ def create_audio_transcriptions_use_case_factory(
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
     )
 
@@ -266,6 +268,7 @@ def create_chat_completions_use_case_factory(
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 
@@ -337,6 +340,7 @@ def create_embeddings_use_case_factory(
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 
@@ -421,6 +425,7 @@ def create_ocr_use_case_factory(
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 
@@ -487,6 +492,7 @@ def create_rerank_use_case_factory(
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 
