@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import random
-from unittest.mock import AsyncMock, Mock, call, create_autospec, patch
+from unittest.mock import AsyncMock, Mock, call, create_autospec
 from uuid import uuid4
 
 import pytest
@@ -123,8 +123,8 @@ def router():
         type=RouterType.TEXT_GENERATION,
         providers=1,
         load_balancing_strategy="shuffle",
-        cost_prompt_tokens=0.001,
-        cost_completion_tokens=0.002,
+        cost_prompt_tokens=2.0,
+        cost_completion_tokens=4.0,
     )
 
 
@@ -457,11 +457,11 @@ class TestForwardRequestToProvider:
     ):
         # Arrange
         use_case.usage_context.elapsed_ms.return_value = 12000
-        with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
-            # Act
-            result = await use_case._forward_request_to_provider(
-                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
-            )
+
+        # Act
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -470,7 +470,7 @@ class TestForwardRequestToProvider:
             prompt_tokens=1,
             completion_tokens=1,
             total_tokens=2,
-            cost=0.03,
+            cost=0.000006,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
         use_case.provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=router.id)
@@ -491,18 +491,12 @@ class TestForwardRequestToProvider:
             completion_tokens=1,
             request_latency=12000,
         )
-        compute_request_cost.assert_called_once_with(
-            prompt_tokens=1,
-            completion_tokens=1,
-            cost_prompt_tokens=router.cost_prompt_tokens,
-            cost_completion_tokens=router.cost_completion_tokens,
-        )
         use_case.usage_context.record_usage.assert_called_once_with(
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
                 total_tokens=2,
-                cost=0.03,
+                cost=0.000006,
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
             latency=12000,
@@ -530,26 +524,19 @@ class TestForwardRequestToProvider:
             prompt_tokens=67,
             completion_tokens=38,
             total_tokens=105,
-            cost=0.03,
+            cost=0.000286,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
 
-        with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03) as compute_request_cost:
-            # Act
-            result = await use_case._forward_request_to_provider(
-                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
-            )
+        # Act
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert isinstance(result, ProviderResponse)
         assert result.data.usage == expected_usage
         model_tokenizer.compute_tokens.assert_not_called()
-        compute_request_cost.assert_called_once_with(
-            prompt_tokens=67,
-            completion_tokens=38,
-            cost_prompt_tokens=router.cost_prompt_tokens,
-            cost_completion_tokens=router.cost_completion_tokens,
-        )
         use_case.usage_context.record_usage.assert_called_once_with(usage=expected_usage, latency=12000, ttft=None)
         use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
             user_id=user_with_router_access.id,
@@ -584,11 +571,11 @@ class TestForwardRequestToProvider:
         # Arrange
         use_case.provider_client.forward.return_value = ProviderResponse(text="hello world")
         use_case.usage_context.elapsed_ms.return_value = 12000
+
         # Act
-        with patch("api.domain.usage.entities.Usage.compute_request_cost", return_value=0.03):
-            result = await use_case._forward_request_to_provider(
-                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
-            )
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -598,7 +585,7 @@ class TestForwardRequestToProvider:
                 prompt_tokens=1,
                 completion_tokens=1,
                 total_tokens=2,
-                cost=0.03,
+                cost=0.000006,
                 impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
             ),
             latency=12000,
