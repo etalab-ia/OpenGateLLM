@@ -13,12 +13,13 @@ from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, Unk
 from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
+    ProviderLimitsCannotBeEnforced,
     ProviderRepository,
     ProviderReservation,
     ProviderReservationRefused,
     ProviderReservationResult,
 )
-from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderLoads, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -258,23 +259,67 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         retries_before_reject: int | None,
         request_id: str,
     ) -> ProviderReservationResult:
+        open_providers = [provider for provider in providers if not provider.is_closed]
         remaining_retries = retries_before_reject or 0
 
         while True:
-            result = await self.provider_concurrency_limiter.reserve(
-                request_id=request_id,
-                providers=providers,
-                strategy=strategy,
-                enforce_limit=retries_before_reject is not None,
+            result = await self._reserve_first_available_provider(
+                providers=open_providers, strategy=strategy, enforce_limit=retries_before_reject is not None, request_id=request_id
             )
             match result:
                 case ProviderReservation():
                     return result
+                case ProviderLimitsCannotBeEnforced() if not open_providers:
+                    return ProviderReservationRefused()
+                case ProviderLimitsCannotBeEnforced():
+                    return ProviderReservation(provider=random.choice(open_providers), request_id=request_id)
                 case ProviderReservationRefused() if remaining_retries == 0:
                     return result
                 case ProviderReservationRefused():
                     remaining_retries -= 1
                     await asyncio.sleep(self.RESERVATION_RETRY_DELAY_SECONDS)
+                case unexpected:
+                    # Without this arm the loop would spin forever without ever awaiting.
+                    raise TypeError(f"Unexpected provider reservation result: {unexpected!r}")
+
+    async def _reserve_first_available_provider(
+        self,
+        providers: list[Provider],
+        strategy: RouterLoadBalancingStrategy,
+        enforce_limit: bool,
+        request_id: str,
+    ) -> ProviderReservation | ProviderReservationRefused | ProviderLimitsCannotBeEnforced:
+        result = await self._order_by_strategy(providers=providers, strategy=strategy)
+        match result:
+            case list(ordered_providers):
+                pass
+            case limits_cannot_be_enforced:
+                return limits_cannot_be_enforced
+
+        for provider in ordered_providers:
+            limit = provider.qos_limit if enforce_limit else None
+            result = await self.provider_concurrency_limiter.reserve(request_id=request_id, provider=provider, limit=limit)
+            match result:
+                case ProviderReservationRefused():
+                    continue
+                case reservation_or_limits_cannot_be_enforced:
+                    return reservation_or_limits_cannot_be_enforced
+
+        return ProviderReservationRefused()
+
+    async def _order_by_strategy(
+        self, providers: list[Provider], strategy: RouterLoadBalancingStrategy
+    ) -> list[Provider] | ProviderLimitsCannotBeEnforced:
+        match strategy:
+            case RouterLoadBalancingStrategy.SHUFFLE:
+                return random.sample(providers, k=len(providers))
+            case RouterLoadBalancingStrategy.LEAST_BUSY:
+                result = await self.provider_concurrency_limiter.read_loads(providers=providers)
+                match result:
+                    case ProviderLoads() as loads:
+                        return loads.sort_least_loaded_first(providers)
+                    case limits_cannot_be_enforced:
+                        return limits_cannot_be_enforced
 
     @classmethod
     def _compute_retry_after(cls, retries_before_reject: int | None) -> int:

@@ -7,6 +7,7 @@ from api.domain.provider._providerclient import (
 )
 from api.domain.provider._providerconcurrencylimiter import (
     ProviderConcurrencyLimiter,
+    ProviderLimitsCannotBeEnforced,
     ProviderReservation,
     ProviderReservationRefused,
     ProviderReservationResult,
@@ -22,6 +23,7 @@ __all__ = [
     "ProviderReservationRefused",
     "ProviderReservationResult",
     "ProviderConcurrencyLimiter",
+    "ProviderLimitsCannotBeEnforced",
     "ProviderRepository",
     "ProviderReservation",
 ]

@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from api.domain.provider.entities import Provider
-from api.domain.router.entities import RouterLoadBalancingStrategy
+from api.domain.provider.entities import Provider, ProviderLoads
 
 
 @dataclass(frozen=True)
@@ -16,22 +15,26 @@ class ProviderReservationRefused:
     pass
 
 
+@dataclass(frozen=True)
+class ProviderLimitsCannotBeEnforced:
+    pass
+
+
 type ProviderReservationResult = ProviderReservation | ProviderReservationRefused
 
 
 class ProviderConcurrencyLimiter(ABC):
     @abstractmethod
-    async def reserve(
-        self,
-        request_id: str,
-        providers: list[Provider],
-        strategy: RouterLoadBalancingStrategy,
-        enforce_limit: bool,
-    ) -> ProviderReservationResult:
-        """Choose one of the providers and hold a place on it until release() is called.
+    async def read_loads(self, providers: list[Provider]) -> ProviderLoads | ProviderLimitsCannotBeEnforced:
+        pass
 
-        request_id identifies the reservation and must be unique per request. A provider whose limit is 0 is closed and
-        never chosen, even when enforce_limit is False.
+    @abstractmethod
+    async def reserve(
+        self, request_id: str, provider: Provider, limit: int | None
+    ) -> ProviderReservation | ProviderReservationRefused | ProviderLimitsCannotBeEnforced:
+        """Hold a place on the provider until release() is called, unless it already holds `limit` requests.
+
+        request_id identifies the reservation and must be unique per request. A `limit` of None is not enforced.
         """
 
     @abstractmethod

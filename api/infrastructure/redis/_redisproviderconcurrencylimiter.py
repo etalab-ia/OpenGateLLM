@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import random
 from typing import ClassVar
 
 from redis.asyncio import Redis as AsyncRedis
@@ -8,12 +7,11 @@ from redis.exceptions import RedisError
 
 from api.domain.provider._providerconcurrencylimiter import (
     ProviderConcurrencyLimiter,
+    ProviderLimitsCannotBeEnforced,
     ProviderReservation,
     ProviderReservationRefused,
-    ProviderReservationResult,
 )
-from api.domain.provider.entities import Provider
-from api.domain.router.entities import RouterLoadBalancingStrategy
+from api.domain.provider.entities import Provider, ProviderLoads
 
 logger = logging.getLogger(__name__)
 
@@ -54,66 +52,42 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
         self._try_reserve = redis_client.register_script(TRY_RESERVE_SCRIPT)
         self._heartbeats: dict[str, asyncio.Task] = {}
 
-    async def reserve(
-        self,
-        request_id: str,
-        providers: list[Provider],
-        strategy: RouterLoadBalancingStrategy,
-        enforce_limit: bool,
-    ) -> ProviderReservationResult:
-        open_providers = [provider for provider in providers if provider.qos_limit != 0]
-
+    async def read_loads(self, providers: list[Provider]) -> ProviderLoads | ProviderLimitsCannotBeEnforced:
         try:
-            result = await self._reserve_first_available_provider(
-                request_id=request_id, providers=open_providers, strategy=strategy, enforce_limit=enforce_limit
+            now_ms = self._milliseconds(await self.redis_client.time())
+            pipeline = self.redis_client.pipeline(transaction=False)
+            for provider in providers:
+                pipeline.zcount(self._load_key(provider.id), f"({now_ms}", "+inf")
+            loads = await pipeline.execute()
+        except RedisError:
+            self._record_redis_outage()
+            return ProviderLimitsCannotBeEnforced()
+
+        self._record_redis_recovery()
+        return ProviderLoads(load_by_provider_id={provider.id: int(load) for provider, load in zip(providers, loads)})
+
+    async def reserve(
+        self, request_id: str, provider: Provider, limit: int | None
+    ) -> ProviderReservation | ProviderReservationRefused | ProviderLimitsCannotBeEnforced:
+        provider_load_key = self._load_key(provider.id)
+        try:
+            reserved = await self._try_reserve(
+                keys=[provider_load_key],
+                args=[request_id, self.NO_LIMIT if limit is None else limit, self.RESERVATION_TTL_MILLISECONDS],
+                client=self.redis_client,
             )
         except RedisError:
             self._record_redis_outage()
-            if not open_providers:
-                return ProviderReservationRefused()
-            return ProviderReservation(provider=random.choice(open_providers), request_id=request_id)
+            return ProviderLimitsCannotBeEnforced()
 
         self._record_redis_recovery()
-        return result
+        if not reserved:
+            return ProviderReservationRefused()
 
-    async def _reserve_first_available_provider(
-        self,
-        request_id: str,
-        providers: list[Provider],
-        strategy: RouterLoadBalancingStrategy,
-        enforce_limit: bool,
-    ) -> ProviderReservationResult:
-        for provider in await self._order_by_strategy(providers=providers, strategy=strategy):
-            enforced_limit = provider.qos_limit if enforce_limit and provider.qos_limit is not None else self.NO_LIMIT
-            provider_load_key = self._load_key(provider.id)
-            if await self._try_reserve(
-                keys=[provider_load_key], args=[request_id, enforced_limit, self.RESERVATION_TTL_MILLISECONDS], client=self.redis_client
-            ):
-                self._heartbeats[request_id] = asyncio.create_task(
-                    self._heartbeat(key=provider_load_key, request_id=request_id), name=f"reservation-heartbeat-{request_id}"
-                )
-                return ProviderReservation(provider=provider, request_id=request_id)
-
-        return ProviderReservationRefused()
-
-    async def _order_by_strategy(self, providers: list[Provider], strategy: RouterLoadBalancingStrategy) -> list[Provider]:
-        if strategy == RouterLoadBalancingStrategy.SHUFFLE:
-            return random.sample(providers, k=len(providers))
-
-        loads = await self._read_loads(providers=providers)
-
-        if any(provider.qos_limit is None for provider in providers):
-            return sorted(providers, key=lambda provider: (loads[provider.id], provider.id))
-
-        return sorted(providers, key=lambda provider: (-(provider.qos_limit - loads[provider.id]), provider.id))
-
-    async def _read_loads(self, providers: list[Provider]) -> dict[int, int]:
-        now_ms = self._milliseconds(await self.redis_client.time())
-        pipeline = self.redis_client.pipeline(transaction=False)
-        for provider in providers:
-            pipeline.zcount(self._load_key(provider.id), f"({now_ms}", "+inf")
-        loads = await pipeline.execute()
-        return {provider.id: int(load) for provider, load in zip(providers, loads)}
+        self._heartbeats[request_id] = asyncio.create_task(
+            self._heartbeat(key=provider_load_key, request_id=request_id), name=f"reservation-heartbeat-{request_id}"
+        )
+        return ProviderReservation(provider=provider, request_id=request_id)
 
     async def _heartbeat(self, key: str, request_id: str) -> None:
         while True:

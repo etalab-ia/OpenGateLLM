@@ -13,7 +13,7 @@ from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import RouterRateLimitState, RouterType
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
@@ -50,7 +50,9 @@ def mock_usage_repository():
 
 @pytest.fixture
 def router():
-    return RouterFactory(id=1, name=MODEL_NAME, type=RouterType.TEXT_GENERATION, providers=1)
+    return RouterFactory(
+        id=1, name=MODEL_NAME, type=RouterType.TEXT_GENERATION, providers=1, load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE
+    )
 
 
 @pytest.fixture

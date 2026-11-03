@@ -145,6 +145,26 @@ class Provider(BaseModel):
     def is_compatible_with(self, router: Router) -> bool:
         return self.type.is_compatible_with(router.type)
 
+    @property
+    def is_closed(self) -> bool:
+        return self.qos_limit == 0
+
+
+class ProviderLoads(BaseModel):
+    load_by_provider_id: dict[int, int]
+
+    def sort_least_loaded_first(self, providers: list[Provider]) -> list[Provider]:
+        if any(provider.qos_limit is None for provider in providers):
+            return self._sort_by_load(providers)
+
+        return self._sort_by_free_capacity(providers)
+
+    def _sort_by_load(self, providers: list[Provider]) -> list[Provider]:
+        return sorted(providers, key=lambda provider: (self.load_by_provider_id[provider.id], provider.id))
+
+    def _sort_by_free_capacity(self, providers: list[Provider]) -> list[Provider]:
+        return sorted(providers, key=lambda provider: (-(provider.qos_limit - self.load_by_provider_id[provider.id]), provider.id))
+
 
 class ProviderCapabilities(BaseModel):
     max_context_length: int | None
