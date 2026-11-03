@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+from typing import ClassVar
 
 from redis.asyncio import Redis as AsyncRedis
 from redis.exceptions import RedisError
@@ -45,6 +46,9 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
     HEARTBEAT_INTERVAL_SECONDS = 10.0
     NO_LIMIT = -1
 
+    _redis_is_unreachable: ClassVar[bool] = False
+    _requests_forwarded_without_applying_qos: ClassVar[int] = 0
+
     def __init__(self, redis_client: AsyncRedis):
         self.redis_client = redis_client
         self._try_reserve = redis_client.register_script(TRY_RESERVE_SCRIPT)
@@ -60,18 +64,35 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
         open_providers = [provider for provider in providers if provider.qos_limit != 0]
 
         try:
-            for provider in await self._order_by_strategy(providers=open_providers, strategy=strategy):
-                limit = provider.qos_limit if enforce_limit and provider.qos_limit is not None else self.NO_LIMIT
-                key = self._load_key(provider.id)
-                if await self._try_reserve(keys=[key], args=[request_id, limit, self.RESERVATION_TTL_MILLISECONDS], client=self.redis_client):
-                    self._heartbeats[request_id] = asyncio.create_task(
-                        self._heartbeat(key=key, request_id=request_id), name=f"reservation-heartbeat-{request_id}"
-                    )
-                    return ProviderReservation(provider=provider, request_id=request_id)
+            result = await self._reserve_first_available_provider(
+                request_id=request_id, providers=open_providers, strategy=strategy, enforce_limit=enforce_limit
+            )
         except RedisError:
-            logger.exception("Redis is unreachable: request %s is forwarded without enforcing the provider limits.", request_id)
-            if open_providers:
-                return ProviderReservation(provider=random.choice(open_providers), request_id=request_id)
+            self._record_redis_outage()
+            if not open_providers:
+                return ProviderReservationRefused()
+            return ProviderReservation(provider=random.choice(open_providers), request_id=request_id)
+
+        self._record_redis_recovery()
+        return result
+
+    async def _reserve_first_available_provider(
+        self,
+        request_id: str,
+        providers: list[Provider],
+        strategy: RouterLoadBalancingStrategy,
+        enforce_limit: bool,
+    ) -> ProviderReservationResult:
+        for provider in await self._order_by_strategy(providers=providers, strategy=strategy):
+            enforced_limit = provider.qos_limit if enforce_limit and provider.qos_limit is not None else self.NO_LIMIT
+            provider_load_key = self._load_key(provider.id)
+            if await self._try_reserve(
+                keys=[provider_load_key], args=[request_id, enforced_limit, self.RESERVATION_TTL_MILLISECONDS], client=self.redis_client
+            ):
+                self._heartbeats[request_id] = asyncio.create_task(
+                    self._heartbeat(key=provider_load_key, request_id=request_id), name=f"reservation-heartbeat-{request_id}"
+                )
+                return ProviderReservation(provider=provider, request_id=request_id)
 
         return ProviderReservationRefused()
 
@@ -101,7 +122,22 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
                 now_ms = self._milliseconds(await self.redis_client.time())
                 await self.redis_client.zadd(key, {request_id: now_ms + self.RESERVATION_TTL_MILLISECONDS}, xx=True)
             except RedisError:
-                logger.warning("Failed to renew the provider reservation of request %s.", request_id)
+                level = logging.DEBUG if self._redis_is_unreachable else logging.WARNING
+                logger.log(level, "Failed to renew the provider reservation of request %s.", request_id)
+
+    @classmethod
+    def _record_redis_outage(cls) -> None:
+        if not cls._redis_is_unreachable:
+            logger.exception("Redis is unreachable: provider limits are no longer enforced.")
+            cls._redis_is_unreachable = True
+        cls._requests_forwarded_without_applying_qos += 1
+
+    @classmethod
+    def _record_redis_recovery(cls) -> None:
+        if cls._redis_is_unreachable:
+            logger.info("Redis is reachable again: %s requests were forwarded without provider limits.", cls._requests_forwarded_without_applying_qos)
+            cls._redis_is_unreachable = False
+            cls._requests_forwarded_without_applying_qos = 0
 
     async def release(self, reservation: ProviderReservation) -> None:
         heartbeat = self._heartbeats.pop(reservation.request_id, None)
@@ -113,7 +149,8 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
         try:
             await self.redis_client.zrem(self._load_key(reservation.provider.id), reservation.request_id)
         except RedisError:
-            logger.exception("Failed to release the provider reservation of request %s.", reservation.request_id)
+            level = logging.DEBUG if self._redis_is_unreachable else logging.ERROR
+            logger.log(level, "Failed to release the provider reservation of request %s.", reservation.request_id, exc_info=True)
 
         await asyncio.wait([heartbeat])
 

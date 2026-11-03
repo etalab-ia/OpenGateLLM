@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
+import logging
 import random
 from unittest.mock import AsyncMock, create_autospec
 
@@ -34,6 +35,12 @@ def provider_concurrency_limiter(redis_client):
     yield provider_concurrency_limiter
     for heartbeat in provider_concurrency_limiter._heartbeats.values():
         heartbeat.cancel()
+
+
+@pytest.fixture(autouse=True)
+def reset_redis_outage_state(monkeypatch):
+    monkeypatch.setattr(RedisProviderConcurrencyLimiter, "_redis_is_unreachable", False)
+    monkeypatch.setattr(RedisProviderConcurrencyLimiter, "_requests_forwarded_without_applying_qos", 0)
 
 
 @pytest.fixture
@@ -72,9 +79,20 @@ def wait_for_next_reservation_expiry(read_reservation_expiry):
     return wait_for_next_reservation_expiry
 
 
+class RedisOutage:
+    def __init__(self, provider_concurrency_limiter: RedisProviderConcurrencyLimiter, monkeypatch: pytest.MonkeyPatch):
+        self._provider_concurrency_limiter = provider_concurrency_limiter
+        self._monkeypatch = monkeypatch
+        self._try_reserve_on_a_reachable_redis = provider_concurrency_limiter._try_reserve
+        monkeypatch.setattr(provider_concurrency_limiter, "_try_reserve", AsyncMock(side_effect=RedisError("unavailable")))
+
+    def end(self) -> None:
+        self._monkeypatch.setattr(self._provider_concurrency_limiter, "_try_reserve", self._try_reserve_on_a_reachable_redis)
+
+
 @pytest.fixture
 def redis_outage(provider_concurrency_limiter, monkeypatch):
-    monkeypatch.setattr(provider_concurrency_limiter, "_try_reserve", AsyncMock(side_effect=RedisError("unavailable")))
+    return RedisOutage(provider_concurrency_limiter, monkeypatch)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -407,3 +425,36 @@ class TestRedisOutage:
 
         # ASSERT
         mock_reservation_removal.assert_not_called()
+
+    async def test_reserve_should_log_a_single_error_when_several_requests_hit_a_redis_outage(self, provider_concurrency_limiter, caplog):
+        # ACT
+        with caplog.at_level(logging.INFO, logger=RedisProviderConcurrencyLimiter.__module__):
+            for index in range(3):
+                await provider_concurrency_limiter.reserve(
+                    request_id=f"request-{index}", providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
+                )
+
+        # ASSERT
+        logs = [(record.levelno, record.getMessage()) for record in caplog.records]
+        assert logs == [(logging.ERROR, "Redis is unreachable: provider limits are no longer enforced.")]
+
+    async def test_reserve_should_log_the_number_of_requests_forwarded_without_applying_qos_when_redis_is_reachable_again(
+        self, provider_concurrency_limiter, redis_outage, caplog
+    ):
+        # ARRANGE
+        for index in range(2):
+            await provider_concurrency_limiter.reserve(
+                request_id=f"request-{index}", providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
+            )
+        redis_outage.end()
+        caplog.clear()
+
+        # ACT
+        with caplog.at_level(logging.INFO, logger=RedisProviderConcurrencyLimiter.__module__):
+            await provider_concurrency_limiter.reserve(
+                request_id="request-2", providers=[provider(1)], strategy=RouterLoadBalancingStrategy.SHUFFLE, enforce_limit=True
+            )
+
+        # ASSERT
+        logs = [(record.levelno, record.getMessage()) for record in caplog.records]
+        assert logs == [(logging.INFO, "Redis is reachable again: 2 requests were forwarded without provider limits.")]
