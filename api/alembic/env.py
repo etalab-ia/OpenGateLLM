@@ -6,6 +6,9 @@ from sqlalchemy import create_engine, make_url, pool
 from api.infrastructure.postgres.models import Base
 from api.infrastructure.configuration import get_configuration
 
+# A migration waiting for a lock queues every later request on the table behind it, reads included.
+LOCK_TIMEOUT = "5s"
+
 configuration = get_configuration()
 config = context.config
 url = make_url(configuration.dependencies.postgres.url).set(drivername="postgresql+psycopg2")
@@ -46,7 +49,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = create_engine(url, poolclass=pool.NullPool)
+    connectable = create_engine(url, poolclass=pool.NullPool, connect_args={"options": f"-c lock_timeout={LOCK_TIMEOUT}"})
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
