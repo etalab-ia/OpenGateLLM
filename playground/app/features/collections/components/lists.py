@@ -73,7 +73,12 @@ def collection_row(collection: Collection) -> rx.Component:
             ),
             rx.vstack(
                 rx.hstack(
-                    rx.text(collection.name, size=TEXT_SIZE_LARGE, weight="bold", overflow_wrap="anywhere"),
+                    rx.link(
+                        rx.text(collection.name, size=TEXT_SIZE_LARGE, weight="bold", overflow_wrap="anywhere"),
+                        href=f"/collections/{collection.id}",
+                        underline="hover",
+                        color=rx.color("mauve", 12),
+                    ),
                     rx.badge(collection.visibility, variant="soft", color_scheme=rx.cond(collection.visibility == "public", "green", "gray")),
                     spacing=SPACING_SMALL,
                     align="center",

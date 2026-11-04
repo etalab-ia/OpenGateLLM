@@ -5,6 +5,8 @@ from app.features.account.page import account_page
 from app.features.auth.page import admin_deny_page, sso_deny_page, sso_error_page
 from app.features.auth.state import AuthState
 from app.features.chat.page import chat_page_content
+from app.features.collections.detail_page import collection_detail_page
+from app.features.collections.detail_state import CollectionDetailState
 from app.features.collections.page import collections_page
 from app.features.collections.state import CollectionsState
 from app.features.keys.page import keys_page
@@ -42,6 +44,11 @@ def account() -> rx.Component:
 def collections() -> rx.Component:
     """Collections management page."""
     return authenticated_page(collections_page())
+
+
+def collection_detail() -> rx.Component:
+    """Collection document management page."""
+    return authenticated_page(collection_detail_page())
 
 
 def keys() -> rx.Component:
@@ -138,6 +145,11 @@ if PlaygroundPages.ACCOUNT not in configuration.settings.playground_disabled_pag
     app.add_page(component=account, route="/account", on_load=_on_load())
 if PlaygroundPages.COLLECTIONS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=collections, route="/collections", on_load=_on_load(CollectionsState.load_entities))
+    app.add_page(
+        component=collection_detail,
+        route="/collections/[collection_id]",
+        on_load=_on_load(CollectionDetailState.load_collection_detail),
+    )
 if PlaygroundPages.KEYS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=keys, route="/keys", on_load=_on_load(KeysState.load_entities))
 if PlaygroundPages.USAGE not in configuration.settings.playground_disabled_pages:
