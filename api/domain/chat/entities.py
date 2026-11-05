@@ -132,7 +132,7 @@ class ChatCompletionStreamReader(BaseModel):
 
         if chunk.get("usage"):
             self.provider_usage = Usage.model_validate(chunk["usage"])
-            if not chunk.get("choices"):
+            if not chunk.get("choices") and not chunk.get("search_results"):
                 return None
 
         self.last_delivered_chunk = chunk
