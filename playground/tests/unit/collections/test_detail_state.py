@@ -293,6 +293,9 @@ async def test_should_reject_invalid_ingestion_settings_before_requesting_api(ov
         ([{"key": "k" * 256, "value": "a", "type": "text"}], "is limited to 255 characters."),
         ([{"key": "year", "value": "abc", "type": "number"}], "Metadata value for 'year' must be a number."),
         ([{"key": "year", "value": "1e30", "type": "number"}], "Metadata value for 'year' is too large."),
+        ([{"key": "year", "value": "NaN", "type": "number"}], "Metadata value for 'year' must be a finite number."),
+        ([{"key": "year", "value": "inf", "type": "number"}], "Metadata value for 'year' must be a finite number."),
+        ([{"key": "year", "value": "-inf", "type": "number"}], "Metadata value for 'year' must be a finite number."),
         ([{"key": "flag", "value": "maybe", "type": "boolean"}], "Metadata value for 'flag' must be true or false."),
     ],
 )

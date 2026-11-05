@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 
 import httpx
@@ -371,7 +372,9 @@ class CollectionDetailState(CollectionsState):
             elif value_type == "number":
                 try:
                     number = float(value)
-                    if abs(number) > METADATA_NUMBER_MAX:
+                    if not math.isfinite(number):
+                        errors.append(f"Metadata value for '{key}' must be a finite number.")
+                    elif abs(number) > METADATA_NUMBER_MAX:
                         errors.append(f"Metadata value for '{key}' is too large.")
                 except ValueError:
                     errors.append(f"Metadata value for '{key}' must be a number.")
