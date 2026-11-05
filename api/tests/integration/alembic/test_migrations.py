@@ -81,8 +81,8 @@ def _insert_a_row_in_every_table(engine: Engine) -> None:
         router = RouterSQLFactory(user=user)
         provider = ProviderSQLFactory(router=router)
         RouterAliasSQLFactory(router=router)
-        # Not PROVIDE_MODELS, drawn at random otherwise: the downgrade of 28019ec49533 fails on it.
-        PermissionSQLFactory(role=user.role, permission=PermissionType.ADMIN)
+        for permission in PermissionType:
+            PermissionSQLFactory(role=user.role, permission=permission)
         LimitSQLFactory(role=user.role, router=router)
         UsageSQLFactory(user=user, token_id=key.id, router_id=router.id, provider_id=provider.id)
         session.commit()
