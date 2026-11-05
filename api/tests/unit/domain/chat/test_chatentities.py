@@ -206,6 +206,17 @@ class TestChatCompletionStreamReader:
         assert (chunk["id"], chunk["model"]) == ("req-1", "chat-router")
         assert stream_reader.provider_usage.completion_tokens == 9
 
+    def test_should_relay_a_usage_chunk_with_an_empty_search_result_list(self):
+        stream_reader = _stream_reader()
+
+        line = stream_reader.read(
+            'data: {"choices": [], "usage": {"prompt_tokens": 12, "completion_tokens": 9, "total_tokens": 21}, "search_results": []}'
+        )
+
+        chunk = json.loads(line.removeprefix("data: "))
+        assert chunk["search_results"] == []
+        assert stream_reader.provider_usage.completion_tokens == 9
+
     def test_should_relay_a_content_chunk_that_also_carries_the_usage(self):
         stream_reader = _stream_reader()
 

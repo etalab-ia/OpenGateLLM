@@ -1,6 +1,6 @@
 import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, call
 
 import httpx
 import pytest
@@ -150,6 +150,32 @@ async def test_should_preserve_valid_selections_when_refreshing_collections():
     assert state.selected_collection_ids == [42]
     assert state.available_collections[0].is_owner is True
     assert state.available_collections[1].is_owner is False
+    assert state.collections_loading is False
+
+
+@pytest.mark.asyncio
+async def test_should_load_all_collection_pages_before_pruning_selections():
+    # Arrange
+    state = make_state(selected_collection_ids=[42, 101])
+    first_page = httpx.Response(
+        200,
+        json={"data": [{"id": index, "name": f"Collection {index}", "owner": 7, "visibility": "private"} for index in range(1, 101)]},
+        request=httpx.Request("GET", "http://rag:8001/v1/collections"),
+    )
+    second_page = httpx.Response(
+        200,
+        json={"data": [{"id": 101, "name": "Collection 101", "owner": 7, "visibility": "private"}]},
+        request=httpx.Request("GET", "http://rag:8001/v1/collections"),
+    )
+    state._request_collections = AsyncMock(side_effect=[first_page, second_page])
+
+    # Act
+    await drive(ChatState.load_collections.fn(state))
+
+    # Assert
+    assert state._request_collections.await_args_list == [call(0), call(100)]
+    assert len(state.available_collections) == 101
+    assert state.selected_collection_ids == [42, 101]
     assert state.collections_loading is False
 
 

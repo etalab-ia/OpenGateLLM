@@ -55,12 +55,12 @@ class ChatState(AuthState):
         else:
             self.selected_collection_ids = [*self.selected_collection_ids, collection_id]
 
-    async def _request_collections(self) -> httpx.Response:
+    async def _request_collections(self, offset: int = 0) -> httpx.Response:
         async with httpx.AsyncClient() as client:
             return await client.get(
                 f"{self.opengaterag_url.rstrip('/')}/v1/collections",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                params={"offset": 0, "limit": 100, "order_by": "name", "order_direction": "asc"},
+                params={"offset": offset, "limit": 100, "order_by": "name", "order_direction": "asc"},
                 timeout=self.opengatellm_timeout,
             )
 
@@ -76,21 +76,29 @@ class ChatState(AuthState):
 
         response = None
         try:
-            response = await self._request_collections()
-            response.raise_for_status()
-            collections = [
-                Collection(
-                    id=item["id"],
-                    name=item["name"],
-                    description=item.get("description") or "",
-                    owner=item.get("owner"),
-                    visibility=item.get("visibility") or "private",
-                    documents=item.get("documents", 0),
-                    size=item.get("size", 0),
-                    is_owner=item.get("owner") == self.user_id,
+            collections = []
+            offset = 0
+            while True:
+                response = await self._request_collections(offset)
+                response.raise_for_status()
+                data = response.json().get("data", [])
+                collections.extend(
+                    Collection(
+                        id=item["id"],
+                        name=item["name"],
+                        description=item.get("description") or "",
+                        owner=item.get("owner"),
+                        visibility=item.get("visibility") or "private",
+                        documents=item.get("documents", 0),
+                        size=item.get("size", 0),
+                        is_owner=item.get("owner") == self.user_id,
+                    )
+                    for item in data
                 )
-                for item in response.json().get("data", [])
-            ]
+                if len(data) < 100:
+                    break
+                offset += 100
+
             self.available_collections = collections
             accessible_ids = {collection.id for collection in collections}
             self.selected_collection_ids = [selected_id for selected_id in self.selected_collection_ids if selected_id in accessible_ids]
