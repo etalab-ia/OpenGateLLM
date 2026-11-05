@@ -112,6 +112,14 @@ class NotAdminUserHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class UnauthorizedActionHTTPException(HTTPException):
+    status_code = 403
+    detail = "User {user_id} is not allowed to perform this action."
+
+    def __init__(self, user_id: int) -> None:
+        super().__init__(status_code=self.status_code, detail=f"User {user_id} is not allowed to perform this action.")
+
+
 class SSOAccessDeniedHTTPException(HTTPException):
     status_code = 403
     detail = "Access denied, please contact your administrator."
