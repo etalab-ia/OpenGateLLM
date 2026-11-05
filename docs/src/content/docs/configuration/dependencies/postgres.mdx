@@ -50,6 +50,26 @@ The connection URL must use the `postgresql+asyncpg://` driver. If you provide a
 
 ## Database Migrations
 
-OpenGateLLM uses [Alembic](https://alembic.sqlalchemy.org/) for database migrations. The schema is automatically initialized and updated when the API starts by [`startup_api.sh` script](https://github.com/etalab-ia/OpenGateLLM/blob/main/scripts/startup_api.sh).
+OpenGateLLM uses [Alembic](https://alembic.sqlalchemy.org/) for database migrations. The API image contains them, but the API does not run them when it starts: a deployment runs them once, with the same image, before starting the API containers. Several API containers starting together would otherwise race on the migration, and a failing migration would keep each of them restarting in a loop.
+
+With Docker Compose, the `db-migrate` service of [`compose.example.yml`](https://github.com/etalab-ia/OpenGateLLM/blob/main/compose.example.yml) does it: the `api` service waits for it, and does not start if it fails.
+
+To upgrade a running instance, run the migrations as their own step:
+
+```bash
+docker compose pull && docker compose run --rm db-migrate && docker compose up --detach --wait
+```
+
+A single `docker compose up` replaces the running `api` container before the migrations end: if they fail, the new container stays stopped and the API is down. With `docker compose run`, a failure leaves the running API untouched.
+
+Without Docker Compose, run this command before starting the API containers:
+
+```bash
+docker run --rm --network <network of postgres> -v ./config.yml:/config.yml:ro ghcr.io/etalab-ia/opengatellm/api:<version> python -m alembic -c api/alembic.ini upgrade head
+```
+
+<Aside type="caution" title="Do not skip this step">
+The API also starts on a schema that is not up to date: its requests then fail on the missing columns or tables.
+</Aside>
 
 For contributing to the database schema, you can follow the instructions in [SQL contributions guide](/contributing/sql/).

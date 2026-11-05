@@ -82,7 +82,7 @@ jobs:
 
       - name: Show the api logs
         if: failure() && matrix.image == 'api'
-        run: docker compose --env-file .env.example --file compose.example.yml logs api
+        run: docker compose --env-file .env.example --file compose.example.yml logs db-migrate api
 
       - name: Push OpenGateLLM ${{ matrix.image }} image to GitHub
         if: inputs.push
