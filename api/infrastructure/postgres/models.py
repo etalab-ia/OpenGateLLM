@@ -1,7 +1,7 @@
 import datetime as dt
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, false, func
+from sqlalchemy import DateTime, ForeignKey, MetaData, UniqueConstraint, false, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -10,7 +10,16 @@ from api.domain.role.entities import LimitType, PermissionType
 from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.infrastructure.configuration import DEFAULT_TIMEOUT
 
-Base = declarative_base()
+Base = declarative_base(
+    metadata=MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "%(table_name)s_%(column_0_name)s_key",
+            "fk": "%(table_name)s_%(column_0_name)s_fkey",
+            "pk": "%(table_name)s_pkey",
+        }
+    )
+)
 
 UtcDateTime = DateTime(timezone=True)
 
