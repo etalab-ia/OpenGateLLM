@@ -630,6 +630,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Unit domain | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | Entity methods (`need_to_update`) | Use-case orchestration |
 | Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
 | Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
+| Migrations | `api/tests/integration/alembic/test_migrations.py` | Single head, migrations match `models.py`, downgrade and upgrade with a row in every table — a new table needs a row in its seed | What each migration does to the data |
 | Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
 | Rate-limit charging | `api/tests/integration/endpoints/test_ocr.py`, `api/tests/integration/endpoints/test_chatcompletions.py` (`*charge*_the_router_limits`) | Redis counters after a real request; a 429 is not charged | The other model-forward endpoints (same non-streaming path) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
