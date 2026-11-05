@@ -350,10 +350,13 @@ Retrieved documents:
         self.processing = True
         yield
 
-        # Build the messages.
+        # Build the messages, restoring retrieved context from earlier grounded turns.
         messages = []
         for qa in self._messages:
-            messages.append({"role": "user", "content": qa["question"]})
+            question_content = qa["question"]
+            if qa.get("search_enabled") and qa.get("sources_returned"):
+                question_content = self._grounded_content(qa["question"], qa["sources"])
+            messages.append({"role": "user", "content": question_content})
             if qa["answer"]:
                 messages.append({"role": "assistant", "content": qa["answer"]})
 

@@ -263,6 +263,45 @@ async def test_should_retrieve_before_accumulating_the_streaming_answer(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_should_preserve_previous_grounded_context_in_a_follow_up(monkeypatch):
+    # Arrange
+    previous_source = ChatState._source_from_search_result(search_result())
+    state = make_state(
+        _messages=[
+            {
+                "question": "What is supported?",
+                "answer": "DOCX is supported.",
+                "search_enabled": True,
+                "sources_returned": True,
+                "sources": [previous_source],
+            }
+        ]
+    )
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/v1/search":
+            return httpx.Response(200, json={"data": [search_result()]})
+        return httpx.Response(200, json=completion(content="According to Document 1, DOCX is supported."))
+
+    mock_http_client(monkeypatch, handler)
+
+    # Act
+    await drive(ChatState.api_process_question.fn(state, "Quote the relevant passage from Document 1"))
+
+    # Assert
+    chat_payload = json.loads(requests[1].content)
+    assert [message["role"] for message in chat_payload["messages"]] == ["user", "assistant", "user"]
+    previous_content = chat_payload["messages"][0]["content"]
+    assert "What is supported?" in previous_content
+    assert "Document 1 (source: guide.pdf, page 2)" in previous_content
+    assert "The supported formats are listed on page 2." in previous_content
+    assert chat_payload["messages"][1]["content"] == "DOCX is supported."
+    assert "Quote the relevant passage from Document 1" in chat_payload["messages"][2]["content"]
+
+
+@pytest.mark.asyncio
 async def test_should_capture_non_streaming_provenance(monkeypatch):
     # Arrange
     def handler(request):
