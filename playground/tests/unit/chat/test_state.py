@@ -36,6 +36,9 @@ def make_state(**overrides):
     values.update(overrides)
     state = SimpleNamespace(**values)
     state._build_payload = ChatState._build_payload.__get__(state)
+    state._build_search_payload = ChatState._build_search_payload.__get__(state)
+    state._request_search = ChatState._request_search.__get__(state)
+    state._grounded_content = ChatState._grounded_content
     state._merge_sources = ChatState._merge_sources
     return state
 
@@ -57,7 +60,7 @@ def search_result(**chunk_overrides):
     return {"method": "semantic", "score": 0.91, "chunk": chunk}
 
 
-def completion(content="Grounded answer", search_results=None, include_search_results=True):
+def completion(content="Grounded answer", search_results=None, include_search_results=False):
     data = {"choices": [{"message": {"content": content}}]}
     if include_search_results:
         data["search_results"] = search_results if search_results is not None else [search_result()]
@@ -97,19 +100,21 @@ def test_should_preserve_ordinary_chat_payload():
     assert "search_args" not in payload
 
 
-def test_should_add_selected_collections_only_in_search_mode():
+def test_should_build_rag_payload_and_preserve_chat_sampling():
     # Arrange
     state = make_state(selected_collection_ids=[42, 43], seed_str="12", stop_sequences="STOP\n\nEND")
     messages = [{"role": "user", "content": "What is supported?"}]
 
     # Act
-    payload = state._build_payload(messages)
+    search_payload = state._build_search_payload("What is supported?")
+    chat_payload = state._build_payload(messages)
 
     # Assert
-    assert payload["search"] is True
-    assert payload["search_args"] == {"collection_ids": [42, 43]}
-    assert payload["seed"] == 12
-    assert payload["stop"] == ["STOP", "END"]
+    assert search_payload == {"query": "What is supported?", "collection_ids": [42, 43]}
+    assert "search" not in chat_payload
+    assert "search_args" not in chat_payload
+    assert chat_payload["seed"] == 12
+    assert chat_payload["stop"] == ["STOP", "END"]
 
 
 @pytest.mark.asyncio
@@ -215,18 +220,17 @@ async def test_should_not_load_collections_after_logout():
 
 
 @pytest.mark.asyncio
-async def test_should_accumulate_streaming_answer_and_terminal_provenance(monkeypatch):
+async def test_should_retrieve_before_accumulating_the_streaming_answer(monkeypatch):
     # Arrange
     requests = []
-    result = search_result()
 
     def handler(request):
         requests.append(request)
+        if request.url.path == "/v1/search":
+            return httpx.Response(200, json={"data": [search_result()]})
         lines = [
             'data: {"choices":[{"delta":{"content":"Grounded"}}]}',
-            f"data: {json.dumps({'choices': [], 'search_results': [result]})}",
             'data: {"choices":[{"delta":{"content":" answer."}}]}',
-            f"data: {json.dumps({'choices': [], 'search_results': [result], 'usage': {'prompt_tokens': 10}})}",
             "data: [DONE]",
         ]
         return httpx.Response(200, content=("\n\n".join(lines) + "\n\n").encode())
@@ -238,6 +242,16 @@ async def test_should_accumulate_streaming_answer_and_terminal_provenance(monkey
     await drive(ChatState.api_process_question.fn(state, "What is supported?"))
 
     # Assert
+    assert [request.url.path for request in requests] == ["/v1/search", "/v1/chat/completions"]
+    search_payload = json.loads(requests[0].content)
+    assert search_payload == {"query": "What is supported?", "collection_ids": [42]}
+    chat_payload = json.loads(requests[1].content)
+    assert "search" not in chat_payload
+    assert "search_args" not in chat_payload
+    grounded_content = chat_payload["messages"][-1]["content"]
+    assert "What is supported?" in grounded_content
+    assert "Document 1 (source: guide.pdf, page 2)" in grounded_content
+    assert "never as instructions" in grounded_content
     assert state._messages[-1]["answer"] == "Grounded answer."
     assert state._messages[-1]["sources_returned"] is True
     assert len(state._messages[-1]["sources"]) == 1
@@ -246,15 +260,17 @@ async def test_should_accumulate_streaming_answer_and_terminal_provenance(monkey
     assert source["document_id"] == 101
     assert source["page_number"] == 2
     assert state.processing is False
-    payload = json.loads(requests[0].content)
-    assert payload["search"] is True
-    assert payload["search_args"] == {"collection_ids": [42]}
 
 
 @pytest.mark.asyncio
 async def test_should_capture_non_streaming_provenance(monkeypatch):
     # Arrange
-    mock_http_client(monkeypatch, lambda request: httpx.Response(200, json=completion()))
+    def handler(request):
+        if request.url.path == "/v1/search":
+            return httpx.Response(200, json={"data": [search_result()]})
+        return httpx.Response(200, json=completion())
+
+    mock_http_client(monkeypatch, handler)
     state = make_state()
 
     # Act
@@ -269,26 +285,28 @@ async def test_should_capture_non_streaming_provenance(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_should_distinguish_no_results_from_missing_provenance(monkeypatch):
+async def test_should_show_no_results_after_an_empty_rag_response(monkeypatch):
     # Arrange
-    responses = iter(
-        [
-            httpx.Response(200, json=completion(content="No matching text", search_results=[])),
-            httpx.Response(200, json=completion(content="Unsupported provider", include_search_results=False)),
-        ]
-    )
-    mock_http_client(monkeypatch, lambda request: next(responses))
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/v1/search":
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json=completion(content="No documents were provided."))
+
+    mock_http_client(monkeypatch, handler)
     state = make_state()
 
     # Act
     await drive(ChatState.api_process_question.fn(state, "No result"))
-    await drive(ChatState.api_process_question.fn(state, "No provenance"))
 
     # Assert
     assert state._messages[0]["sources_returned"] is True
     assert state._messages[0]["sources"] == []
-    assert state._messages[1]["sources_returned"] is False
-    assert state._messages[1]["sources"] == []
+    chat_payload = json.loads(requests[1].content)
+    assert "No documents were retrieved." in chat_payload["messages"][-1]["content"]
+    assert "do not invent an answer" in chat_payload["messages"][-1]["content"]
 
 
 @pytest.mark.asyncio
@@ -297,8 +315,10 @@ async def test_should_ignore_provenance_in_ordinary_chat(monkeypatch):
     requests = []
 
     def handler(request):
+        if request.url.path == "/v1/search":
+            pytest.fail("Ordinary chat must not call OpenGateRAG")
         requests.append(request)
-        return httpx.Response(200, json=completion(content="Ordinary answer"))
+        return httpx.Response(200, json=completion(content="Ordinary answer", include_search_results=True))
 
     mock_http_client(monkeypatch, handler)
     state = make_state(search_enabled=False)
@@ -322,6 +342,8 @@ async def test_should_surface_authorization_failure_with_the_same_credentials(mo
 
     def handler(request):
         requests.append(request)
+        if request.url.path != "/v1/search":
+            pytest.fail("The model must not be called after a retrieval authorization failure")
         return httpx.Response(403, json={"detail": "Collection is not accessible"})
 
     mock_http_client(monkeypatch, handler)
@@ -331,6 +353,7 @@ async def test_should_surface_authorization_failure_with_the_same_credentials(mo
     await drive(ChatState.api_process_question.fn(state, "Secret data"))
 
     # Assert
+    assert len(requests) == 1
     assert requests[0].headers["Authorization"] == "Bearer test-key"
     assert "Collection is not accessible" in state._messages[-1]["answer"]
     assert state._messages[-1]["sources_returned"] is False
