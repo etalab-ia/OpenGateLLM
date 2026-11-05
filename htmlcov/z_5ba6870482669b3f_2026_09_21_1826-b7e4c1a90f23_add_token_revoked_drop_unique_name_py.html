@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">12 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">12<span class="text"> run</span></button>
+            <span class="text">14 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">14<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_5ba6870482669b3f_2026_09_22_1539-a9c2e7b41d35_rename_modeltype_enum_to_routertype_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-11-05 10:36 +0000
+            created at 2026-11-05 13:00 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -104,8 +104,25 @@
     <p class="pln"><span class="n"><a id="t20" href="#t20">20</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t21" href="#t21">21</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t22" href="#t22">22</a></span><span class="t"><span class="key">def</span> <span class="nam">downgrade</span><span class="op">(</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t23" href="#t23">23</a></span><span class="t">    <span class="nam">op</span><span class="op">.</span><span class="nam">create_unique_constraint</span><span class="op">(</span><span class="str">&quot;unique_token_name_per_user&quot;</span><span class="op">,</span> <span class="str">&quot;token&quot;</span><span class="op">,</span> <span class="op">[</span><span class="str">&quot;user_id&quot;</span><span class="op">,</span> <span class="str">&quot;name&quot;</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t24" href="#t24">24</a></span><span class="t">    <span class="nam">op</span><span class="op">.</span><span class="nam">drop_column</span><span class="op">(</span><span class="str">&quot;token&quot;</span><span class="op">,</span> <span class="str">&quot;revoked&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t23" href="#t23">23</a></span><span class="t">    <span class="str">&quot;&quot;&quot;Restore the 0.8.0 key semantics before its schema.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t24" href="#t24">24</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t25" href="#t25">25</a></span><span class="t"><span class="str">    - Revoked keys are deleted: before this revision, revoking a key deleted its row,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t26" href="#t26">26</a></span><span class="t"><span class="str">      and dropping the revoked column would make them valid again.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t27" href="#t27">27</a></span><span class="t"><span class="str">    - Keys sharing a name with an older key of the same user get a suffix with the key id,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t28" href="#t28">28</a></span><span class="t"><span class="str">      so that unique_token_name_per_user can be recreated. Their value does not change.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t29" href="#t29">29</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t30" href="#t30">30</a></span><span class="t">    <span class="nam">op</span><span class="op">.</span><span class="nam">execute</span><span class="op">(</span><span class="str">&quot;DELETE FROM token WHERE revoked&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t31" href="#t31">31</a></span><span class="t">    <span class="nam">op</span><span class="op">.</span><span class="nam">execute</span><span class="op">(</span><span class="str">&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t32" href="#t32">32</a></span><span class="t"><span class="str">        UPDATE token SET name = name || &#x27; (duplicate &#x27; || id || &#x27;)&#x27;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t"><span class="str">        WHERE id IN (</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t"><span class="str">            SELECT id FROM (</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t"><span class="str">                SELECT id, row_number() OVER (PARTITION BY user_id, name ORDER BY id) AS rank</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t"><span class="str">                FROM token WHERE name IS NOT NULL</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t"><span class="str">            ) ranked WHERE rank &gt; 1</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t38" href="#t38">38</a></span><span class="t"><span class="str">        )</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t40" href="#t40">40</a></span><span class="t">    <span class="nam">op</span><span class="op">.</span><span class="nam">create_unique_constraint</span><span class="op">(</span><span class="str">&quot;unique_token_name_per_user&quot;</span><span class="op">,</span> <span class="str">&quot;token&quot;</span><span class="op">,</span> <span class="op">[</span><span class="str">&quot;user_id&quot;</span><span class="op">,</span> <span class="str">&quot;name&quot;</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t41" href="#t41">41</a></span><span class="t">    <span class="nam">op</span><span class="op">.</span><span class="nam">drop_column</span><span class="op">(</span><span class="str">&quot;token&quot;</span><span class="op">,</span> <span class="str">&quot;revoked&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -115,7 +132,7 @@
             <a class="nav" href="z_5ba6870482669b3f_2026_09_22_1539-a9c2e7b41d35_rename_modeltype_enum_to_routertype_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-11-05 10:36 +0000
+            created at 2026-11-05 13:00 +0000
         </p>
     </div>
 </footer>

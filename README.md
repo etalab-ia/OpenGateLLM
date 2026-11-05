@@ -46,7 +46,7 @@
 | api/alembic/versions/2026\_09\_11\_1340-c8e1a04b7f12\_drop\_provider\_qos\_columns.py                           |       16 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_09\_14\_1100-f4b7c2a91e30\_require\_user\_organization.py                            |       15 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_09\_18\_1000-e7a1c4d8b902\_replace\_image\_text\_to\_text\_with\_text\_generation.py |       19 |        0 |        0 |        0 |    100.00% |           |
-| api/alembic/versions/2026\_09\_21\_1826-b7e4c1a90f23\_add\_token\_revoked\_drop\_unique\_name.py                |       12 |        0 |        0 |        0 |    100.00% |           |
+| api/alembic/versions/2026\_09\_21\_1826-b7e4c1a90f23\_add\_token\_revoked\_drop\_unique\_name.py                |       14 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_09\_22\_1539-a9c2e7b41d35\_rename\_modeltype\_enum\_to\_routertype.py                |        9 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_09\_23\_1612-c4f8e2d91a70\_drop\_usage\_method.py                                    |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_09\_24\_1200-d1e2f3a4b5c6\_add\_usage\_request\_id.py                                |       12 |        0 |        0 |        0 |    100.00% |           |
@@ -258,7 +258,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7673** |  **638** | **1378** |  **155** | **89.74%** |           |
+| **TOTAL**                                                                                                       | **7675** |  **638** | **1378** |  **155** | **89.74%** |           |
 
 
 ## Setup coverage badge
