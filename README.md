@@ -42,6 +42,12 @@ Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](h
 
 ![Quickstart](./docs/src/assets/make_quickstart.gif)
 
+## ☁️ One-Click Deploy
+
+To run OpenGateLLM on a hosted machine instead of your own, deploy it with one click:
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/OpenGateLLM/)
+
 ## 🤝 Contribute
 
 This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! 
