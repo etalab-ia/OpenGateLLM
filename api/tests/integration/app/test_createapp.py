@@ -7,7 +7,7 @@ import pytest_asyncio
 from api.app import create_app
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
-from api.tests.helpers import create_key
+from api.tests.helpers import TEST_AUTH_SECRET_KEY, create_key
 
 
 @pytest.fixture(scope="session")
@@ -27,6 +27,7 @@ def createapp_configuration() -> Configuration:
             disabled_routers=[RouterName.ADMIN],
             hidden_routers=[RouterName.MODELS],
             monitoring_prometheus_enabled=False,
+            auth_secret_key=TEST_AUTH_SECRET_KEY,
         ),
         dependencies=Dependencies.model_construct(sentry=None),
     )
