@@ -29,7 +29,7 @@ jobs:
             echo "No git tags found. Skipping project version update."
             exit 0
           fi
-          sed -i -E "s/^[[:space:]]*version[[:space:]]*=.*/version = \"${latest_version}\"/" pyproject.toml
+          uv version --no-sync "${latest_version}"
           sed -i -E "s/^[[:space:]]*swagger_version:[[:space:]]*.*/  swagger_version: ${latest_version}/" config.example.yml
           sed -i -E "s/(badge:[[:space:]]*)'[^']*'/\1'v${latest_version}'/" docs/astro.config.mjs
       
@@ -78,4 +78,5 @@ jobs:
             docs/astro.config.mjs
             compose.example.yml
             pyproject.toml
+            uv.lock
             config.example.yml
