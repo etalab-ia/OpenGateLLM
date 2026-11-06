@@ -91,6 +91,7 @@ def custom_validation_error(suffix: str = ""):
 
 class PlaygroundPages(StrEnum):
     ACCOUNT = "account"
+    COLLECTIONS = "collections"
     KEYS = "keys"
     ORGANIZATIONS = "organizations"
     PROVIDERS = "providers"
@@ -122,6 +123,7 @@ class Settings(ConfigBaseModel):
 
     playground_opengatellm_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^http[s]?://"), Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")]  # fmt: off
     playground_opengatellm_timeout: Annotated[int, Field(default=60, ge=1, description="The timeout in seconds for the OpenGateLLM API.")]  # fmt: off
+    playground_opengaterag_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^http[s]?://"), Field(default="http://localhost:8001", description="The URL of the OpenGateRAG API used by the Collections page.")]  # fmt: off
     playground_disabled_pages: Annotated[list[PlaygroundPages], Field(default_factory=list, description="List of pages to disable from the navigation bar.")]  # fmt: off
     playground_default_model: Annotated[str | None, Field(default=None, description="The first model selected in chat page.")]  # fmt: off
 

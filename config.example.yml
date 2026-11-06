@@ -69,6 +69,7 @@ settings:
 
   playground_opengatellm_url: ${OPENGATELLM_URL:-http://api:8000}
   # playground_opengatellm_timeout: 60
+  # playground_opengaterag_url: ${OPENGATERAG_URL:-http://rag:8000}
   # playground_disabled_pages: []
   # playground_default_model: my-model
   # playground_theme_has_background: True

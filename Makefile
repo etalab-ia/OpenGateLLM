@@ -16,7 +16,7 @@ lint:
 	@pre-commit run --all-files
 
 test-unit:
-	@PYTHONPATH=. pytest -s api/tests/unit --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
+	@PYTHONPATH=.:playground pytest -s api/tests/unit playground/tests --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
 
 TEST_INTEG_ARG := $(word 2,$(MAKECMDGOALS))
 TEST_INTEG_SUFFIX := $(if $(TEST_INTEG_ARG),/$(TEST_INTEG_ARG),)

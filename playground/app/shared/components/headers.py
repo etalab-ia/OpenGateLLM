@@ -49,6 +49,8 @@ def entity_refresh_button(state: rx.State) -> rx.Component:
             on_click=state.load_entities,
             variant="ghost",
             loading=state.entities_loading,
+            aria_label="Refresh",
+            title="Refresh",
         ),
         content="Refresh",
     )

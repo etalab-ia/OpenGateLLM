@@ -5,6 +5,8 @@ from app.features.account.page import account_page
 from app.features.auth.page import admin_deny_page, sso_deny_page, sso_error_page
 from app.features.auth.state import AuthState
 from app.features.chat.page import chat_page_content
+from app.features.collections.page import collections_page
+from app.features.collections.state import CollectionsState
 from app.features.keys.page import keys_page
 from app.features.keys.state import KeysState
 from app.features.organizations.page import organizations_page
@@ -35,6 +37,11 @@ def chat() -> rx.Component:
 def account() -> rx.Component:
     """Account settings page."""
     return authenticated_page(account_page())
+
+
+def collections() -> rx.Component:
+    """Collections management page."""
+    return authenticated_page(collections_page())
 
 
 def keys() -> rx.Component:
@@ -129,6 +136,8 @@ if configuration.settings.auth_login_type == "oidc":
     app.add_page(component=sso_error_page, route="/error")
 if PlaygroundPages.ACCOUNT not in configuration.settings.playground_disabled_pages:
     app.add_page(component=account, route="/account", on_load=_on_load())
+if PlaygroundPages.COLLECTIONS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=collections, route="/collections", on_load=_on_load(CollectionsState.load_entities))
 if PlaygroundPages.KEYS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=keys, route="/keys", on_load=_on_load(KeysState.load_entities))
 if PlaygroundPages.USAGE not in configuration.settings.playground_disabled_pages:

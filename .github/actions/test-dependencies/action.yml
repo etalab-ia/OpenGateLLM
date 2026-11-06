@@ -8,4 +8,4 @@ runs:
 
     - name: Install test dependencies
       shell: bash
-      run: uv sync --locked --no-install-project --extra api --extra dev --extra test
+      run: uv sync --locked --no-install-project --extra api --extra playground --extra dev --extra test
