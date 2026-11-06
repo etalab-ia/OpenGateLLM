@@ -226,7 +226,8 @@ def _get_variable_value(match: re.Match) -> str:
 
 
 class Configuration(BaseSettings):
-    model_config = ConfigDict(extra="allow")
+    # Pydantic prints the rejected input in its errors, and this model is the one reporting those of the whole file.
+    model_config = ConfigDict(extra="allow", hide_input_in_errors=True)
 
     config_file: str = Field(default="../config.yml", description="Config file path.")
 

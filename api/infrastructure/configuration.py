@@ -24,6 +24,62 @@ VARIABLE_NAME_PATTERN = re.compile(r"[A-Z0-9_]+")
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
 
+class ConfigurationValidationError(Exception):
+    def __init__(
+        self,
+        exc: PydanticValidationError,
+        cls: BaseModel,
+        suffix: str = "",
+        base_url: str = "https://docs.opengatellm.org/configuration/configuration_file",
+    ):
+        super().__init__()
+        error_content = exc.errors()
+
+        def resolve_model_for_error(model: type[BaseModel], loc: tuple[Any, ...]):
+            current_model = model
+            documentation_url = base_url
+
+            for idx, part in enumerate(loc):
+                if not isinstance(part, str):
+                    continue
+                if part not in current_model.__pydantic_fields__:
+                    break
+
+                field_info = current_model.__pydantic_fields__[part]
+
+                annotation = field_info.annotation
+                next_model = None
+                origin = get_origin(annotation)
+                args = get_args(annotation)
+                candidates = args if origin is not None else (annotation,)
+
+                for candidate in candidates:
+                    if isinstance(candidate, type) and issubclass(candidate, BaseModel):
+                        next_model = candidate
+                        break
+
+                if next_model is None:
+                    break
+
+                current_model = next_model
+                documentation_url = f"{base_url}#{current_model.__name__.lower()}{suffix}"
+
+            return documentation_url
+
+        message = str(exc)
+        for error in error_content:
+            loc = tuple(error.get("loc", ()))
+            documentation_url = resolve_model_for_error(cls, loc)
+            original_line = f"    For further information visit {error['url']}"
+            replacement_line = f"    For further information visit {documentation_url}"
+            message = message.replace(original_line, replacement_line, 1)
+
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
 def custom_validation_error(suffix: str = ""):
     """
     Decorator to override Pydantic ValidationError to change error message.
@@ -31,57 +87,6 @@ def custom_validation_error(suffix: str = ""):
     Args:
         url(Optional[str]): override Pydantic documentation URL by provided URL. If not provided, the error message will be the same as the original error message.
     """
-
-    class ValidationError(Exception):
-        def __init__(
-            self, exc: PydanticValidationError, cls: BaseModel, base_url: str = "https://docs.opengatellm.org/configuration/configuration_file"
-        ):
-            super().__init__()
-            error_content = exc.errors()
-
-            def resolve_model_for_error(model: type[BaseModel], loc: tuple[Any, ...]):
-                current_model = model
-                documentation_url = base_url
-
-                for idx, part in enumerate(loc):
-                    if not isinstance(part, str):
-                        continue
-                    if part not in current_model.__pydantic_fields__:
-                        break
-
-                    field_info = current_model.__pydantic_fields__[part]
-
-                    annotation = field_info.annotation
-                    next_model = None
-                    origin = get_origin(annotation)
-                    args = get_args(annotation)
-                    candidates = args if origin is not None else (annotation,)
-
-                    for candidate in candidates:
-                        if isinstance(candidate, type) and issubclass(candidate, BaseModel):
-                            next_model = candidate
-                            break
-
-                    if next_model is None:
-                        break
-
-                    current_model = next_model
-                    documentation_url = f"{base_url}#{current_model.__name__.lower()}{suffix}"
-
-                return documentation_url
-
-            message = str(exc)
-            for error in error_content:
-                loc = tuple(error.get("loc", ()))
-                documentation_url = resolve_model_for_error(cls, loc)
-                original_line = f"    For further information visit {error['url']}"
-                replacement_line = f"    For further information visit {documentation_url}"
-                message = message.replace(original_line, replacement_line, 1)
-
-            self.message = message
-
-        def __str__(self):
-            return self.message
 
     def decorator(cls: type[BaseModel]):
         original_init = cls.__init__
@@ -91,7 +96,7 @@ def custom_validation_error(suffix: str = ""):
             try:
                 original_init(self, **data)
             except PydanticValidationError as e:
-                raise ValidationError(exc=e, cls=cls) from None  # hide previous traceback
+                raise ConfigurationValidationError(exc=e, cls=cls, suffix=suffix) from None  # hide previous traceback
 
         cls.__init__ = new_init
         return cls
@@ -100,7 +105,7 @@ def custom_validation_error(suffix: str = ""):
 
 
 class ConfigBaseModel(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", hide_input_in_errors=True)
 
 
 # models ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -276,8 +281,7 @@ class Settings(ConfigBaseModel):
     swagger_redoc_url: str = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
 
     # auth
-    auth_master_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="[DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user.", deprecated=True)  # fmt: off
-    auth_secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys. If not provided, the master key will be used.")  # fmt: off
+    auth_secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys.")  # fmt: off
     auth_bootsrap_admin_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default="admin", description="Username of the admin user created at the first startup.")  # fmt: off
     auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), AfterValidator(reject_password_over_max_bytes)] = Field(default="changeme", description="Password of the admin user created at the first startup. At most 72 bytes once UTF-8 encoded.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
@@ -292,16 +296,6 @@ class Settings(ConfigBaseModel):
 
     # audio
     audio_file_size_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum size of the audio file in bytes. If not provided, the audio file size limit is not applied.", examples=[100_000_000])]  # fmt: off
-
-    @model_validator(mode="after")
-    def validate_model(self) -> Any:
-        if self.auth_secret_key is None:
-            logging.warning("The 'auth_secret_key' setting is not set. Falling back to 'auth_master_key' for signing API keys.")  # fmt: off
-            logging.warning("Please set 'auth_secret_key' to a dedicated secret value in your 'config.yaml' file.")  # fmt: off
-            logging.warning("The 'auth_master_key' fallback will be removed in v1.0.0, where 'auth_secret_key' will become mandatory and 'auth_master_key' will no longer be used as a signing secret.")  # fmt: off
-            self.auth_secret_key = self.auth_master_key
-
-        return self
 
 
 class SettingsLoginPassword(Settings):
