@@ -116,7 +116,7 @@ def setup(console: Console, env_file: str) -> tuple[EnvFile | None, int]:
 def run_docker_compose(console: Console, env: EnvFile, local_api: bool = False, local_playground: bool = False) -> int:
     exclude_services = []
     if local_api:
-        exclude_services.append("api")
+        exclude_services.extend(["api", "db-migrate"])
     if local_playground:
         exclude_services.append("playground")
 
