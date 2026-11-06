@@ -4,7 +4,7 @@
 
 | Name                                                                                                            |    Stmts |     Miss |   Branch |   BrPart |      Cover |   Missing |
 |---------------------------------------------------------------------------------------------------------------- | -------: | -------: | -------: | -------: | ---------: | --------: |
-| api/alembic/env.py                                                                                              |       25 |        5 |        4 |        2 |     75.86% |17, 34-42, 62 |
+| api/alembic/env.py                                                                                              |       24 |        5 |        4 |        2 |     75.00% |16, 33-41, 61 |
 | api/alembic/versions/2025\_03\_11\_1552-9a9c82ec2470\_create\_usages\_table.py                                  |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_04\_02\_1603-e78eaed1bcb2\_add\_auth.py                                              |       56 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_04\_04\_1641-8c5ae2a3d4d0\_remove\_delete\_cascade\_usage\_token\_id.py              |       12 |        0 |        0 |        0 |    100.00% |           |
@@ -99,7 +99,7 @@
 | api/domain/user/errors.py                                                                                       |       24 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                                                        |       23 |        0 |        6 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                                                        |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration.py                                                                             |      251 |      102 |       50 |        3 |     50.50% |37-79, 82, 91-92, 123-130, 133, 156-160, 177-181, 297-300, 336-341, 346-349, 354-366, 378-379, 383-398, 402-421, 426 |
+| api/infrastructure/configuration.py                                                                             |      261 |       79 |       58 |        4 |     62.07% |39-81, 84, 93-94, 125-132, 135, 158-162, 180-181, 299-302, 338-343, 348-351, 356-368, 424-428, 433 |
 | api/infrastructure/context.py                                                                                   |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/ecologit/\_ecologitmodelenvironmentalimpactscomputer.py                                      |       12 |        0 |        2 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/\_requestcontext.py                                                                  |       12 |        0 |        0 |        0 |    100.00% |           |
@@ -258,7 +258,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7831** |  **628** | **1406** |  **158** | **90.04%** |           |
+| **TOTAL**                                                                                                       | **7840** |  **605** | **1414** |  **159** | **90.36%** |           |
 
 
 ## Setup coverage badge
