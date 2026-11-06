@@ -3,7 +3,62 @@
 import reflex as rx
 from reflex.constants.colors import ColorType
 
-from app.features.chat.models import QA
+from app.features.chat.models import QA, ChatSource
+
+
+def chat_source(source: ChatSource) -> rx.Component:
+    return rx.box(
+        rx.vstack(
+            rx.hstack(
+                rx.icon("file-text", size=16, color=rx.color("accent", 10)),
+                rx.text(source["document_name"], size="2", weight="medium", overflow_wrap="anywhere"),
+                rx.cond(
+                    source["page_number"].is_not_none(),
+                    rx.badge(f"Page {source['page_number']}", variant="soft", color_scheme="blue"),
+                ),
+                spacing="2",
+                align="center",
+                flex_wrap="wrap",
+            ),
+            rx.cond(
+                source["content"] != "",
+                rx.text(source["content"], size="1", color=rx.color("mauve", 10), white_space="pre-wrap", overflow_wrap="anywhere"),
+            ),
+            spacing="2",
+            align="start",
+        ),
+        width="100%",
+        padding="12px",
+        border=f"1px solid {rx.color('mauve', 5)}",
+        border_radius="6px",
+        background_color=rx.color("mauve", 2),
+    )
+
+
+def chat_provenance(qa: QA) -> rx.Component:
+    return rx.box(
+        rx.cond(
+            qa["sources_returned"],
+            rx.cond(
+                qa["sources"].length() > 0,
+                rx.vstack(
+                    rx.text("Sources", size="2", weight="bold", color=rx.color("mauve", 11)),
+                    rx.foreach(qa["sources"], chat_source),
+                    width="100%",
+                    spacing="2",
+                    align="start",
+                ),
+                rx.hstack(
+                    rx.icon("info", size=16, color=rx.color("mauve", 9)),
+                    rx.text("No documents found in the selected collections.", size="2", color=rx.color("mauve", 10)),
+                    spacing="2",
+                    align="center",
+                ),
+            ),
+        ),
+        width="100%",
+        margin_bottom="8px",
+    )
 
 
 def chat_message_content(text: str, color: ColorType) -> rx.Component:
@@ -48,6 +103,7 @@ def chat_message(qa: QA) -> rx.Component:
             text_align="left",
             margin_bottom="8px",
         ),
+        chat_provenance(qa),
         width="100%",
         margin_inline="auto",
     )
