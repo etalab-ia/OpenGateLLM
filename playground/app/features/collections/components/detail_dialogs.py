@@ -3,22 +3,188 @@ import reflex as rx
 from app.features.collections.detail_state import (
     COLLECTION_UPLOAD_ID,
     MAX_DOCUMENT_SIZE,
+    MAX_METADATA_ENTRIES,
+    METADATA_VALUE_TYPES,
+    PRESET_SEPARATOR_OPTIONS,
     SUPPORTED_UPLOAD_TYPES,
     CollectionDetailState,
 )
 from app.features.collections.models import Chunk
+from app.shared.components.forms import entity_form_input_field, entity_form_select_field
+
+
+def _upload_metadata_row(row: dict, index: int) -> rx.Component:
+    return rx.hstack(
+        rx.input(
+            placeholder="Key",
+            value=row["key"],
+            on_change=CollectionDetailState.set_upload_metadata_key(index),
+            max_length=255,
+            disabled=CollectionDetailState.upload_loading,
+        ),
+        rx.select(
+            items=METADATA_VALUE_TYPES,
+            value=row["type"],
+            on_change=CollectionDetailState.set_upload_metadata_type(index),
+            disabled=CollectionDetailState.upload_loading,
+        ),
+        rx.cond(
+            row["type"] == "boolean",
+            rx.select(
+                items=["true", "false"],
+                value=row["value"],
+                on_change=CollectionDetailState.set_upload_metadata_value(index),
+                disabled=CollectionDetailState.upload_loading,
+            ),
+            rx.input(
+                placeholder="Value",
+                value=row["value"],
+                on_change=CollectionDetailState.set_upload_metadata_value(index),
+                max_length=255,
+                disabled=CollectionDetailState.upload_loading,
+            ),
+        ),
+        rx.icon_button(
+            "trash-2",
+            on_click=CollectionDetailState.remove_upload_metadata_row(index),
+            disabled=CollectionDetailState.upload_loading,
+            variant="soft",
+            color_scheme="red",
+            aria_label="Remove metadata entry",
+        ),
+        spacing="2",
+        align="center",
+        width="100%",
+        flex_wrap="wrap",
+    )
+
+
+def _upload_metadata_editor() -> rx.Component:
+    return rx.vstack(
+        rx.hstack(
+            rx.text("Metadata", size="2", weight="bold"),
+            rx.spacer(),
+            rx.button(
+                rx.icon("plus", size=14),
+                rx.text("Add entry", size="2"),
+                size="1",
+                variant="soft",
+                on_click=CollectionDetailState.add_upload_metadata_row,
+                disabled=(CollectionDetailState.upload_metadata.length() >= MAX_METADATA_ENTRIES) | CollectionDetailState.upload_loading,
+            ),
+            spacing="2",
+            align="center",
+            width="100%",
+        ),
+        rx.foreach(CollectionDetailState.upload_metadata, _upload_metadata_row),
+        rx.text(
+            f"Up to {MAX_METADATA_ENTRIES} entries. Keys and text values are limited to 255 characters. "
+            "page_number is reserved for the document parser.",
+            size="1",
+            color=rx.color("mauve", 10),
+        ),
+        spacing="2",
+        align="start",
+        width="100%",
+    )
+
+
+def _upload_advanced_section() -> rx.Component:
+    return rx.vstack(
+        rx.button(
+            rx.icon("sliders-horizontal", size=14),
+            rx.text("Advanced ingestion settings", size="2"),
+            rx.spacer(),
+            rx.cond(
+                CollectionDetailState.upload_advanced_open,
+                rx.icon("chevron-up", size=14),
+                rx.icon("chevron-down", size=14),
+            ),
+            variant="soft",
+            color_scheme="gray",
+            on_click=CollectionDetailState.toggle_upload_advanced,
+            disabled=CollectionDetailState.upload_loading,
+            width="100%",
+        ),
+        rx.cond(
+            CollectionDetailState.upload_advanced_open,
+            rx.vstack(
+                rx.hstack(
+                    rx.box(
+                        entity_form_input_field(
+                            "Chunk size",
+                            CollectionDetailState.upload_chunk_size,
+                            on_change=CollectionDetailState.set_upload_chunk_size,
+                            tooltip="Maximum characters per chunk. Leave empty for the API default (2048).",
+                            placeholder="2048 (default)",
+                            type="number",
+                            min="1",
+                        ),
+                        width="calc(33% - 6px)",
+                        min_width="150px",
+                    ),
+                    rx.box(
+                        entity_form_input_field(
+                            "Chunk overlap",
+                            CollectionDetailState.upload_chunk_overlap,
+                            on_change=CollectionDetailState.set_upload_chunk_overlap,
+                            tooltip="Characters shared between consecutive chunks. Leave empty for the API default (0).",
+                            placeholder="0 (default)",
+                            type="number",
+                            min="0",
+                        ),
+                        width="calc(33% - 6px)",
+                        min_width="150px",
+                    ),
+                    rx.box(
+                        entity_form_input_field(
+                            "Minimum chunk size",
+                            CollectionDetailState.upload_chunk_min_size,
+                            on_change=CollectionDetailState.set_upload_chunk_min_size,
+                            tooltip="Discard chunks shorter than this. Leave empty for the API default (0).",
+                            placeholder="0 (default)",
+                            type="number",
+                            min="0",
+                        ),
+                        width="calc(33% - 6px)",
+                        min_width="150px",
+                    ),
+                    spacing="2",
+                    width="100%",
+                    flex_wrap="wrap",
+                    align="start",
+                ),
+                entity_form_select_field(
+                    "Separator preset",
+                    PRESET_SEPARATOR_OPTIONS,
+                    CollectionDetailState.upload_preset_separators,
+                    on_change=CollectionDetailState.set_upload_preset_separators,
+                    tooltip="Splitting rules applied to the text. Leave on markdown for the API default.",
+                ),
+                _upload_metadata_editor(),
+                spacing="3",
+                width="100%",
+            ),
+        ),
+        spacing="2",
+        width="100%",
+    )
 
 
 def upload_document_dialog() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.content(
             rx.dialog.title("Upload documents"),
-            rx.dialog.description("Files are parsed and indexed with the collection's default chunking settings."),
+            rx.dialog.description("Files are parsed and indexed with the collection's default chunking settings unless you override them below."),
             rx.upload(
                 rx.vstack(
                     rx.icon("cloud-upload", size=30, color=rx.color("accent", 10)),
                     rx.text("Choose files", weight="bold"),
-                    rx.text("PDF, HTML, Markdown or TXT • 20 MB per file", size="2", color=rx.color("mauve", 10)),
+                    rx.text(
+                        "PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, CSV, EPUB, HTML, Markdown or TXT • 20 MB per file",
+                        size="2",
+                        color=rx.color("mauve", 10),
+                    ),
                     spacing="2",
                     align="center",
                 ),
@@ -36,6 +202,7 @@ def upload_document_dialog() -> rx.Component:
                 align="start",
                 width="100%",
             ),
+            _upload_advanced_section(),
             rx.cond(
                 CollectionDetailState.upload_status != "",
                 rx.text(CollectionDetailState.upload_status, size="2", color=rx.color("mauve", 10)),

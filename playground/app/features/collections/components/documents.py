@@ -126,7 +126,7 @@ def document_list() -> rx.Component:
                         rx.text(
                             rx.cond(
                                 CollectionDetailState.detail_collection.is_owner,
-                                "Upload a PDF, HTML, Markdown or TXT file to build this collection.",
+                                "Upload a PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, CSV, EPUB, HTML, Markdown or TXT file to build this collection.",
                                 "This public collection has no documents.",
                             ),
                             color=rx.color("mauve", 10),

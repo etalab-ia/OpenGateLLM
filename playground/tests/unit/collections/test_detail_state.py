@@ -1,4 +1,5 @@
 import io
+import json
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -87,6 +88,12 @@ def make_detail_state(**overrides):
         "upload_loading": False,
         "upload_error": "",
         "upload_status": "",
+        "upload_advanced_open": False,
+        "upload_chunk_size": "",
+        "upload_chunk_overlap": "",
+        "upload_chunk_min_size": "",
+        "upload_preset_separators": "markdown",
+        "upload_metadata": [],
         "document_to_delete": Document(),
         "selected_document": Document(),
         "chunks": [],
@@ -103,6 +110,12 @@ def make_detail_state(**overrides):
     state._can_manage_collection = CollectionDetailState._can_manage_collection.__get__(state)
     state._detail_error_message = CollectionDetailState._detail_error_message.__get__(state)
     state._upload_error_message = CollectionDetailState._upload_error_message.__get__(state)
+    state._reset_upload_settings = CollectionDetailState._reset_upload_settings.__get__(state)
+    state._parse_upload_setting = CollectionDetailState._parse_upload_setting.__get__(state)
+    state._validate_upload_settings = CollectionDetailState._validate_upload_settings.__get__(state)
+    state._validate_upload_metadata = CollectionDetailState._validate_upload_metadata.__get__(state)
+    state._build_upload_data = CollectionDetailState._build_upload_data.__get__(state)
+    state._build_upload_metadata = CollectionDetailState._build_upload_metadata.__get__(state)
     state.load_documents = lambda: CollectionDetailState.load_documents.fn(state)
     state.load_collection_detail = lambda reset_page=True: CollectionDetailState.load_collection_detail.fn(state, reset_page=reset_page)
     state.load_chunks = lambda: CollectionDetailState.load_chunks.fn(state)
@@ -207,18 +220,239 @@ async def test_should_upload_multipart_with_api_default_chunking():
 
 
 @pytest.mark.asyncio
+async def test_should_upload_multipart_with_custom_chunking_and_metadata():
+    # Arrange
+    state = make_detail_state(
+        upload_chunk_size="512",
+        upload_chunk_overlap="64",
+        upload_chunk_min_size="10",
+        upload_preset_separators="html",
+        upload_metadata=[
+            {"key": "source", "value": "intranet", "type": "text"},
+            {"key": "year", "value": "2026", "type": "number"},
+            {"key": "rating", "value": "4.5", "type": "number"},
+            {"key": "verified", "value": "true", "type": "boolean"},
+        ],
+    )
+    state.load_collection_detail = noop_reload
+    state._request = AsyncMock(return_value=response({"id": 101}, status_code=201))
+
+    # Act
+    await drive(CollectionDetailState.upload_documents.fn(state, [upload_file()]))
+
+    # Assert
+    data = state._request.await_args.kwargs["data"]
+    assert data["collection_id"] == "42"
+    assert data["chunk_size"] == "512"
+    assert data["chunk_overlap"] == "64"
+    assert data["chunk_min_size"] == "10"
+    assert data["preset_separators"] == "html"
+    assert json.loads(data["metadata"]) == {"source": "intranet", "year": 2026, "rating": 4.5, "verified": True}
+    assert state.upload_error == ""
+    assert state.is_upload_dialog_open is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"upload_chunk_size": "0"}, "Chunk size must be 1 or more."),
+        ({"upload_chunk_size": "abc"}, "Chunk size must be a whole number."),
+        ({"upload_chunk_size": "-5"}, "Chunk size must be 1 or more."),
+        ({"upload_chunk_overlap": "-5"}, "Chunk overlap must be 0 or more."),
+        ({"upload_chunk_overlap": "4096"}, "Chunk overlap must not exceed the chunk size (2048)."),
+        ({"upload_chunk_size": "50", "upload_chunk_overlap": "100"}, "Chunk overlap must not exceed the chunk size (50)."),
+        ({"upload_chunk_min_size": "1.5"}, "Minimum chunk size must be a whole number."),
+        ({"upload_preset_separators": "cobol"}, "Separator preset must be one of: markdown, html, rst, latex."),
+    ],
+)
+async def test_should_reject_invalid_ingestion_settings_before_requesting_api(overrides, message):
+    # Arrange
+    state = make_detail_state(**overrides)
+    state._request = AsyncMock()
+
+    # Act
+    await drive(CollectionDetailState.upload_documents.fn(state, [upload_file()]))
+
+    # Assert
+    state._request.assert_not_awaited()
+    assert message in state.upload_error
+    assert state.is_upload_dialog_open is True
+    assert state.upload_loading is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("rows", "message"),
+    [
+        ([{"key": "page_number", "value": "3", "type": "text"}], "Metadata key 'page_number' is reserved for the document parser."),
+        ([{"key": "source", "value": "a", "type": "text"}, {"key": "source", "value": "b", "type": "text"}], "Duplicate metadata key 'source'."),
+        ([{"key": "  ", "value": "a", "type": "text"}], "Metadata keys cannot be empty."),
+        ([{"key": "source", "value": "", "type": "text"}], "Metadata value for 'source' cannot be empty."),
+        ([{"key": "source", "value": "x" * 256, "type": "text"}], "Metadata value for 'source' is limited to 255 characters."),
+        ([{"key": "k" * 256, "value": "a", "type": "text"}], "is limited to 255 characters."),
+        ([{"key": "year", "value": "abc", "type": "number"}], "Metadata value for 'year' must be a number."),
+        ([{"key": "year", "value": "1e30", "type": "number"}], "Metadata value for 'year' is too large."),
+        ([{"key": "year", "value": "NaN", "type": "number"}], "Metadata value for 'year' must be a finite number."),
+        ([{"key": "year", "value": "inf", "type": "number"}], "Metadata value for 'year' must be a finite number."),
+        ([{"key": "year", "value": "-inf", "type": "number"}], "Metadata value for 'year' must be a finite number."),
+        ([{"key": "flag", "value": "maybe", "type": "boolean"}], "Metadata value for 'flag' must be true or false."),
+    ],
+)
+async def test_should_reject_invalid_metadata_before_requesting_api(rows, message):
+    # Arrange
+    state = make_detail_state(upload_metadata=rows)
+    state._request = AsyncMock()
+
+    # Act
+    await drive(CollectionDetailState.upload_documents.fn(state, [upload_file()]))
+
+    # Assert
+    state._request.assert_not_awaited()
+    assert message in state.upload_error
+    assert state.is_upload_dialog_open is True
+
+
+@pytest.mark.asyncio
+async def test_should_reject_more_than_ten_metadata_entries_before_requesting_api():
+    # Arrange
+    state = make_detail_state(upload_metadata=[{"key": f"key{i}", "value": "v", "type": "text"} for i in range(11)])
+    state._request = AsyncMock()
+
+    # Act
+    await drive(CollectionDetailState.upload_documents.fn(state, [upload_file()]))
+
+    # Assert
+    state._request.assert_not_awaited()
+    assert "Metadata is limited to 10 entries." in state.upload_error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filename", "content_type"),
+    [
+        ("report.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        ("sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        ("slides.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+        ("memo.odt", "application/vnd.oasis.opendocument.text"),
+        ("data.ods", "application/vnd.oasis.opendocument.spreadsheet"),
+        ("deck.odp", "application/vnd.oasis.opendocument.presentation"),
+        ("table.csv", "text/csv"),
+        ("book.epub", "application/epub+zip"),
+    ],
+)
+async def test_should_upload_each_newly_supported_format(filename, content_type):
+    # Arrange
+    state = make_detail_state()
+    state.load_collection_detail = noop_reload
+    state._request = AsyncMock(return_value=response({"id": 101}, status_code=201))
+
+    # Act
+    await drive(CollectionDetailState.upload_documents.fn(state, [upload_file(filename=filename, content=b"content", content_type=content_type)]))
+
+    # Assert
+    state._request.assert_awaited_once()
+    assert state._request.await_args.kwargs["files"]["file"][0] == filename
+    assert state._request.await_args.kwargs["files"]["file"][2] == content_type
+    assert state.upload_error == ""
+    assert state.is_upload_dialog_open is False
+
+
+@pytest.mark.asyncio
 async def test_should_reject_unsupported_file_before_requesting_api():
     # Arrange
     state = make_detail_state()
     state._request = AsyncMock()
 
     # Act
-    await drive(CollectionDetailState.upload_documents.fn(state, [upload_file(filename="guide.docx")]))
+    await drive(
+        CollectionDetailState.upload_documents.fn(state, [upload_file(filename="archive.zip", content=b"PK\x03\x04", content_type="application/zip")])
+    )
 
     # Assert
     state._request.assert_not_awaited()
-    assert "supported formats are PDF, HTML, Markdown and TXT" in state.upload_error
+    assert "supported formats are PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, CSV, EPUB, HTML, Markdown and TXT" in state.upload_error
     assert state.is_upload_dialog_open is True
+
+
+def test_should_add_update_and_remove_metadata_rows():
+    # Arrange
+    state = make_detail_state()
+
+    # Act & assert
+    CollectionDetailState.add_upload_metadata_row.fn(state)
+    CollectionDetailState.add_upload_metadata_row.fn(state)
+    assert state.upload_metadata == [{"key": "", "value": "", "type": "text"}, {"key": "", "value": "", "type": "text"}]
+
+    CollectionDetailState.set_upload_metadata_key.fn(state, 0, "source")
+    CollectionDetailState.set_upload_metadata_value.fn(state, 0, "intranet")
+    CollectionDetailState.set_upload_metadata_type.fn(state, 1, "boolean")
+    assert state.upload_metadata[0] == {"key": "source", "value": "intranet", "type": "text"}
+    assert state.upload_metadata[1] == {"key": "", "value": "true", "type": "boolean"}
+
+    CollectionDetailState.remove_upload_metadata_row.fn(state, 0)
+    assert state.upload_metadata == [{"key": "", "value": "true", "type": "boolean"}]
+
+
+def test_should_ignore_metadata_row_updates_out_of_range():
+    # Arrange
+    state = make_detail_state(upload_metadata=[{"key": "a", "value": "1", "type": "text"}])
+
+    # Act
+    CollectionDetailState.set_upload_metadata_key.fn(state, 5, "x")
+    CollectionDetailState.set_upload_metadata_value.fn(state, -1, "x")
+    CollectionDetailState.set_upload_metadata_type.fn(state, 0, "cobol")
+    CollectionDetailState.remove_upload_metadata_row.fn(state, 9)
+
+    # Assert
+    assert state.upload_metadata == [{"key": "a", "value": "1", "type": "text"}]
+
+
+def test_should_cap_metadata_rows_at_ten():
+    # Arrange
+    state = make_detail_state(upload_metadata=[{"key": f"k{i}", "value": "v", "type": "text"} for i in range(10)])
+
+    # Act
+    CollectionDetailState.add_upload_metadata_row.fn(state)
+
+    # Assert
+    assert len(state.upload_metadata) == 10
+
+
+def test_should_reset_upload_settings_when_reopening_the_dialog():
+    # Arrange
+    state = make_detail_state(
+        upload_advanced_open=True,
+        upload_chunk_size="512",
+        upload_chunk_overlap="64",
+        upload_preset_separators="html",
+        upload_metadata=[{"key": "a", "value": "1", "type": "text"}],
+    )
+
+    # Act
+    CollectionDetailState.open_upload_dialog.fn(state)
+
+    # Assert
+    assert state.upload_advanced_open is False
+    assert state.upload_chunk_size == ""
+    assert state.upload_chunk_overlap == ""
+    assert state.upload_preset_separators == "markdown"
+    assert state.upload_metadata == []
+
+
+def test_should_reset_upload_settings_when_the_dialog_closes():
+    # Arrange
+    state = make_detail_state(
+        upload_chunk_size="512",
+        upload_metadata=[{"key": "a", "value": "1", "type": "text"}],
+    )
+
+    # Act
+    CollectionDetailState.handle_upload_dialog_change.fn(state, False)
+
+    # Assert
+    assert state.upload_chunk_size == ""
+    assert state.upload_metadata == []
 
 
 @pytest.mark.asyncio
