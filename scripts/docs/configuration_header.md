@@ -17,7 +17,15 @@ You can change the configuration file by setting the `CONFIG_FILE` environment v
 
 ## Secrets
 
-You can pass environment variables in configuration file with pattern `${ENV_VARIABLE_NAME}`. All environment variables will be loaded in the configuration file.
+You can pass environment variables in configuration file with pattern `${ENV_VARIABLE_NAME}`, in any value of the file. The value of a variable is used as it is, whatever its characters: it can not hold YAML structure.
+
+| Pattern | When the variable is missing or empty |
+|---|---|
+| `${ENV_VARIABLE_NAME}` | The application refuses to start, with an error naming the variable |
+| `${ENV_VARIABLE_NAME:-default}` | `default` is used |
+| `${ENV_VARIABLE_NAME:-}` | An empty string is used |
+
+A name only holds uppercase letters, digits and underscores. Any other `${...}` also stops the application.
 
 **Example**
 

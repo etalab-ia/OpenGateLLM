@@ -18,7 +18,8 @@ ARG CONFIG_FILE=config.example.yml \
     REFLEX_BACKEND_URL=http://localhost:8501 \
     REFLEX_FRONTEND_URL=http://localhost:8501 \
     REFLEX_FRONTEND_PATH='' \
-    PLAYGROUND_DISABLED_PAGES=''
+    PLAYGROUND_DISABLED_PAGES='' \
+    BUILD_PLACEHOLDER_VARIABLES=''
 
 COPY $CONFIG_FILE ./config.yml
 COPY ./playground/ .
@@ -30,7 +31,8 @@ ENV CONFIG_FILE=config.yml \
     REFLEX_FRONTEND_URL=$REFLEX_FRONTEND_URL \
     REFLEX_FRONTEND_PATH=$REFLEX_FRONTEND_PATH
 
-RUN .venv/bin/reflex export --frontend-only --no-zip  --loglevel debug
+# The export loads the configuration file: a variable only available at run time gets a placeholder here, never its real value, which would stay in the image history.
+RUN env $BUILD_PLACEHOLDER_VARIABLES .venv/bin/reflex export --frontend-only --no-zip  --loglevel debug
 
 FROM python:3.12-slim
 
