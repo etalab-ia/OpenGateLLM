@@ -46,8 +46,9 @@ def empty_database(test_configuration, monkeypatch) -> Iterator[Engine]:
         connection.execute(text(f'DROP DATABASE IF EXISTS "{database_url.database}"'))
         connection.execute(text(f'CREATE DATABASE "{database_url.database}"'))
 
-    # env.py reads the database URL from the configuration, and two migrations read it too.
+    # env.py reads the database URL from its dependency, and two migrations read it from the configuration.
     postgres = SimpleNamespace(url=database_url.render_as_string(hide_password=False))
+    monkeypatch.setattr("api.infrastructure.configuration.get_postgres_dependency", lambda: postgres)
     configuration = test_configuration.model_copy(update={"dependencies": SimpleNamespace(postgres=postgres)})
     monkeypatch.setattr("api.infrastructure.configuration.get_configuration", lambda: configuration)
 

@@ -1,7 +1,6 @@
 import base64
 from enum import StrEnum
 from functools import wraps
-import logging
 import os
 import re
 from typing import Annotated, Any, Literal, get_args, get_origin
@@ -12,6 +11,9 @@ from pydantic_settings import BaseSettings
 import yaml
 
 from app.core.variables import DEFAULT_APP_NAME
+
+VARIABLE_REFERENCE_PATTERN = re.compile(r"\$\{([^}]*?)(:-[^}]*)?\}")
+VARIABLE_NAME_PATTERN = re.compile(r"[A-Z0-9_]+")
 
 
 def custom_validation_error(suffix: str = ""):
@@ -188,6 +190,41 @@ class ConfigFile(ConfigBaseModel):
         return data
 
 
+class ConfigurationVariableError(Exception):
+    """Not a ValueError: Pydantic would wrap it in a ValidationError, and bury the message."""
+
+
+def read_config_file(path: str) -> dict:
+    with open(file=path) as file:
+        return yaml.safe_load(stream=file)
+
+
+def interpolate_variables(value: Any) -> Any:
+    match value:
+        case str():
+            return VARIABLE_REFERENCE_PATTERN.sub(_get_variable_value, value)
+        case dict():
+            return {key: interpolate_variables(item) for key, item in value.items()}
+        case list():
+            return [interpolate_variables(item) for item in value]
+        case _:
+            return value
+
+
+def _get_variable_value(match: re.Match) -> str:
+    name, default = match.groups()
+    if not VARIABLE_NAME_PATTERN.fullmatch(name):
+        raise ConfigurationVariableError(f"Invalid environment variable name in the configuration file: {name!r}. A name only holds A-Z, 0-9 and _.")
+
+    value = os.getenv(name)
+    if value:
+        return value
+    if default is not None:
+        return default.removeprefix(":-")
+
+    raise ConfigurationVariableError(f"Environment variable {name} of the configuration file is missing or empty, and has no default.")
+
+
 class Configuration(BaseSettings):
     model_config = ConfigDict(extra="allow")
 
@@ -201,40 +238,12 @@ class Configuration(BaseSettings):
     @model_validator(mode="after")
     @classmethod
     def setup_config(cls, values) -> Any:
-        with open(file=values.config_file) as file:
-            lines = file.readlines()
-
-        uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
-        file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
-        config = ConfigFile(**yaml.safe_load(stream=file_content))
+        config = ConfigFile(**interpolate_variables(read_config_file(path=values.config_file)))
 
         values.dependencies = config.dependencies
         values.settings = config.settings
 
         return values
-
-    @classmethod
-    def replace_environment_variables(cls, file_content):
-        env_variable_pattern = re.compile(r"\${([A-Z0-9_]+)(:-[^}]*)?}")
-
-        def replace_env_var(match):
-            env_variable_definition = match.group(0)
-            env_variable_name = match.group(1)
-            default_env_variable_value = match.group(2)[2:] if match.group(2) else None
-
-            env_variable_value = os.getenv(env_variable_name)
-
-            if env_variable_value is not None and env_variable_value != "":
-                return env_variable_value
-            elif default_env_variable_value is not None:
-                return default_env_variable_value
-            else:
-                logging.warning(f"Environment variable {env_variable_name} not found or empty to replace {env_variable_definition}.")
-                return env_variable_definition
-
-        file_content = env_variable_pattern.sub(replace_env_var, file_content)
-
-        return file_content
 
 
 configuration = Configuration()
