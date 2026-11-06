@@ -19,6 +19,7 @@ def _valid_body(**overrides) -> dict:
         "type": "text-generation",
         "aliases": [],
         "load_balancing_strategy": "shuffle",
+        "qos_retries_before_reject": 4,
         "cost_prompt_tokens": 0.001,
         "cost_completion_tokens": 0.002,
     }
@@ -46,6 +47,7 @@ class TestCreateRouter:
         data = response.json()
         assert isinstance(data.get("id"), int)
         assert data.get("aliases") == ["alias_1", "alias_2"]
+        assert data["qos_retries_before_reject"] == 4
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

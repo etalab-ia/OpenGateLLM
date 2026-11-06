@@ -21,6 +21,7 @@ class ProviderToCreate:
     key: str | None
     basic_auth: BasicAuth | None
     timeout: int
+    qos_limit: int | None
     model_name: str
     model_hosting_zone: HostingZone
     model_total_params: int
@@ -33,6 +34,7 @@ class RouterToCreate:
     type: RouterType
     aliases: list[str]
     load_balancing_strategy: RouterLoadBalancingStrategy
+    qos_retries_before_reject: int | None
     cost_prompt_tokens: float
     cost_completion_tokens: float
     providers: list[ProviderToCreate]
@@ -107,6 +109,7 @@ class BootstrapModelsUseCase:
                 name=router_to_create.name,
                 router_type=router_to_create.type,
                 load_balancing_strategy=router_to_create.load_balancing_strategy,
+                qos_retries_before_reject=router_to_create.qos_retries_before_reject,
                 cost_prompt_tokens=router_to_create.cost_prompt_tokens,
                 cost_completion_tokens=router_to_create.cost_completion_tokens,
                 user_id=command.bootstrap_admin_user_id,
@@ -170,6 +173,7 @@ class BootstrapModelsUseCase:
                     key=provider_to_create.key,
                     basic_auth=provider_to_create.basic_auth,
                     timeout=provider_to_create.timeout,
+                    qos_limit=provider_to_create.qos_limit,
                     model_name=provider_to_create.model_name,
                     model_hosting_zone=provider_to_create.model_hosting_zone,
                     model_total_params=provider_to_create.model_total_params,

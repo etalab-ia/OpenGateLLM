@@ -1,9 +1,10 @@
 from dataclasses import dataclass
+import random
 
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsForm
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
@@ -51,26 +52,26 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
         provider_client: ProviderClient,
-        provider_load_balancer: ProviderLoadBalancer,
-        provider_metrics_logger: ProviderMetricsLogger,
+        provider_concurrency_limiter: ProviderConcurrencyLimiter,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_context: UsageContext,
         usage_repository: UsageRepository,
+        random_generator: random.Random,
         audio_file_size_limit: int | None = None,
     ) -> None:
         super().__init__(
             model_environmental_impacts_computer=model_environmental_impacts_computer,
             model_tokenizer=model_tokenizer,
             provider_client=provider_client,
-            provider_load_balancer=provider_load_balancer,
-            provider_metrics_logger=provider_metrics_logger,
+            provider_concurrency_limiter=provider_concurrency_limiter,
             provider_repository=provider_repository,
             router_rate_limiter=router_rate_limiter,
             router_repository=router_repository,
             usage_context=usage_context,
             usage_repository=usage_repository,
+            random_generator=random_generator,
         )
         self.audio_file_size_limit = audio_file_size_limit
 
