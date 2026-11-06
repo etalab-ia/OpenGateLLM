@@ -5,16 +5,25 @@ from pydantic import SecretStr
 import pytest
 
 from api.domain.organization.errors import OrganizationNotFoundError
+from api.domain.role import RoleRepository
+from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserAuthorization, UserPasswordEncoder, UserRepository
 from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExistsError, UserCannotUpdateUserError, UserNotFoundError
-from api.tests.unit.use_case.factories import UserFactory
+from api.tests.unit.use_case.factories import RoleFactory, UserFactory
 from api.use_cases.admin.users import UpdateUserCommand, UpdateUserUseCase, UpdateUserUseCaseSuccess
 
 
 @pytest.fixture
 def mock_user_repository():
     return create_autospec(UserRepository, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def mock_role_repository():
+    repository = create_autospec(RoleRepository, instance=True, spec_set=True)
+    repository.get_role_with_permissions_and_limits_by_id.side_effect = lambda role_id: RoleFactory(id=role_id, permissions=[])
+    return repository
 
 
 @pytest.fixture
@@ -33,9 +42,10 @@ def mock_user_authorization():
 
 
 @pytest.fixture
-def use_case(mock_user_repository, mock_user_password_encoder, mock_user_authorization):
+def use_case(mock_user_repository, mock_role_repository, mock_user_password_encoder, mock_user_authorization):
     return UpdateUserUseCase(
         user_repository=mock_user_repository,
+        role_repository=mock_role_repository,
         user_password_encoder=mock_user_password_encoder,
         user_authorization=mock_user_authorization,
     )
@@ -43,7 +53,7 @@ def use_case(mock_user_repository, mock_user_password_encoder, mock_user_authori
 
 @pytest.fixture
 def sample_user():
-    return UserFactory(id=42, organization_id=7, expires=None, priority=1)
+    return UserFactory(id=42, role_id=2, organization_id=7, expires=None, priority=1)
 
 
 def full_command(user, **overrides) -> UpdateUserCommand:
@@ -277,3 +287,39 @@ class TestUpdateUserUseCase:
         # Assert
         assert isinstance(result, UserAlreadyExistsError)
         assert result.email == "taken@example.com"
+
+    @pytest.mark.asyncio
+    async def test_should_attach_the_user_to_the_platform_as_admin_when_the_new_role_is_admin(
+        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, sample_user
+    ):
+        # Arrange
+        roles = {2: RoleFactory(id=2, permissions=[]), 3: RoleFactory(id=3, permissions=[PermissionType.ADMIN])}
+        mock_role_repository.get_role_with_permissions_and_limits_by_id.side_effect = lambda role_id: roles[role_id]
+        mock_user_repository.get_user_by_id.return_value = sample_user
+        mock_user_repository.update_user.side_effect = lambda user: user
+
+        # Act
+        result = await use_case.execute(full_command(sample_user, role_id=3))
+
+        # Assert
+        assert isinstance(result, UpdateUserUseCaseSuccess)
+        mock_user_authorization.attach_admin_to_platform.assert_awaited_once_with(user_id=sample_user.id)
+        mock_user_authorization.detach_admin_from_platform.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_detach_the_user_from_the_platform_when_the_new_role_is_not_admin(
+        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, sample_user
+    ):
+        # Arrange
+        roles = {2: RoleFactory(id=2, permissions=[PermissionType.ADMIN]), 3: RoleFactory(id=3, permissions=[])}
+        mock_role_repository.get_role_with_permissions_and_limits_by_id.side_effect = lambda role_id: roles[role_id]
+        mock_user_repository.get_user_by_id.return_value = sample_user
+        mock_user_repository.update_user.side_effect = lambda user: user
+
+        # Act
+        result = await use_case.execute(full_command(sample_user, role_id=3))
+
+        # Assert
+        assert isinstance(result, UpdateUserUseCaseSuccess)
+        mock_user_authorization.detach_admin_from_platform.assert_awaited_once_with(user_id=sample_user.id)
+        mock_user_authorization.attach_admin_to_platform.assert_not_awaited()

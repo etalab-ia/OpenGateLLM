@@ -520,6 +520,7 @@ def update_user_use_case_factory(
 ) -> UpdateUserUseCase:
     return UpdateUserUseCase(
         user_repository=_user_repository(postgres_session),
+        role_repository=_role_repository(postgres_session),
         user_password_encoder=_user_password_encoder(),
         user_authorization=user_authorization,
     )
