@@ -99,7 +99,12 @@
 | api/domain/user/errors.py                                                                                       |       24 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                                                        |       23 |        0 |        6 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                                                        |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration.py                                                                             |      252 |       22 |       56 |       12 |     85.06% |42-\>67, 44, 56-\>61, 57-\>56, 62, 130-137, 140, 163-167, 185-186, 333, 337, 342-\>345, 354-356, 427 |
+| api/infrastructure/configuration/\_configuration.py                                                             |       47 |        4 |        6 |        3 |     86.79% |17, 34, 68, 72 |
+| api/infrastructure/configuration/\_interpolation.py                                                             |       26 |        0 |       12 |        0 |    100.00% |           |
+| api/infrastructure/configuration/\_validationerrors.py                                                          |       43 |        1 |        8 |        2 |     94.12% |25-\>34, 27 |
+| api/infrastructure/configuration/sections/dependencies.py                                                       |       20 |        2 |        2 |        1 |     86.36% |     21-22 |
+| api/infrastructure/configuration/sections/models.py                                                             |       29 |        8 |       10 |        2 |     58.97% |33, 39-41, 63-67 |
+| api/infrastructure/configuration/sections/settings.py                                                           |       28 |        1 |        2 |        1 |     93.33% |        79 |
 | api/infrastructure/context.py                                                                                   |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/ecologit/\_ecologitmodelenvironmentalimpactscomputer.py                                      |       12 |        0 |        2 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/\_requestcontext.py                                                                  |       12 |        0 |        0 |        0 |    100.00% |           |
@@ -258,7 +263,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7831** |  **548** | **1412** |  **167** | **91.16%** |           |
+| **TOTAL**                                                                                                       | **7772** |  **542** | **1396** |  **164** | **91.25%** |           |
 
 
 ## Setup coverage badge
