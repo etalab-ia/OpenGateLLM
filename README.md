@@ -99,7 +99,7 @@
 | api/domain/user/errors.py                                                                                       |       24 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                                                        |       23 |        0 |        6 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                                                        |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration.py                                                                             |      261 |       79 |       58 |        4 |     62.07% |39-81, 84, 93-94, 125-132, 135, 158-162, 180-181, 299-302, 338-343, 348-351, 356-368, 424-428, 433 |
+| api/infrastructure/configuration.py                                                                             |      252 |       22 |       56 |       12 |     85.06% |42-\>67, 44, 56-\>61, 57-\>56, 62, 130-137, 140, 163-167, 185-186, 333, 337, 342-\>345, 354-356, 427 |
 | api/infrastructure/context.py                                                                                   |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/ecologit/\_ecologitmodelenvironmentalimpactscomputer.py                                      |       12 |        0 |        2 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/\_requestcontext.py                                                                  |       12 |        0 |        0 |        0 |    100.00% |           |
@@ -258,7 +258,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7840** |  **605** | **1414** |  **159** | **90.36%** |           |
+| **TOTAL**                                                                                                       | **7831** |  **548** | **1412** |  **167** | **91.16%** |           |
 
 
 ## Setup coverage badge
