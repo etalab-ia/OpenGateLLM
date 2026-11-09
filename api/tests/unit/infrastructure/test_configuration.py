@@ -183,6 +183,27 @@ settings:
             Configuration(config_file=config_file)
         assert "input_value" not in str(error.value)
 
+    def test_should_report_every_nested_error_with_its_location_and_documentation_link(self, write_config_file):
+        # Arrange
+        config_file = write_config_file("""
+dependencies:
+  postgres:
+    url: mysql://localhost/postgres
+  redis: {}
+settings:
+  auth_secret_key: secret
+""")
+
+        # Act & Assert
+        with pytest.raises(ConfigurationValidationError) as error:
+            Configuration(config_file=config_file)
+        message = str(error.value)
+        assert "2 validation errors" in message
+        assert "dependencies.postgres.url" in message
+        assert "dependencies.redis.url" in message
+        assert "configuration_file#postgresdependency" in message
+        assert "configuration_file#redisdependency" in message
+
     def test_should_ignore_a_remaining_master_key(self, write_config_file):
         # Arrange
         config_file = write_config_file(f"""{CONFIG_FILE_DEPENDENCIES}
