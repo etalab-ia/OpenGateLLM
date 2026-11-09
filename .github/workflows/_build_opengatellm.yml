@@ -66,6 +66,20 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
 
+      - name: Read the Alembic head of the api image
+        id: alembic
+        if: matrix.image == 'api'
+        env:
+          IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          heads=$(docker run --rm --network none --entrypoint alembic "$IMAGE" -c api/alembic.ini heads)
+          echo "$heads"
+          if [ "$(echo "$heads" | grep -c '(head)')" -ne 1 ]; then
+            echo "::error::The image must hold exactly one Alembic head, or upgrade head cannot migrate it."
+            exit 1
+          fi
+          echo "label=org.opengatellm.alembic-head=${heads%% *}" >> "$GITHUB_OUTPUT"
+
       - name: Scan OpenGateLLM ${{ matrix.image }} image with Trivy
         uses: ./.github/actions/trivy-scan
         with:
@@ -96,6 +110,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            ${{ steps.alembic.outputs.label }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
