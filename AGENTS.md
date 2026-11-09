@@ -600,7 +600,7 @@ async def get_roles(
             )
 ```
 
-- Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes, `allow_expired=True` when expired users must still reach the route, e.g. GET `/v1/me`)
+- Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes). It rejects users whose account has expired on every route, `/v1/me` included: there is no opt-out
 - Auth user: `authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user)` when the handler **uses** the user, to scope a command or build a response. Authentication itself comes from `Security(AccessController(...))`, so do not declare the parameter just to have it. Keep `get_request_context` only when the full `RequestContext` is required.
 - Sort query params: `sort_by` / `sort_order`
 - Document errors: `responses=get_documentation_responses([...])`
