@@ -104,7 +104,7 @@ class TestLangfuseRequestTracer:
         assert span.attributes["langfuse.observation.metadata.status"] == 200
         assert span.attributes["langfuse.observation.metadata.latency"] == 250
 
-    async def test_exports_usage_and_impact_scores(self, tracer, langfuse_client, span_exporter, mock_langfuse_api):
+    async def test_exports_usage_and_impacts_on_the_generation(self, tracer, langfuse_client, span_exporter, mock_langfuse_api):
         # Arrange
         record = _record()
 
@@ -118,9 +118,9 @@ class TestLangfuseRequestTracer:
         assert json.loads(span.attributes["langfuse.observation.cost_details"]) == {"total": 0.01}
         assert span.attributes["langfuse.observation.metadata.provider_id"] == 9
         assert span.attributes["langfuse.observation.metadata.provider_model_name"] == "vllm-model"
-        scores = _ingested_scores(langfuse_client, mock_langfuse_api)
-        assert {(score["name"], score["value"], score["dataType"]) for score in scores} == {("kWh", 1.5, "NUMERIC"), ("kgCO2eq", 2.5, "NUMERIC")}
-        assert {score["observationId"] for score in scores} == {format(span.context.span_id, "016x")}
+        assert span.attributes["langfuse.observation.metadata.kWh"] == "1.5"
+        assert span.attributes["langfuse.observation.metadata.kgCO2eq"] == "2.5"
+        assert _ingested_scores(langfuse_client, mock_langfuse_api) == [], "scores cost one blob-storage object each on the Langfuse server"
 
     async def test_sets_the_completion_start_time_from_the_recorded_ttft(self, tracer, langfuse_client, span_exporter):
         # Arrange
@@ -175,17 +175,20 @@ class TestLangfuseRequestTracer:
         [span] = _exported_spans(langfuse_client, span_exporter)
         assert format(span.context.trace_id, "032x") == REQUEST_ID
 
-    async def test_does_not_raise_when_ending_the_generation_fails(self, tracer, langfuse_client, mock_langfuse_api):
+    async def test_does_not_raise_when_ending_the_generation_fails(self, tracer):
         # Arrange
         record = _record()
         tracer.start(record)
 
         # Act
-        with patch.object(tracer._observation, "end", side_effect=RuntimeError("langfuse down")):
+        with (
+            patch.object(tracer._observation, "update", wraps=tracer._observation.update) as update,
+            patch.object(tracer._observation, "end", side_effect=RuntimeError("langfuse down")),
+        ):
             tracer.end(record)
 
         # Assert
-        assert len(_ingested_scores(langfuse_client, mock_langfuse_api)) == 2
+        update.assert_called_once()
 
     async def test_exports_nothing_when_opening_the_observation_fails(self, tracer, langfuse_client, span_exporter, mock_langfuse_api):
         # Arrange

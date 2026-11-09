@@ -8,9 +8,6 @@ from api.infrastructure.fastapi import RequestTracer
 
 logger = logging.getLogger(__name__)
 
-_KWH_SCORE_COLUMN = "kWh"
-_KGCO2EQ_SCORE_COLUMN = "kgCO2eq"
-
 
 class LangfuseRequestTracer(RequestTracer):
     """Traces every model-forward request, failures included. The usage table holds consumption only, so it is the one
@@ -38,9 +35,6 @@ class LangfuseRequestTracer(RequestTracer):
 
         try:
             self._observation.update(**self._build_update(record))
-            if (usage := record.usage) is not None:
-                self._observation.score(name=_KWH_SCORE_COLUMN, value=usage.impacts.kWh, data_type="NUMERIC")
-                self._observation.score(name=_KGCO2EQ_SCORE_COLUMN, value=usage.impacts.kgCO2eq, data_type="NUMERIC")
         except Exception:
             logger.exception("Failed to update the Langfuse trace.")
 
@@ -78,5 +72,7 @@ class LangfuseRequestTracer(RequestTracer):
                 "input_cached_tokens": usage.prompt_tokens_details.cached_tokens,
             }
             update["cost_details"] = {"total": usage.cost}
+            update["metadata"]["kWh"] = usage.impacts.kWh
+            update["metadata"]["kgCO2eq"] = usage.impacts.kgCO2eq
 
         return update
