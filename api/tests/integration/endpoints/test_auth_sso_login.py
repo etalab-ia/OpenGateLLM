@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 from fastapi import Depends
 import httpx
@@ -12,6 +12,7 @@ from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError,
 from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
+from api.domain.user import UserAuthorization
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.http import HttpAuthSsoSessionValidator
@@ -69,6 +70,7 @@ def _oidc_auth_sso_login_use_case_factory(default_role_id: int, default_organiza
             user_repository=PostgresUserRepository(postgres_session=postgres_session),
             role_repository=PostgresRolesRepository(postgres_session=postgres_session),
             auth_sso_session_validator=HttpAuthSsoSessionValidator(auth_playground_url=PLAYGROUND_URL),
+            user_authorization=create_autospec(UserAuthorization, instance=True, spec_set=True),
             auth_login_type="oidc",
             auth_sso_default_role_id=default_role_id,
             auth_sso_default_organization_id=default_organization_id,

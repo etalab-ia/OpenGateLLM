@@ -9,8 +9,9 @@ from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME, Key
 from api.domain.organization import OrganizationRepository
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role import RoleRepository
+from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user import UserRepository
+from api.domain.user import UserAuthorization, UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 
@@ -49,6 +50,7 @@ class AuthSsoLoginUseCase:
         user_repository: UserRepository,
         role_repository: RoleRepository,
         auth_sso_session_validator: AuthSsoSessionValidator,
+        user_authorization: UserAuthorization,
         auth_login_type: Literal["password", "oidc"],
         auth_sso_default_role_id: int,
         auth_sso_default_organization_id: int,
@@ -58,6 +60,7 @@ class AuthSsoLoginUseCase:
         self.user_repository = user_repository
         self.role_repository = role_repository
         self.auth_sso_session_validator = auth_sso_session_validator
+        self.user_authorization = user_authorization
 
         self.auth_login_type = auth_login_type
         self.auth_sso_default_role_id = auth_sso_default_role_id
@@ -122,6 +125,11 @@ class AuthSsoLoginUseCase:
                     case User() as user:  # override sub/iss if the user previously logged in with another method (password or another SSO)
                         pass
                     case UserNotFoundError():
+                        role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=role_id)
+                        match role:
+                            case RoleNotFoundError() as error:
+                                return error
+
                         result = await self.user_repository.create_user(
                             role_id=role_id,
                             email=email,
@@ -133,7 +141,8 @@ class AuthSsoLoginUseCase:
                         )
                         match result:
                             case User() as user:
-                                pass
+                                if PermissionType.ADMIN in role.permissions:
+                                    await self.user_authorization.attach_admin_to_platform(user_id=user.id)
                             case error:
                                 return error
 
@@ -146,6 +155,13 @@ class AuthSsoLoginUseCase:
             sub=command.sub,
             claims=command.claims,
         ):
+            admin_status = await self._get_admin_status(previous_role_id=user.role_id, new_role_id=role_id)
+            match admin_status:
+                case RoleNotFoundError() as error:
+                    return error
+                case (was_admin, is_admin):
+                    pass
+
             user = user.model_copy(
                 update={
                     "email": email,
@@ -160,7 +176,10 @@ class AuthSsoLoginUseCase:
             result = await self.user_repository.update_user(user=user)
             match result:
                 case User() as user:
-                    pass
+                    if is_admin and not was_admin:
+                        await self.user_authorization.attach_admin_to_platform(user_id=user.id)
+                    if was_admin and not is_admin:
+                        await self.user_authorization.detach_admin_from_platform(user_id=user.id)
                 case error:
                     return error
 
@@ -168,3 +187,19 @@ class AuthSsoLoginUseCase:
         key = await self.key_repository.upsert_key(user_id=user.id, name=SYSTEM_PLAYGROUND_KEY_NAME, expire=expires)
 
         return AuthSsoLoginUseCaseSuccess(key=key)
+
+    async def _get_admin_status(self, previous_role_id: int, new_role_id: int) -> tuple[bool, bool] | RoleNotFoundError:
+        if previous_role_id == new_role_id:
+            return False, False
+
+        previous_role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=previous_role_id)
+        match previous_role:
+            case RoleNotFoundError() as error:
+                return error
+
+        new_role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=new_role_id)
+        match new_role:
+            case RoleNotFoundError() as error:
+                return error
+
+        return PermissionType.ADMIN in previous_role.permissions, PermissionType.ADMIN in new_role.permissions
