@@ -40,7 +40,7 @@ class TestUpdateRole:
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(
                 name="updated-role",
-                permissions=[PermissionType.ADMIN],
+                permissions=[PermissionType.PROVIDE_MODELS],
                 limits=[{"router_id": router.id, "type": LimitType.RPM, "value": 10}],
             ),
         )
@@ -50,7 +50,7 @@ class TestUpdateRole:
         assert data["id"] == role.id
         assert data["object"] == "role"
         assert data["name"] == "updated-role"
-        assert data["permissions"] == [PermissionType.ADMIN]
+        assert data["permissions"] == [PermissionType.PROVIDE_MODELS]
         assert data["limits"] == [{"router_id": router.id, "type": LimitType.RPM, "value": 10}]
 
     async def test_clears_permissions_and_limits_sent_as_empty_lists(self, client: AsyncClient, db_session):

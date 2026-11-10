@@ -15,3 +15,8 @@ class RoleNotFoundError:
 @dataclass
 class RoleHasUsersError:
     id: int
+
+
+@dataclass
+class RoleAdminPermissionChangeError:
+    id: int
