@@ -20,6 +20,7 @@ from api.domain.user.errors import (
     UserCannotDeleteUserError,
     UserCannotReadUserError,
     UserCannotReadUsersError,
+    UserCannotUpdateUserError,
     UserHasProvidersError,
     UserHasRoutersError,
     UserNotFoundError,
@@ -31,7 +32,6 @@ from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InvalidCurrentPasswordHTTPException,
-    NotAdminUserHTTPException,
     OrganizationNotFoundHTTPException,
     RoleNotFoundHTTPException,
     UnauthorizedActionHTTPException,
@@ -207,7 +207,7 @@ async def delete_user(
 
 @router.patch(
     path=EndpointRoute.ADMIN_USERS + "/{user_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses(
         [
@@ -216,7 +216,7 @@ async def delete_user(
             RoleNotFoundHTTPException,
             OrganizationNotFoundHTTPException,
             InvalidCurrentPasswordHTTPException,
-            NotAdminUserHTTPException,
+            UnauthorizedActionHTTPException,
         ]
     ),
 )
@@ -224,8 +224,10 @@ async def update_user(
     user_id: int = Path(description="The ID of the user to update."),
     body: UserUpdateRequest = Body(description="The user update request."),
     update_user_use_case: UpdateUserUseCase = Depends(update_user_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     command = UpdateUserCommand(
+        authenticated_user_id=authenticated_user.id,
         user_id=user_id,
         email=body.email,
         name=body.name,
@@ -250,5 +252,7 @@ async def update_user(
             raise OrganizationNotFoundHTTPException(organization_id)
         case IncorrectCurrentPasswordError():
             raise InvalidCurrentPasswordHTTPException()
+        case UserCannotUpdateUserError(user_id=authenticated_user_id):
+            raise UnauthorizedActionHTTPException(authenticated_user_id)
         case _ as unreachable:
             assert_never(unreachable)

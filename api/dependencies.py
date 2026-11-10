@@ -514,8 +514,15 @@ def delete_user_use_case_factory(
     return DeleteUserUseCase(user_repository=_user_repository(postgres_session), user_authorization=user_authorization)
 
 
-def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateUserUseCase:
-    return UpdateUserUseCase(user_repository=_user_repository(postgres_session), user_password_encoder=_user_password_encoder())
+def update_user_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    user_authorization: UserAuthorization = Depends(_get_user_authorization),
+) -> UpdateUserUseCase:
+    return UpdateUserUseCase(
+        user_repository=_user_repository(postgres_session),
+        user_password_encoder=_user_password_encoder(),
+        user_authorization=user_authorization,
+    )
 
 
 # rerank use cases

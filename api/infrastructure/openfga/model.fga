@@ -11,6 +11,7 @@ type platform
     define can_create_user: admin
     define can_delete_user: admin
     define can_read_user: admin
+    define can_update_user: admin
 
 type organization
   relations

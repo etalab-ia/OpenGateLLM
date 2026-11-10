@@ -5,13 +5,14 @@ from pydantic import SecretStr
 from api.domain import UtcDatetime
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user import UserPasswordEncoder, UserRepository
+from api.domain.user import UserAuthorization, UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
-from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExistsError, UserNotFoundError
+from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExistsError, UserCannotUpdateUserError, UserNotFoundError
 
 
 @dataclass
 class UpdateUserCommand:
+    authenticated_user_id: int
     user_id: int
     email: str
     name: str | None
@@ -35,18 +36,28 @@ type UpdateUserUseCaseResult = (
     | RoleNotFoundError
     | OrganizationNotFoundError
     | IncorrectCurrentPasswordError
+    | UserCannotUpdateUserError
 )
 
 
 class UpdateUserUseCase:
-    def __init__(self, user_repository: UserRepository, user_password_encoder: UserPasswordEncoder):
+    def __init__(self, user_repository: UserRepository, user_password_encoder: UserPasswordEncoder, user_authorization: UserAuthorization):
         self.user_repository = user_repository
         self.user_password_encoder = user_password_encoder
+        self.user_authorization = user_authorization
 
     async def execute(self, command: UpdateUserCommand) -> UpdateUserUseCaseResult:
-        existing_user = await self.user_repository.get_user_by_id(user_id=command.user_id)
-        if isinstance(existing_user, UserNotFoundError):
-            return existing_user
+        is_authorized = await self.user_authorization.can_update_user(user_id=command.authenticated_user_id, target_user_id=command.user_id)
+
+        if not is_authorized:
+            return UserCannotUpdateUserError(user_id=command.authenticated_user_id)
+
+        result = await self.user_repository.get_user_by_id(user_id=command.user_id)
+        match result:
+            case UserNotFoundError() as error:
+                return error
+            case User() as existing_user:
+                pass
 
         if command.new_password is None:
             password = existing_user.password
