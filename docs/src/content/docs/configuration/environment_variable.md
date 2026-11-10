@@ -25,7 +25,7 @@ For adapt the playground docker image for your deployment, you can build it with
 | REFLEX_FRONTEND_URL | str | `"http://localhost:8501"` | URL of the frontend application. |
 | REFLEX_FRONTEND_PATH | str | `""` | Path of the frontend application. |
 | FAVICON | str | `"./playground/assets/logo.svg"` | Path to your favicon file. |
-| BUILD_PLACEHOLDER_VARIABLES | str | `""` | Space-separated `NAME=value` pairs, for the variables of the configuration file that are only available at run time, such as secrets. The build loads the configuration file and fails on a missing variable. Give a placeholder, never the real value: it stays in the image history. |
+| BUILD_PLACEHOLDER_VARIABLES | str | `""` | Space-separated `NAME=value` pairs, for the variables of the configuration file that are only available at run time. The build resolves the variables of the fields the frontend reads, and fails when one of them is missing: the `playground_*` fields and `dependencies.redis.url`. The SSO fields only the container entrypoint reads, such as `auth_sso_client_secret` and `auth_playground_url`, are resolved when the container starts and need no placeholder. Give a placeholder, never the real value: it stays in the image history. |
 
 Example: 
 ```bash
