@@ -29,6 +29,15 @@ class TestGetModels:
         assert [model.id for model in result] == ["served-router"]
         assert result[0].router_id == router_with_providers.id
 
+    async def test_returns_the_models_sorted_by_name(self, query, db_session):
+        RouterSQLFactory(name="zebra-router", providers=1)
+        RouterSQLFactory(name="alpha-router", providers=1)
+        RouterSQLFactory(name="middle-router", providers=1)
+        await db_session.flush()
+        result = await query.get_models()
+
+        assert [model.id for model in result] == ["alpha-router", "middle-router", "zebra-router"]
+
     async def test_returns_the_router_costs_aliases_and_type(self, query, db_session):
         # Arrange
         router = RouterSQLFactory(

@@ -18,7 +18,7 @@ class PostgresModelQuery(ModelQuery):
         self.postgres_session = postgres_session
 
     async def get_models(self) -> list[ModelView]:
-        statement = self._build_statement().order_by(RouterTable.id)
+        statement = self._build_statement().order_by(RouterTable.name)
 
         result = await self.postgres_session.execute(statement=statement)
 
