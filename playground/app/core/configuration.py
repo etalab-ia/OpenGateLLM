@@ -3,7 +3,7 @@ from enum import StrEnum
 from functools import wraps
 import os
 import re
-from typing import Annotated, Any, Literal, get_args, get_origin
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
@@ -14,6 +14,7 @@ from app.core.variables import DEFAULT_APP_NAME
 
 VARIABLE_REFERENCE_PATTERN = re.compile(r"\$\{([^}]*?)(:-[^}]*)?\}")
 VARIABLE_NAME_PATTERN = re.compile(r"[A-Z0-9_]+")
+DEFAULT_CONFIG_FILE = "../config.yml"
 
 
 def custom_validation_error(suffix: str = ""):
@@ -41,19 +42,7 @@ def custom_validation_error(suffix: str = ""):
                     if part not in current_model.__pydantic_fields__:
                         break
 
-                    field_info = current_model.__pydantic_fields__[part]
-
-                    annotation = field_info.annotation
-                    next_model = None
-                    origin = get_origin(annotation)
-                    args = get_args(annotation)
-                    candidates = args if origin is not None else (annotation,)
-
-                    for candidate in candidates:
-                        if isinstance(candidate, type) and issubclass(candidate, BaseModel):
-                            next_model = candidate
-                            break
-
+                    next_model = _nested_model(current_model.__pydantic_fields__[part].annotation)
                     if next_model is None:
                         break
 
@@ -91,6 +80,11 @@ def custom_validation_error(suffix: str = ""):
     return decorator
 
 
+def _nested_model(annotation: Any) -> type[BaseModel] | None:
+    candidates = get_args(annotation) or (annotation,)
+    return next((candidate for candidate in candidates if isinstance(candidate, type) and issubclass(candidate, BaseModel)), None)
+
+
 class PlaygroundPages(StrEnum):
     ACCOUNT = "account"
     KEYS = "keys"
@@ -104,6 +98,27 @@ class PlaygroundPages(StrEnum):
 
 class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
+
+    @model_validator(mode="before")
+    @classmethod
+    def interpolate_own_fields(cls, data: Any) -> Any:
+        """
+        A value is interpolated by the model that validates it, so a ${VAR} under a key no loaded model declares is left as it is. That is what
+        lets the frontend build validate CompiledConfigFile without the variables only the container entrypoint reads.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        return {key: interpolate_variables(value) if cls._owns(key) else value for key, value in data.items()}
+
+    @classmethod
+    def _owns(cls, key: str) -> bool:
+        field = cls.__pydantic_fields__.get(key)
+        if field is None:  # an extra: a key of the other application, which this model never reads
+            return False
+
+        # A nested model owns its subtree: resolving it here would also resolve the keys that model leaves out.
+        return _nested_model(field.annotation) is None
 
 
 @custom_validation_error()
@@ -119,7 +134,6 @@ class Dependencies(ConfigBaseModel):
 @custom_validation_error()
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: Annotated[int | None, Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")]  # fmt: off
-    auth_login_session_duration: Annotated[int, Field(default=3600, ge=1, description="Duration of login session for the playground in seconds. Also used as oauth2-proxy cookie expiration when SSO is enabled.")]  # fmt: off
     app_title: Annotated[str, Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).")]  # fmt: off
 
     playground_opengatellm_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^http[s]?://"), Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")]  # fmt: off
@@ -149,15 +163,22 @@ class SettingsLoginPassword(Settings):
     auth_login_type: Annotated[Literal["password"], Field(default="password", description="Login type for the API.")]  # fmt: off
 
 
-class SettingsLoginOIDC(Settings):
+class CompiledSettingsLoginOIDC(Settings):
     auth_login_type: Annotated[Literal["oidc"], Field(default="oidc", description="Login type for the API.")]  # fmt: off
 
-    auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(default="http://localhost:8501", description="Playground URL. Used by oauth2-proxy for redirect whitelisting and by the API to validate SSO sessions via /oauth2/auth. Use an internal URL reachable from the API (for example http://playground:8501) for API configuration and a public URL reachable from the internet (for example https://playground.my-domain.com) for Playground configuration.")]  # fmt: off
     auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")]  # fmt: off
+    auth_sso_logout_redirect_uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="The logout redirect uri for SSO.")]  # fmt: off
+
+
+class SettingsLoginOIDC(CompiledSettingsLoginOIDC):
+    # This model validates the SSO secrets, and Pydantic prints the rejected input in its errors.
+    model_config = ConfigDict(extra="allow", hide_input_in_errors=True)
+
+    auth_login_session_duration: Annotated[int, Field(default=3600, ge=1, description="Duration of login session for the playground in seconds. Also used as oauth2-proxy cookie expiration when SSO is enabled.")]  # fmt: off
+    auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(default="http://localhost:8501", description="Playground URL. Used by oauth2-proxy for redirect whitelisting and by the API to validate SSO sessions via /oauth2/auth. Use an internal URL reachable from the API (for example http://playground:8501) for API configuration and a public URL reachable from the internet (for example https://playground.my-domain.com) for Playground configuration.")]  # fmt: off
     auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="OIDC client_id (audience) for id_token validation.")]  # fmt: off
     auth_sso_client_secret: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="OIDC client secret for id_token validation.")]  # fmt: off
     auth_sso_cookie_secret: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, validate_default=True, description="Secret used to sign the OAuth2-proxy cookies. If not provided, a random secret will be generated. To generate a secret, you can see the dedicated section in the [OAuth2-proxy documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview/#generating-a-cookie-secret).")]  # fmt: off
-    auth_sso_logout_redirect_uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="The logout redirect uri for SSO.")]  # fmt: off
     auth_sso_oidc_scope: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default="openid email", description="OIDC scope for id_token validation.")]  # fmt: off
     auth_sso_oidc_claims: Annotated[dict[str, Any] | None, Field(default=None, description="Optional OIDC claims parameter sent by oauth2-proxy to the authorization endpoint. Use it to request an authentication context, for example ProConnect multi-factor authentication via id_token.acr. When id_token.acr lists values, oauth2-proxy rejects (403) any id_token whose acr is not one of them. Omitted by default, so no extra factor is requested.")]  # fmt: off
     auth_sso_cookie_secure: bool = Field(default=False, description="Whether the cookie is secure. Set to True if the application is served over HTTPS.")  # fmt: off
@@ -169,17 +190,9 @@ class SettingsLoginOIDC(Settings):
         return value
 
 
-class ConfigFile(ConfigBaseModel):
-    """
-    The following parameters allow you to configure the Playground application. The configuration file can be shared with the API, as the sections are
-    identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
-
-    For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
-    [Environment variables](/configuration/environment_variable/#playground) for more information.
-    """
-
+class CompiledConfigFile(ConfigBaseModel):
     dependencies: Annotated[Dependencies, Field(default_factory=Dependencies, description="Dependencies required by the applications (API and Playground).")]  # fmt: off
-    settings: Annotated[SettingsLoginPassword | SettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields.")]  # fmt: off
+    settings: Annotated[SettingsLoginPassword | CompiledSettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields.")]  # fmt: off
 
     @model_validator(mode="before")
     @classmethod
@@ -188,6 +201,18 @@ class ConfigFile(ConfigBaseModel):
             settings = data["settings"]
             settings.setdefault("auth_login_type", "password")
         return data
+
+
+class ConfigFile(CompiledConfigFile):
+    """
+    The following parameters allow you to configure the Playground application. The configuration file can be shared with the API, as the sections are
+    identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
+
+    For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
+    [Environment variables](/configuration/environment_variable/#playground) for more information.
+    """
+
+    settings: Annotated[SettingsLoginPassword | SettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields.")]  # fmt: off
 
 
 class ConfigurationVariableError(Exception):
@@ -225,11 +250,16 @@ def _get_variable_value(match: re.Match) -> str:
     raise ConfigurationVariableError(f"Environment variable {name} of the configuration file is missing or empty, and has no default.")
 
 
+def get_settings_login_oidc() -> SettingsLoginOIDC:
+    settings = read_config_file(path=os.getenv("CONFIG_FILE", DEFAULT_CONFIG_FILE)).get("settings") or {}
+    return SettingsLoginOIDC(**settings)
+
+
 class Configuration(BaseSettings):
     # Pydantic prints the rejected input in its errors, and this model is the one reporting those of the whole file.
     model_config = ConfigDict(extra="allow", hide_input_in_errors=True)
 
-    config_file: str = Field(default="../config.yml", description="Config file path.")
+    config_file: str = Field(default=DEFAULT_CONFIG_FILE, description="Config file path.")
 
     @field_validator("config_file", mode="before")
     def config_file_exists(cls, config_file):
@@ -239,7 +269,7 @@ class Configuration(BaseSettings):
     @model_validator(mode="after")
     @classmethod
     def setup_config(cls, values) -> Any:
-        config = ConfigFile(**interpolate_variables(read_config_file(path=values.config_file)))
+        config = CompiledConfigFile(**read_config_file(path=values.config_file))
 
         values.dependencies = config.dependencies
         values.settings = config.settings

@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from app.core.configuration import configuration
+from app.core.configuration import SettingsLoginOIDC, configuration, get_settings_login_oidc
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 OAUTH2_PROXY_ALPHA_CONFIG_PATH = "/playground/oauth2-proxy-alpha.yaml"
 
 
-def write_oauth2_proxy_alpha_config(settings) -> None:
+def write_oauth2_proxy_alpha_config(settings: SettingsLoginOIDC) -> None:
     claims = settings.auth_sso_oidc_claims or {}
     acr = claims.get("id_token", {}).get("acr", {})
     environment = Environment(loader=FileSystemLoader(Path(__file__).parent), undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True)
@@ -36,14 +36,14 @@ def write_oauth2_proxy_alpha_config(settings) -> None:
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    settings = configuration.settings
     env = os.environ.copy()
 
-    if settings.auth_login_type == "oidc":
+    if configuration.settings.auth_login_type == "oidc":
         logger.info("playground: SSO enabled, using oauth2-proxy nginx configuration")
         nginx_config_path = "/playground/nginx.oauth2-proxy.conf"
         supervisord_config_path = "/etc/supervisor/conf.d/supervisord.oauth2-proxy.conf"
 
+        settings = get_settings_login_oidc()
         write_oauth2_proxy_alpha_config(settings)
         # Options with no alpha config field: oauth2-proxy reads them from the environment.
         env.update(
