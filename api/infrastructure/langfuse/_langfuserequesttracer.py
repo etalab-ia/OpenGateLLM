@@ -72,7 +72,5 @@ class LangfuseRequestTracer(RequestTracer):
                 "input_cached_tokens": usage.prompt_tokens_details.cached_tokens,
             }
             update["cost_details"] = {"total": usage.cost}
-            update["metadata"]["kWh"] = usage.impacts.kWh
-            update["metadata"]["kgCO2eq"] = usage.impacts.kgCO2eq
 
         return update

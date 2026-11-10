@@ -104,7 +104,7 @@ class TestLangfuseRequestTracer:
         assert span.attributes["langfuse.observation.metadata.status"] == 200
         assert span.attributes["langfuse.observation.metadata.latency"] == 250
 
-    async def test_exports_usage_and_impacts_on_the_generation(self, tracer, langfuse_client, span_exporter, mock_langfuse_api):
+    async def test_exports_usage_on_the_generation_without_any_score(self, tracer, langfuse_client, span_exporter, mock_langfuse_api):
         # Arrange
         record = _record()
 
@@ -118,8 +118,8 @@ class TestLangfuseRequestTracer:
         assert json.loads(span.attributes["langfuse.observation.cost_details"]) == {"total": 0.01}
         assert span.attributes["langfuse.observation.metadata.provider_id"] == 9
         assert span.attributes["langfuse.observation.metadata.provider_model_name"] == "vllm-model"
-        assert span.attributes["langfuse.observation.metadata.kWh"] == "1.5"
-        assert span.attributes["langfuse.observation.metadata.kgCO2eq"] == "2.5"
+        assert "langfuse.observation.metadata.kWh" not in span.attributes
+        assert "langfuse.observation.metadata.kgCO2eq" not in span.attributes
         assert _ingested_scores(langfuse_client, mock_langfuse_api) == [], "scores cost one blob-storage object each on the Langfuse server"
 
     async def test_sets_the_completion_start_time_from_the_recorded_ttft(self, tracer, langfuse_client, span_exporter):
