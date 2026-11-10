@@ -4,6 +4,8 @@ from pydantic import SecretStr
 
 from api.domain import UtcDatetime
 from api.domain.organization.errors import OrganizationNotFoundError
+from api.domain.role import RoleRepository
+from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserAuthorization, UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
@@ -41,8 +43,15 @@ type UpdateUserUseCaseResult = (
 
 
 class UpdateUserUseCase:
-    def __init__(self, user_repository: UserRepository, user_password_encoder: UserPasswordEncoder, user_authorization: UserAuthorization):
+    def __init__(
+        self,
+        user_repository: UserRepository,
+        role_repository: RoleRepository,
+        user_password_encoder: UserPasswordEncoder,
+        user_authorization: UserAuthorization,
+    ):
         self.user_repository = user_repository
+        self.role_repository = role_repository
         self.user_password_encoder = user_password_encoder
         self.user_authorization = user_authorization
 
@@ -70,6 +79,13 @@ class UpdateUserUseCase:
         else:
             return IncorrectCurrentPasswordError(user_id=existing_user.id)
 
+        admin_status = await self._get_admin_status(previous_role_id=existing_user.role_id, new_role_id=command.role_id)
+        match admin_status:
+            case RoleNotFoundError() as error:
+                return error
+            case (was_admin, is_admin):
+                pass
+
         updated_user = existing_user.model_copy(
             update={
                 "email": command.email,
@@ -86,6 +102,26 @@ class UpdateUserUseCase:
 
         match result:
             case User() as user:
+                if is_admin and not was_admin:
+                    await self.user_authorization.attach_admin_to_platform(user_id=user.id)
+                if was_admin and not is_admin:
+                    await self.user_authorization.detach_admin_from_platform(user_id=user.id)
                 return UpdateUserUseCaseSuccess(user)
             case error:
                 return error
+
+    async def _get_admin_status(self, previous_role_id: int, new_role_id: int) -> tuple[bool, bool] | RoleNotFoundError:
+        if previous_role_id == new_role_id:
+            return False, False
+
+        previous_role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=previous_role_id)
+        match previous_role:
+            case RoleNotFoundError() as error:
+                return error
+
+        new_role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=new_role_id)
+        match new_role:
+            case RoleNotFoundError() as error:
+                return error
+
+        return PermissionType.ADMIN in previous_role.permissions, PermissionType.ADMIN in new_role.permissions

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role
-from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
+from api.domain.role.errors import RoleAdminPermissionChangeError, RoleAlreadyExistsError, RoleNotFoundError
 
 
 @dataclass
@@ -20,7 +20,7 @@ class UpdateRoleUseCaseSuccess:
     role: Role
 
 
-type UpdateRoleUseCaseResult = UpdateRoleUseCaseSuccess | RoleNotFoundError | RoleAlreadyExistsError
+type UpdateRoleUseCaseResult = UpdateRoleUseCaseSuccess | RoleNotFoundError | RoleAlreadyExistsError | RoleAdminPermissionChangeError
 
 
 class UpdateRoleUseCase:
@@ -33,6 +33,9 @@ class UpdateRoleUseCase:
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
         if isinstance(role, RoleNotFoundError):
             return role
+
+        if (PermissionType.ADMIN in role.permissions) != (PermissionType.ADMIN in command.permissions):
+            return RoleAdminPermissionChangeError(id=role.id)
 
         role_to_persist = role.with_name(command.name).with_limits(command.limits).with_permissions(command.permissions)
 
