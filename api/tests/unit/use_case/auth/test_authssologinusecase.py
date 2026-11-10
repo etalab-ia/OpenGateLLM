@@ -1,12 +1,11 @@
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, create_autospec
+from unittest.mock import AsyncMock
 
 import pytest
 
 from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError, SsoProviderNotAvailableError
 from api.domain.key.entities import Key
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user import UserAuthorization
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 from api.tests.unit.use_case.factories import UserFactory
 from api.use_cases.auth import AuthSsoLoginCommand, AuthSsoLoginUseCase, AuthSsoLoginUseCaseSuccess
@@ -46,18 +45,12 @@ def auth_sso_session_validator():
 
 
 @pytest.fixture
-def mock_user_authorization():
-    return create_autospec(UserAuthorization, instance=True, spec_set=True)
-
-
-@pytest.fixture
 def use_case(
     key_repository,
     organization_repository,
     user_repository,
     role_repository,
     auth_sso_session_validator,
-    mock_user_authorization,
 ):
     return AuthSsoLoginUseCase(
         key_repository=key_repository,
@@ -65,7 +58,6 @@ def use_case(
         user_repository=user_repository,
         role_repository=role_repository,
         auth_sso_session_validator=auth_sso_session_validator,
-        user_authorization=mock_user_authorization,
         auth_login_type="oidc",
         auth_sso_default_role_id=DEFAULT_ROLE_ID,
         auth_sso_default_organization_id=DEFAULT_ORGANIZATION_ID,
@@ -118,7 +110,6 @@ class TestAuthSsoLoginUseCase:
         user_repository,
         role_repository,
         auth_sso_session_validator,
-        mock_user_authorization,
         default_command,
     ):
         # Arrange
@@ -128,7 +119,6 @@ class TestAuthSsoLoginUseCase:
             user_repository=user_repository,
             role_repository=role_repository,
             auth_sso_session_validator=auth_sso_session_validator,
-            user_authorization=mock_user_authorization,
             auth_login_type="password",
             auth_sso_default_role_id=DEFAULT_ROLE_ID,
             auth_sso_default_organization_id=DEFAULT_ORGANIZATION_ID,
