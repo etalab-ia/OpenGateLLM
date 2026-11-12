@@ -99,7 +99,7 @@
 | api/domain/user/errors.py                                                                                       |       24 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                                                        |       23 |        0 |        6 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                                                        |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration/\_configuration.py                                                             |       47 |        4 |        6 |        3 |     86.79% |17, 34, 68, 72 |
+| api/infrastructure/configuration/\_configuration.py                                                             |       32 |        2 |        6 |        2 |     89.47% |    48, 52 |
 | api/infrastructure/configuration/\_interpolation.py                                                             |       26 |        0 |       12 |        0 |    100.00% |           |
 | api/infrastructure/configuration/\_validationerrors.py                                                          |       43 |        1 |        8 |        2 |     94.12% |25-\>34, 27 |
 | api/infrastructure/configuration/sections/dependencies.py                                                       |       20 |        2 |        2 |        1 |     86.36% |     21-22 |
@@ -135,7 +135,7 @@
 | api/infrastructure/fastapi/endpoints/organizations.py                                                           |       21 |        0 |        4 |        1 |     96.00% | 37-\>exit |
 | api/infrastructure/fastapi/endpoints/rerank.py                                                                  |       54 |        2 |       26 |        1 |     96.25% |     89-90 |
 | api/infrastructure/fastapi/endpoints/usage.py                                                                   |       18 |        0 |        2 |        1 |     95.00% | 56-\>exit |
-| api/infrastructure/fastapi/monitoring.py                                                                        |       99 |       80 |       16 |        0 |     16.52% |17, 21-23, 27-44, 48-109, 113-170, 174-194, 198-219, 223-251 |
+| api/infrastructure/fastapi/monitoring.py                                                                        |      100 |       80 |       16 |        0 |     17.24% |18, 22-24, 28-45, 49-110, 114-171, 175-195, 199-220, 224-252 |
 | api/infrastructure/fastapi/routes.py                                                                            |       44 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/admin/keys.py                                                                |       16 |        6 |        4 |        0 |     50.00% |     17-25 |
 | api/infrastructure/fastapi/schemas/admin/organizations.py                                                       |        8 |        0 |        0 |        0 |    100.00% |           |
@@ -263,7 +263,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7772** |  **542** | **1396** |  **164** | **91.25%** |           |
+| **TOTAL**                                                                                                       | **7758** |  **540** | **1396** |  **163** | **91.27%** |           |
 
 
 ## Setup coverage badge
