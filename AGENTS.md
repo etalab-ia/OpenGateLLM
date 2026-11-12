@@ -643,7 +643,7 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 
 - Packages: every test directory **must** contain an (empty) `__init__.py`. Without it pytest's default `prepend` import mode derives the module name from the basename alone, so two same-named files in two non-package directories collide (`import file mismatch`, e.g. `unit/.../keys/test_get_key.py` vs `integration/endpoints/keys/test_get_key.py`). Add it in the same change as the new directory
 - File names: entity tests **must** be `test_<domain>entities.py` (`test_ocrentities.py`, `test_userentities.py`) — not `test_<entity>.py`
-- Test names: unit `test_should_<behavior>` ; endpoint `test_happy_path`, `test_error_maps_to_correct_http_status`, `test_rejects_non_admin_user` ; postgres `test_returns_*` / `test_creates_*`
+- Test names: `test_should_<behavior>_when_<condition>` in every layer — the expected behavior, then the situation that triggers it (`test_should_return_403_when_the_key_belongs_to_a_user_who_is_not_an_admin`, `test_should_refuse_a_missing_configuration_file`). Drop `_when_` only when there is no condition to name. Older tests named `test_happy_path`, `test_error_maps_to_correct_http_status`, `test_rejects_*`, `test_returns_*` predate the rule: rename them when they are next touched, not in bulk
 - Mocks: every mock object and mock fixture is prefixed with `mock_` (`mock_use_case`, `mock_authenticated_user`)
 - Comments: `# Arrange` / `# Act` / `# Assert` (same as `test_createuserusecase.py`)
 - Async integration: `@pytest.mark.asyncio(loop_scope="session")` (including HTTP adapters)
@@ -708,8 +708,8 @@ Assert usage from the texts actually passed (`len(get_prompts())`, `len(get_comp
 
 Necessary:
 
-1. `test_happy_path` — real use case + DB (`AsyncClient`). Assert response shape (`object`, ids, token prefix), not every side effect already covered in unit tests
-2. `test_error_maps_to_correct_http_status` — mock the use case:
+1. Happy path (`test_should_return_the_<resource>_when_<condition>`) — real use case + DB (`AsyncClient`). Assert response shape (`object`, ids, token prefix), not every side effect already covered in unit tests
+2. Error mapping (`test_should_map_each_domain_error_to_its_http_status`) — mock the use case:
 
 ```python
 mock_use_case = AsyncMock()
