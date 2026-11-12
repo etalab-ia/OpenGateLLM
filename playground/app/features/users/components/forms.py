@@ -97,6 +97,7 @@ def user_create_form_fields() -> rx.Component:
             value=UsersState.entity_to_create.role,
             on_change=lambda value: UsersState.set_new_entity_attribut("role", value),
             placeholder="Select role",
+            on_open_change=UsersState.handle_form_select_open_change,
         ),
         entity_form_select_field(
             label="Organization*",
@@ -104,6 +105,7 @@ def user_create_form_fields() -> rx.Component:
             value=UsersState.entity_to_create.organization,
             on_change=lambda value: UsersState.set_new_entity_attribut("organization", value),
             placeholder="Select organization",
+            on_open_change=UsersState.handle_form_select_open_change,
         ),
         entity_form_input_field(
             label="Expires at",

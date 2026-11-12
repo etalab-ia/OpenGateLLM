@@ -14,7 +14,9 @@ from api.domain.user.entities import User, UserPage, UserSortField
 from api.domain.user.errors import UserAlreadyExistsError, UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
+from api.infrastructure.postgres.models import Organization as OrganizationTable
 from api.infrastructure.postgres.models import Permission as PermissionTable
+from api.infrastructure.postgres.models import Role as RoleTable
 from api.infrastructure.postgres.models import User as UserTable
 
 _USER_COLUMNS = (
@@ -138,6 +140,8 @@ class PostgresUserRepository(UserRepository):
         role_id: int | None = None,
         organization_id: int | None = None,
         email: str | None = None,
+        role_name: str | None = None,
+        organization_name: str | None = None,
         offset: int = 0,
         limit: int = 10,
         sort_by: UserSortField = UserSortField.ID,
@@ -163,6 +167,14 @@ class PostgresUserRepository(UserRepository):
             conditions.append(UserTable.organization_id == organization_id)
         if email is not None:
             conditions.append(UserTable.email.like(f"%{email.lower()}%"))
+        if role_name is not None:
+            conditions.append(UserTable.role_id.in_(select(RoleTable.id).where(RoleTable.name.icontains(role_name, autoescape=True))))
+        if organization_name is not None:
+            conditions.append(
+                UserTable.organization_id.in_(
+                    select(OrganizationTable.id).where(OrganizationTable.name.icontains(organization_name, autoescape=True))
+                )
+            )
 
         rows, total = await fetch_page_with_total(self.postgres_session, statement.where(*conditions), count_query.where(*conditions))
 

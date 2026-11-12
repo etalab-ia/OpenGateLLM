@@ -101,6 +101,44 @@ class TestGetUsers:
         result_ids = {u.id for u in result.data}
         assert result_ids == {user_1.id, user_2.id}
 
+    async def test_should_filter_by_role_name_when_the_search_matches_part_of_it_case_insensitively(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory(role=RoleSQLFactory(name="Data-Scientist"))
+        UserSQLFactory(role=RoleSQLFactory(name="Developer"))
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_users(role_name="scien")
+
+        # Assert
+        assert result.total == 1
+        assert [u.id for u in result.data] == [user.id]
+
+    async def test_should_filter_by_organization_name_when_the_search_matches_part_of_it_case_insensitively(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory(organization=OrganizationSQLFactory(name="Acme Corporation"))
+        UserSQLFactory(organization=OrganizationSQLFactory(name="Globex"))
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_users(organization_name="CORP")
+
+        # Assert
+        assert result.total == 1
+        assert [u.id for u in result.data] == [user.id]
+
+    async def test_should_treat_wildcards_literally_when_filtering_by_role_name(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory(role=RoleSQLFactory(name="team_a"))
+        UserSQLFactory(role=RoleSQLFactory(name="teamxa"))
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_users(role_name="m_a")
+
+        # Assert
+        assert [u.id for u in result.data] == [user.id]
+
     async def test_total_reflects_role_filter(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()

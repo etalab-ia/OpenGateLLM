@@ -83,17 +83,18 @@ def user_filters() -> rx.Component:
             placeholder="Enter email",
             width=SELECT_LARGE_WIDTH,
         ),
-        rx.text("Filters", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        rx.select(
-            UsersState.roles_name_list_with_all,
-            on_change=UsersState.set_filter_role,
-            value=UsersState.filter_role_value,
+        rx.input(
+            type="text",
+            value=UsersState.search_role_value,
+            on_change=UsersState.set_search_role,
+            placeholder="Enter role",
             width=SELECT_MEDIUM_WIDTH,
         ),
-        rx.select(
-            UsersState.organizations_name_list_with_all,
-            on_change=UsersState.set_filter_organization,
-            value=UsersState.filter_organization_value,
+        rx.input(
+            type="text",
+            value=UsersState.search_organization_value,
+            on_change=UsersState.set_search_organization,
+            placeholder="Enter organization",
             width=SELECT_MEDIUM_WIDTH,
         ),
         spacing=SPACING_SMALL,

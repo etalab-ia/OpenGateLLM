@@ -17,32 +17,17 @@ class UsersState(EntityState):
         return sorted([role["name"] for role in self.roles_list])
 
     @rx.var
-    def roles_name_list_with_all(self) -> list[str]:
-        return ["All roles", *sorted([role["name"] for role in self.roles_list])]
-
-    @rx.var
     def organizations_name_list(self) -> list[str]:
         return sorted([organization["name"] for organization in self.organizations_list])
 
-    @rx.var
-    def organizations_name_list_with_all(self) -> list[str]:
-        return ["All organizations", *sorted([organization["name"] for organization in self.organizations_list])]
-
     def _format_user(self, user: dict) -> User:
         """Format user."""
-
-        organization_dict_reverse = {v: k for k, v in self.organizations_dict.items()}
-        role_dict_reverse = {v: k for k, v in self.roles_dict.items()}
-
-        role_name = role_dict_reverse[user["role_id"]]
-        organization_name = organization_dict_reverse[user["organization_id"]]
-
         return User(
             id=user["id"],
             email=user["email"],
             name=user["name"],
-            role=role_name,
-            organization=organization_name,
+            role_id=user["role_id"],
+            organization_id=user["organization_id"],
             priority=user["priority"],
             expires=format_date(user["expires"]) if user["expires"] else None,
             created=format_datetime(user["created"]),
@@ -79,59 +64,19 @@ class UsersState(EntityState):
             "sort_order": self.order_direction_value,
         }
 
-        if self.filter_role_value != "All roles":
-            params["role_id"] = self.roles_dict[self.filter_role_value]
-        if self.filter_organization_value != "All organizations":
-            params["organization_id"] = self.organizations_dict[self.filter_organization_value]
         search_email = self.search_email_value.strip()
         if search_email:
             params["email"] = search_email
+        search_role = self.search_role_value.strip()
+        if search_role:
+            params["role_name"] = search_role
+        search_organization = self.search_organization_value.strip()
+        if search_organization:
+            params["organization_name"] = search_organization
 
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                # Load roles
-                offset = 0
-                self.roles_list = []
-                self.roles_dict = {}
-                while True:
-                    response = await client.get(
-                        url=f"{self.opengatellm_url}/v1/admin/roles",
-                        params={"offset": offset, "limit": 100},
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                        timeout=self.opengatellm_timeout,
-                    )
-
-                    response.raise_for_status()
-                    data = response.json()
-                    roles_data = data.get("data", [])
-                    self.roles_list.extend([{"id": role["id"], "name": role["name"]} for role in roles_data])
-                    self.roles_dict.update({role["name"]: role["id"] for role in roles_data})
-                    offset += 100
-                    if len(roles_data) < 100:
-                        break
-
-                # Load organizations
-                offset = 0
-                self.organizations_list = []
-                self.organizations_dict = {}
-                while True:
-                    response = await client.get(
-                        url=f"{self.opengatellm_url}/v1/admin/organizations",
-                        params={"offset": offset, "limit": 100},
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                        timeout=self.opengatellm_timeout,
-                    )
-
-                    response.raise_for_status()
-                    data = response.json()
-                    organizations_data = data.get("data", [])
-                    self.organizations_list.extend([{"id": org["id"], "name": org["name"]} for org in organizations_data])
-                    self.organizations_dict.update({org["name"]: org["id"] for org in organizations_data})
-                    offset += 100
-                    if len(organizations_data) < 100:
-                        break
-
                 # Load users
                 response = await client.get(
                     url=f"{self.opengatellm_url}/v1/admin/users",
@@ -153,6 +98,47 @@ class UsersState(EntityState):
         finally:
             self.entities_loading = False
             yield
+
+    ############################################################
+    # Form options (roles and organizations)
+    ############################################################
+    async def _fetch_all_names(self, client: httpx.AsyncClient, path: str) -> list[dict[str, str | int]]:
+        """Fetch every {id, name} of a paginated admin resource."""
+        items = []
+        offset = 0
+        while True:
+            response = await client.get(
+                url=f"{self.opengatellm_url}{path}",
+                params={"offset": offset, "limit": 100},
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=self.opengatellm_timeout,
+            )
+            response.raise_for_status()
+            page = response.json().get("data", [])
+            items.extend([{"id": item["id"], "name": item["name"]} for item in page])
+            offset += 100
+            if len(page) < 100:
+                return items
+
+    async def _load_form_options(self):
+        """Load the roles and organizations the create and edit forms select from."""
+        async with httpx.AsyncClient() as client:
+            self.roles_list = await self._fetch_all_names(client, "/v1/admin/roles")
+            self.organizations_list = await self._fetch_all_names(client, "/v1/admin/organizations")
+        self.roles_dict = {role["name"]: role["id"] for role in self.roles_list}
+        self.organizations_dict = {organization["name"]: organization["id"] for organization in self.organizations_list}
+
+    @rx.event
+    async def handle_form_select_open_change(self, is_open: bool):
+        """Load the form options when a create form select opens."""
+        if not is_open:
+            return
+        try:
+            await self._load_form_options()
+        except httpx.HTTPStatusError as e:
+            yield httpx_error_toast(exception=e, response=e.response)
+        except Exception as e:
+            yield httpx_error_toast(exception=e)
 
     ############################################################
     # Delete entity
@@ -291,9 +277,22 @@ class UsersState(EntityState):
     entity: User = User()
 
     @rx.event
-    def set_entity_settings(self, entity: User):
-        """Set entity settings."""
+    async def set_entity_settings(self, entity: User):
+        """Open the settings dialog, resolving the role and organization names it displays."""
+        try:
+            await self._load_form_options()
+        except httpx.HTTPStatusError as e:
+            yield httpx_error_toast(exception=e, response=e.response)
+            return
+        except Exception as e:
+            yield httpx_error_toast(exception=e)
+            return
+
         self.entity = entity
+        role_names = {role_id: name for name, role_id in self.roles_dict.items()}
+        organization_names = {organization_id: name for name, organization_id in self.organizations_dict.items()}
+        self.entity.role = role_names.get(self.entity.role_id)
+        self.entity.organization = organization_names.get(self.entity.organization_id)
 
     @rx.event
     def set_edit_entity_attribut(self, attribute: str, value: str | bool | None):
@@ -373,7 +372,7 @@ class UsersState(EntityState):
 
     @rx.var
     def has_active_filters(self) -> bool:
-        return self.search_email_value.strip() != "" or self.filter_role_value != "All roles" or self.filter_organization_value != "All organizations"
+        return any(value.strip() for value in (self.search_email_value, self.search_role_value, self.search_organization_value))
 
     @rx.event
     async def set_search_email(self, value: str):
@@ -417,20 +416,20 @@ class UsersState(EntityState):
             async for _ in self.load_entities():
                 yield
 
-    filter_role_value: str = "All roles"
-    filter_organization_value: str = "All organizations"
+    search_role_value: str = ""
+    search_organization_value: str = ""
 
     @rx.event
-    async def set_filter_role(self, value: str):
-        self.filter_role_value = value
+    async def set_search_role(self, value: str):
+        self.search_role_value = value
         self.page = 1
         yield
         async for _ in self.load_entities():
             yield
 
     @rx.event
-    async def set_filter_organization(self, value: str):
-        self.filter_organization_value = value
+    async def set_search_organization(self, value: str):
+        self.search_organization_value = value
         self.page = 1
         yield
         async for _ in self.load_entities():
