@@ -159,6 +159,7 @@ Each succeeded request writes a regular `usage` row with `endpoint = /v1/chat/co
 | E | Delegate to provider-native batch APIs (OpenAI, Mistral) | Out of scope: self-hosted vLLM has no online batch API. Could be an adapter later for external providers. |
 | F | A job queue library (Celery, arq, procrastinate) | Not needed: the Postgres queue fits in one repository class. Celery or arq would add a broker; procrastinate (Postgres-based) remains an option if the queue grows more complex. |
 | G | Run the worker inside the API processes (lifespan task) | Not as the default: it couples batch load with API latency, multiplies workers by `gunicorn workers × replicas`, and constrains shutdown. Worth offering as an option for small deployments, which then have no service to add. |
+| H | A separate orchestrator with Celery, S3 and Redis priority queues (the draft attached to #999) | Rejected: it brings back the broker and the extra service that #531 and #1131 removed, and its orchestrator calls the providers directly, outside the QoS limiter. It shares one idea with this ADR: Postgres holds the state. Its two needs are kept: audio batches (plan, step 5) and interactive traffic ranked below batch (open question 9). |
 
 ---
 
@@ -166,7 +167,7 @@ Each succeeded request writes a regular `usage` row with `endpoint = /v1/chat/co
 
 **Becomes easier**
 
-* Bulk jobs no longer degrade interactive latency, and use the GPUs when interactive traffic is low.
+* Bulk jobs no longer make interactive requests fail, and only slightly increase how often they wait (see the benchmark); they use the GPUs when interactive traffic is low.
 * Users get a managed asynchronous API: no concurrency control, retries or resumption to write, and results kept server-side.
 * Batch consumption is visible in `GET /v1/usage` and can be priced on its own.
 
@@ -202,7 +203,7 @@ The author has no access to these data; they decide how much capacity a batch mo
 
 1. **GPU utilization** over a typical week (the `vllm` Grafana dashboards): how much capacity is idle per model, between the peaks of office hours as well as at night. Batch requests use spare capacity whenever it appears, not only at night.
 2. **Demand**: how many users have asked for higher quotas, for the night shift role, or for a batch mode, and for which volumes.
-3. **Ongoing work**: #999 was closed in September 2026 without a batch ADR in the repository, and no branch or pull request implements one. If a design exists elsewhere (the Excalidraw draft attached to #999), this ADR should be reconciled with it rather than duplicate it.
+3. **Ongoing work**: #999 was closed in September 2026 without a batch ADR in the repository, and no branch or pull request implements one. Its draft, a Celery orchestrator with S3 and Redis priority queues, predates the removal of Celery; this ADR replaces it (alternative H).
 4. **A run on a staging vLLM**: the figures above come from a mock. The benchmark script can target a real provider instead (`--provider-url`, `--provider-model`, `--slots` for its `qos_limit`).
 
 ---
@@ -217,6 +218,7 @@ The author has no access to these data; they decide how much capacity a batch mo
 6. **URL.** `/v1/chat/completions/batches` (proposed) or `/v1/batches`?
 7. **Results errors.** The POC reports domain error names (`ModelNotFoundError`, `StatusCodeModelError`…). Do we want a public error taxonomy?
 8. **Deployment.** Is a separate worker service acceptable for the deployments we know of (Albert, others), or should the embedded mode (alternative G) come first?
+9. **Interactive traffic below batch.** The draft of #999 ranked some interactive traffic (sync priority 4) below batch. Is that a need, for guest accounts for instance? It belongs to the prioritization ADR announced by the QoS ADR; this ADR ranks batch below all interactive traffic.
 
 ---
 
@@ -226,4 +228,4 @@ The author has no access to these data; they decide how much capacity a batch mo
 2. API endpoints, router disabled by default.
 3. Worker and capacity-capped processing.
 4. Quotas, price, retention and purge, metrics, deployment and documentation.
-5. Later: playground page, `/v1/embeddings/batches`, OpenAI-compatible façade, provider-native batch adapters.
+5. Later: playground page, `/v1/embeddings/batches`, audio transcription batches (they need file storage: an audio file does not fit in a JSON body, hence the S3 of the #999 draft), OpenAI-compatible façade, provider-native batch adapters.
