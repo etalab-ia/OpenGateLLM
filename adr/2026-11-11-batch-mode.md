@@ -49,26 +49,32 @@ How often other users ask for the same thing is for the Albert API team to say (
 
 ### Measured impact (synthetic benchmark)
 
-The proof of concept ships a benchmark ([`adr/scripts/2026-11-11-batch-mode-benchmark.py`](https://github.com/thomasguillory-betagouv/OpenGateLLM/blob/feat/batch-mode/adr/scripts/2026-11-11-batch-mode-benchmark.py), on the proof of concept branch: it runs against its code). A mock provider stands for a GPU server: it computes 8 requests at a time, 0.5 s each (16 requests/s at most), and OpenGateLLM fronts it with `qos_limit: 8` and `qos_retries_before_reject: 20`. Interactive traffic arrives at random (Poisson) for 30 s while a 300-request job runs. The job is sent either as users send it today, looping over `/v1/chat/completions` with 32 concurrent requests and a retry on 503, or as a batch.
+The proof of concept ships a benchmark ([`adr/scripts/2026-11-11-batch-mode-benchmark.py`](https://github.com/thomasguillory-betagouv/OpenGateLLM/blob/feat/batch-mode/adr/scripts/2026-11-11-batch-mode-benchmark.py), on the proof of concept branch: it runs against its code). A mock provider stands for a GPU server: it computes 8 requests at a time, 0.5 s each (16 requests/s at most), and OpenGateLLM fronts it with `qos_limit: 8` and `qos_retries_before_reject: 20`. Interactive traffic arrives at random (Poisson) for 30 s while a 300-request job runs. The job is sent either as users send it today, looping over `/v1/chat/completions` with 32 concurrent requests and a retry on 503, or as a batch. Within a run, every scenario replays the same interactive arrivals, so the rows of a table differ only by the job. The run is repeated three times with other arrivals: the tables give the median of the three runs with their range in parentheses, and the failures summed over the three runs.
 
-**Interactive traffic at 4 requests/s (about 25 % of the capacity)**
+An interactive request that finds the provider full retries its reservation every 0.5 s: it is answered in about 0.54 s when served at once, 1.04 s after one retry, and so on. A percentile close to such a step jumps from one value to the next on a handful of requests: interactive traffic alone at 50 % load has a p95 of 0.60 s in one run and 1.09 s in another. The "waited" column is steadier: the share of interactive requests answered after more than 0.75 s, failed ones included, that is the ones that waited at least one retry.
 
-| Scenario | Interactive p50 | p95 | p99 | max | Interactive failed | Job duration |
+**Interactive traffic at 4 requests/s (about 25 % of the capacity, 98 to 121 requests per run)**
+
+| Scenario | Interactive p50 | p95 | p99 | Waited | Interactive failed | Job duration |
 |---|---|---|---|---|---|---|
-| Interactive traffic alone | 0.54 s | 0.57 s | 0.59 s | 0.61 s | 0 / 122 | — |
-| + job looping over `/v1/chat/completions` | 1.21 s | **6.64 s** | **9.84 s** | 10.28 s | **3 / 104** | 27 s |
-| + same job submitted as a batch | 0.54 s | **0.56 s** | **0.57 s** | 0.57 s | **0 / 100** | 58 s |
-| Batch alone (no interactive traffic) | — | — | — | — | — | 43 s |
+| Interactive traffic alone | 0.54 s | 0.58 s (0.57–0.60) | 0.60 s (0.57–0.62) | 0.0 % (0.0–0.0) | 0 / 323 | — |
+| + job looping over `/v1/chat/completions` | 1.55 s | **7.19 s** (6.58–7.67) | **9.29 s** (8.80–10.31) | **68.4 %** (66.3–77.7) | **11 / 323** | 29.5 s |
+| + same job submitted as a batch | 0.54 s | **0.57 s** (0.56–0.58) | **0.59 s** (0.57–0.62) | **0.8 %** (0.0–1.0) | **0 / 323** | 58.9 s |
+| Batch alone (no interactive traffic) | — | — | — | — | — | 42.6 s |
 
-**Interactive traffic at 8 requests/s (about 50 % of the capacity)**
+**Interactive traffic at 8 requests/s (about 50 % of the capacity, 226 to 245 requests per run)**
 
-| Scenario | Interactive p50 | p95 | p99 | max | Interactive failed | Job duration |
+| Scenario | Interactive p50 | p95 | p99 | Waited | Interactive failed | Job duration |
 |---|---|---|---|---|---|---|
-| Interactive traffic alone | 0.54 s | 1.06 s | 1.22 s | 1.72 s | 0 / 245 | — |
-| + job looping over `/v1/chat/completions` | 2.16 s | **8.72 s** | **9.77 s** | 10.68 s | **29 / 239** | 39 s |
-| + same job submitted as a batch | 0.54 s | **0.60 s** | **1.06 s** | 1.10 s | **0 / 225** | 68 s |
+| Interactive traffic alone | 0.55 s | 1.05 s (0.60–1.09) | 1.15 s (1.09–1.17) | 6.6 % (3.1–9.0) | 0 / 712 | — |
+| + job looping over `/v1/chat/completions` | 2.06 s | **9.58 s** (9.17–9.83) | **10.84 s** (10.33–10.87) | **87.8 %** (84.2–90.7) | **83 / 712** | 39.4 s |
+| + same job submitted as a batch | 0.55 s | **1.07 s** (0.60–1.08) | **1.45 s** (1.07–1.58) | **9.8 %** (4.4–11.2) | **0 / 712** | 68.4 s |
 
-Every batch request succeeded. A bulk job sent the way users send it today makes the interactive p95 latency about 10 times worse, and at 50 % load 12 % of the interactive requests fail. The same job sent as a batch leaves interactive latency at the level of interactive traffic alone (the differences between these two rows are within the run-to-run variance of random arrivals). It takes longer because it only uses the capacity left over, and it slows down as interactive load grows.
+Every batch request succeeded. A bulk job sent the way users send it today makes most interactive requests wait (68 % at 25 % load, 88 % at 50 %), multiplies their p95 by about 12 and 9 (7.19 s against 0.58 s, 9.58 s against 1.05 s), and makes 3 % and 12 % of them fail (11 of 323, 83 of 712).
+
+The same job sent as a batch makes no interactive request fail and leaves their median and p95 at the level of interactive traffic alone, but it is not free: interactive requests wait a little more often. At 25 % load, 2 of 323 waited one retry, against none alone. At 50 % load, summed over the three runs, 61 of 712 waited instead of 45 (8.6 % against 6.3 %), more in each run (10 against 7, 24 against 22, 27 against 16), and the median p99 rises from 1.15 s to 1.45 s (higher in two runs of three). A batch request is admitted only while the provider holds fewer than 4 requests, but it keeps its place until it ends: interactive requests arriving in a burst meanwhile can find up to 4 places taken, and some of them wait for the next retry. The capacity share (open question 3) sets this cost against batch throughput.
+
+The batch takes longer than the looping job because it only uses the capacity left over, and it slows down as interactive load grows: 43 s alone, 59 s next to 25 % load, 68 s next to 50 %.
 
 These numbers come from a mock provider on a single machine. They show the mechanism, not production capacity. Real figures need a run against a staging vLLM.
 
