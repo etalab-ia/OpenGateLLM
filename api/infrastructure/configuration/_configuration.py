@@ -1,52 +1,32 @@
-from functools import lru_cache
 import os
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import ConfigDict, Field, field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator
 import yaml
 
 from ._interpolation import interpolate_variables
 from ._validationerrors import HiddenInputSchema, custom_validation_error
 from .sections import Dependencies, Model, PostgresDependency, SettingsLoginOIDC, SettingsLoginPassword
 
+DEFAULT_CONFIG_FILE = "config.yml"
 
-@lru_cache
-def get_configuration() -> "Configuration":
-    return Configuration()
+
+def get_configuration(config_file: str | None = None) -> "Configuration":
+    config_file = config_file or os.getenv("CONFIG_FILE", DEFAULT_CONFIG_FILE)
+    if not Path(config_file).is_file():
+        raise FileNotFoundError(f"Config file ({config_file}) not found.")
+
+    return Configuration(**interpolate_variables(read_config_file(path=config_file)))
 
 
 def get_postgres_dependency() -> PostgresDependency:
-    raw_config = read_config_file(path=os.getenv("CONFIG_FILE", "config.yml"))
+    raw_config = read_config_file(path=os.getenv("CONFIG_FILE", DEFAULT_CONFIG_FILE))
     return PostgresDependency(**interpolate_variables(raw_config["dependencies"]["postgres"]))
 
 
-class Configuration(BaseSettings):
-    model_config = ConfigDict(extra="allow")
-
-    config_file: str = "config.yml"
-    prometheus_multiproc_dir: str = "/tmp/prometheus_multiproc"
-
-    @field_validator("config_file", mode="after")
-    def config_file_exists(cls, config_file):
-        if not Path(config_file).is_file():
-            raise ValueError(f"Config file ({config_file}) not found.")
-        return config_file
-
-    @model_validator(mode="after")
-    def setup_config(self) -> Any:
-        config = ConfigurationFileSchema(**interpolate_variables(read_config_file(path=self.config_file)))
-
-        self.models = config.models
-        self.dependencies = config.dependencies
-        self.settings = config.settings
-
-        return self
-
-
 @custom_validation_error
-class ConfigurationFileSchema(HiddenInputSchema):
+class Configuration(HiddenInputSchema):
     """
     Configuration file is composed of 3 sections, models:
     - `models`: to declare models API exposed to the API.

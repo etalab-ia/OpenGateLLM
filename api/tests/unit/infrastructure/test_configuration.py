@@ -6,9 +6,9 @@ import sys
 import pytest
 
 from api.infrastructure.configuration import (
-    Configuration,
     ConfigurationValidationError,
     ConfigurationVariableError,
+    get_configuration,
     get_postgres_dependency,
     interpolate_variables,
 )
@@ -129,7 +129,7 @@ class TestConfiguration:
 
         # Act & Assert
         with pytest.raises(ConfigurationVariableError, match="REDIS_PASSWORD") as error:
-            Configuration(config_file=config_file)
+            get_configuration(config_file=config_file)
         assert "postgres-secret" not in str(error.value)
 
     def test_should_load_the_postgres_dependency_without_the_variables_of_the_other_sections(self, monkeypatch, write_config_file):
@@ -154,7 +154,7 @@ settings:
 """)
 
         # Act
-        configuration = Configuration(config_file=config_file)
+        configuration = get_configuration(config_file=config_file)
 
         # Assert
         assert configuration.settings.auth_secret_key == "secret"
@@ -168,7 +168,7 @@ settings:
 
         # Act & Assert
         with pytest.raises(ConfigurationValidationError, match="auth_secret_key") as error:
-            Configuration(config_file=config_file)
+            get_configuration(config_file=config_file)
         assert "input_value" not in str(error.value)
 
     def test_should_refuse_a_misspelled_secret_key_without_printing_its_value(self, write_config_file):
@@ -180,7 +180,7 @@ settings:
 
         # Act & Assert
         with pytest.raises(ConfigurationValidationError, match="auth_secret_key") as error:
-            Configuration(config_file=config_file)
+            get_configuration(config_file=config_file)
         assert "input_value" not in str(error.value)
 
     def test_should_report_every_nested_error_with_its_location_and_documentation_link(self, write_config_file):
@@ -196,7 +196,7 @@ settings:
 
         # Act & Assert
         with pytest.raises(ConfigurationValidationError) as error:
-            Configuration(config_file=config_file)
+            get_configuration(config_file=config_file)
         message = str(error.value)
         assert "2 validation errors" in message
         assert "dependencies.postgres.url" in message
@@ -213,7 +213,15 @@ settings:
 """)
 
         # Act
-        configuration = Configuration(config_file=config_file)
+        configuration = get_configuration(config_file=config_file)
 
         # Assert
         assert configuration.settings.auth_secret_key == "secret"
+
+    def test_should_refuse_a_missing_configuration_file(self, tmp_path):
+        # Arrange
+        config_file = str(tmp_path / "missing.yml")
+
+        # Act & Assert
+        with pytest.raises(FileNotFoundError, match="missing.yml"):
+            get_configuration(config_file=config_file)

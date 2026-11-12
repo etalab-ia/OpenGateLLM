@@ -8,7 +8,7 @@ import redis.asyncio as redis
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
-from api.infrastructure.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration.postgresfixtures import db_session, shared_test_session, test_postgres_engine  # noqa: F401
 from api.tests.integration.redisfixtures import (  # noqa: F401
@@ -27,7 +27,7 @@ def test_configuration():
 def _test_settings() -> Settings:
     test_config_file = os.getenv("TEST_CONFIG_FILE")
     if test_config_file:
-        settings = Configuration(config_file=test_config_file).settings
+        settings = get_configuration(config_file=test_config_file).settings
         return settings.model_copy(update={"auth_secret_key": TEST_AUTH_SECRET_KEY, "monitoring_prometheus_enabled": False})
 
     return Settings.model_construct(

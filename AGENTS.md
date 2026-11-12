@@ -18,7 +18,7 @@ use_cases/        Command, UseCase, UseCaseSuccess, execute()
 infrastructure/
   fastapi/        endpoints, schemas, HTTP exceptions, AccessController, routes, monitoring
   postgres/       Postgres*Repository / Postgres*Query adapters, AutocommitSession
-  configuration/  _configuration is the entry point (get_configuration → Configuration → ConfigurationFileSchema), the sections/ subpackage holds one module per section of the file (models, dependencies, settings), next to _interpolation (${VAR}) and _validationerrors; import from the package root. Read lazily: library modules never read it at import time (entry points such as api/main.py and alembic/env.py may). create_app stores it on app.state; DI factories take Depends(get_app_configuration), lifespan reads app.state.configuration
+  configuration/  _configuration is the entry point (get_configuration reads the file given by CONFIG_FILE and validates it as Configuration, the schema of the file), the sections/ subpackage holds one module per section of the file (models, dependencies, settings), next to _interpolation (${VAR}) and _validationerrors; import from the package root. Read lazily: library modules never read it at import time (entry points such as api/main.py and alembic/env.py may). create_app stores it on app.state; DI factories take Depends(get_app_configuration), lifespan reads app.state.configuration
   context.py      GlobalContext — the process-wide infrastructure handles
   logging.py      configure_logging — configures the "api" logger (or applies the settings.log_config file), every module uses getLogger(__name__)
 app.py            create_app: middleware, router registration, monitoring

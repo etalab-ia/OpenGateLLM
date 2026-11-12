@@ -1,4 +1,4 @@
-from ._configuration import Configuration, ConfigurationFileSchema, get_configuration, get_postgres_dependency
+from ._configuration import Configuration, get_configuration, get_postgres_dependency
 from ._interpolation import ConfigurationVariableError, interpolate_variables
 from ._validationerrors import ConfigurationValidationError
 from .sections import (
@@ -14,7 +14,6 @@ from .sections import (
 __all__ = [
     "DEFAULT_TIMEOUT",
     "Configuration",
-    "ConfigurationFileSchema",
     "ConfigurationValidationError",
     "ConfigurationVariableError",
     "Dependencies",
