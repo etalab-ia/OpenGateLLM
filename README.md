@@ -52,7 +52,7 @@
 | api/alembic/versions/2026\_09\_24\_1200-d1e2f3a4b5c6\_add\_usage\_request\_id.py                                |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_09\_25\_1851-c8fef686d652\_add\_router\_qos\_fields.py                               |       14 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_09\_28\_2030-bf92da1a3246\_remove\_user\_budget.py                                   |       11 |        0 |        0 |        0 |    100.00% |           |
-| api/app.py                                                                                                      |       63 |        6 |       12 |        5 |     85.33% |28, 58-59, 88, 95, 100 |
+| api/app.py                                                                                                      |       63 |        5 |       12 |        4 |     88.00% |28, 58-59, 88, 95 |
 | api/dependencies.py                                                                                             |      203 |       86 |        4 |        0 |     56.52% |85-94, 98-100, 104-106, 111, 115, 120, 124, 128, 132, 136, 140, 144, 148, 152, 156, 169, 173, 177, 181, 185, 189, 193, 197, 201, 205, 209-220, 235, 261, 282, 297, 315, 333, 352, 362, 369, 373, 377, 381, 386, 390, 395, 400, 404, 418, 434, 438, 442, 446, 450, 455, 459, 463, 467, 471, 485, 501, 509, 517, 525, 531, 538, 544, 550, 556, 562, 572, 580, 587, 593, 599 |
 | api/domain/audio/entities.py                                                                                    |       31 |        1 |        0 |        0 |     96.77% |       186 |
 | api/domain/audio/errors.py                                                                                      |        3 |        0 |        0 |        0 |    100.00% |           |
@@ -135,7 +135,7 @@
 | api/infrastructure/fastapi/endpoints/organizations.py                                                           |       21 |        0 |        4 |        1 |     96.00% | 37-\>exit |
 | api/infrastructure/fastapi/endpoints/rerank.py                                                                  |       54 |        2 |       26 |        1 |     96.25% |     89-90 |
 | api/infrastructure/fastapi/endpoints/usage.py                                                                   |       18 |        0 |        2 |        1 |     95.00% | 56-\>exit |
-| api/infrastructure/fastapi/monitoring.py                                                                        |      100 |       80 |       16 |        0 |     17.24% |18, 22-24, 28-45, 49-110, 114-171, 175-195, 199-220, 224-252 |
+| api/infrastructure/fastapi/monitoring.py                                                                        |       89 |       18 |       14 |        5 |     73.79% |38-40, 99-105, 164-166, 188-190, 210-215 |
 | api/infrastructure/fastapi/routes.py                                                                            |       44 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/admin/keys.py                                                                |       16 |        6 |        4 |        0 |     50.00% |     17-25 |
 | api/infrastructure/fastapi/schemas/admin/organizations.py                                                       |        8 |        0 |        0 |        0 |    100.00% |           |
@@ -263,7 +263,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7758** |  **540** | **1396** |  **163** | **91.27%** |           |
+| **TOTAL**                                                                                                       | **7747** |  **477** | **1394** |  **167** | **92.04%** |           |
 
 
 ## Setup coverage badge
