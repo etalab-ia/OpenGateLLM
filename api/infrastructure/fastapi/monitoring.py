@@ -1,4 +1,5 @@
 from collections.abc import Callable
+import os
 
 from fastapi import FastAPI, Security
 import prometheus_client
@@ -219,7 +220,7 @@ def inference_tokens_total(metric_namespace: str = "") -> Callable[[Info], None]
     return instrumentation
 
 
-def setup_prometheus(app: FastAPI, prometheus_multiproc_dir: str, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
+def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
     app.instrumentator = (
         Instrumentator()
         .instrument(app=app)
@@ -241,7 +242,7 @@ def setup_prometheus(app: FastAPI, prometheus_multiproc_dir: str, metric_namespa
         include_in_schema=include_in_schema,
     )
     def get_metrics() -> Response:
-        if prometheus_multiproc_dir:
+        if os.getenv("PROMETHEUS_MULTIPROC_DIR"):
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)
         else:

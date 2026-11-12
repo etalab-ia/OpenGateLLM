@@ -12,7 +12,7 @@ In addition to the configuration file (see the [configuration file documentation
 | --- | --- | --- | --- |
 | CONFIG_FILE | str | `"config.yml"` | Path to the configuration file. |
 | GUNICORN_CMD_ARGS | str | `""` | Additional gunicorn command arguments (ex. `--log-config app/log.conf`). |
-| PROMETHEUS_MULTIPROC_DIR | str | `"/tmp/prometheus_multiproc"` | Directory to store Prometheus multiprocessing files. |
+| PROMETHEUS_MULTIPROC_DIR | str | | Directory to store Prometheus multiprocessing files. When set, `/metrics` aggregates the metrics of every worker; when unset, it serves those of the process that answers. The API image sets it to `/tmp/prometheus_multiproc`. |
 
 ## Playground
 
