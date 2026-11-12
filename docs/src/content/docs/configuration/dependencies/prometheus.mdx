@@ -23,6 +23,19 @@ http://localhost:8000/metrics
 
 This endpoint returns metrics in Prometheus text-based exposition format, which can be scraped by your Prometheus server.
 
+The endpoint requires the API key of an admin user: it answers 401 without a key and 403 with the key of a user who is not an admin. Configure your Prometheus server to send the key:
+
+```yaml
+scrape_configs:
+  - job_name: opengatellm
+    authorization:
+      credentials: <api key>
+```
+
+<Aside type="caution" title="Scrape key">
+This key opens every admin route of the API, not only `/metrics`. Create a dedicated admin user for the scrape, so that its key can be revoked on its own, and a key that does not expire, so that the scrape does not stop at its expiration.
+</Aside>
+
 ## List of metrics
 
 All default metrics of *prometheus-fastapi-instrumentator* are available, see their [README](https://github.com/trallnag/prometheus-fastapi-instrumentator) for more information.
