@@ -3,35 +3,139 @@ title: Rate limiting
 sidebar:
   label: "[lucide:gauge] Rate limiting"
 ---
-import { Aside, LinkButton } from '@astrojs/starlight/components';
+import { Aside, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
 
-The rate limiter uses Redis to store counters for:
-- **RPM (Requests Per Minute)**: Number of API requests per minute per user and model
-- **RPD (Requests Per Day)**: Number of API requests per day per user and model
-- **TPM (Tokens Per Minute)**: Number of tokens consumed per minute per user and model
-- **TPD (Tokens Per Day)**: Number of tokens consumed per day per user and model
+Rate limits cap what each user can consume on each model. They are the only consumption cap in OpenGateLLM: [model pricing](/features/usage/budget/) computes the cost of each request but never blocks one.
 
-OpenGateLLM supports three rate limiting strategies (configurable in settings):
-- **Fixed Window**: Use when low memory usage and high performance are critical, and occasional bursts are acceptable or can be mitigated by additional fine-grained limits.
-- **Moving Window**: Use when exactly accurate rate limiting is required and extra memory overhead is acceptable.
-- **Sliding Window Counter**: Use when a balance between memory efficiency and accuracy is needed. This strategy smooths transitions between time periods with less overhead than a full moving window, though it may trade off some precision near bucket boundaries.
+Limits are set on a role, for each model router. Every user of the role gets the same limits, counted separately for each user. Four limit types are available:
+- **RPM (Requests Per Minute)**: number of requests per minute
+- **RPD (Requests Per Day)**: number of requests per day
+- **TPM (Tokens Per Minute)**: number of tokens per minute
+- **TPD (Tokens Per Day)**: number of tokens per day
 
-For more information about how strategies are compute, see [Limits package documentation](https://limits.readthedocs.io/en/stable/strategies.html).
+Rate limits apply to the model endpoints: `/v1/chat/completions`, `/v1/embeddings`, `/v1/rerank`, `/v1/ocr` and `/v1/audio/transcriptions`. Users with the `admin` permission are never limited.
+
+## Set limits on a role
+
+<Tabs>
+  <TabItem label="Playground UI" icon="lucide:laptop">
+
+  Go to the *Roles* page, create or edit a role, and add a limit for each router the role can use. Leave a field empty for no limit on that type.
+  </TabItem>
+
+  <TabItem label="API" icon="lucide:code">
+
+  Set the `limits` of a role with the `POST /v1/admin/roles` and `PATCH /v1/admin/roles/{role_id}` endpoints. `PATCH` replaces the whole list: send every limit the role keeps.
+
+  ```json
+  {
+    "name": "my-role",
+    "permissions": [],
+    "limits": [
+      {"router_id": 1, "type": "rpm", "value": 60},
+      {"router_id": 1, "type": "rpd", "value": 1000},
+      {"router_id": 1, "type": "tpm", "value": 100000},
+      {"router_id": 1, "type": "tpd", "value": null}
+    ]
+  }
+  ```
+
+  <LinkButton href="/reference/" icon="external">API Reference</LinkButton>
+  </TabItem>
+</Tabs>
+
+The limits of a role also decide which models its users can access:
+
+| Limits of the role on a router | Effect |
+|--------------------------------|--------|
+| No limit at all | The model is hidden and its requests are refused. |
+| One limit with `value: 0` | The model is hidden and its requests are refused. |
+| `value: null` | No limit on that type. |
+| A positive `value` | At most `value` requests or tokens per window. |
+
+<Aside type="caution">
+A role that has limits on a router but no `rpm` or `rpd` limit blocks every request to it with a 429. Set `"value": null` to allow unlimited requests. A missing `tpm` or `tpd` limit means no token limit.
+</Aside>
+
+## How requests are counted
+
+1. **Before the provider call**: the request is rejected with a 429 if no request is left in the RPM or RPD window, or if fewer tokens are left in the TPM or TPD window than the prompt counts. A rejected request never reaches the provider and is not counted.
+2. **After a successful response**: the request counts as 1 against RPM and RPD, and its tokens count against TPM and TPD, see [Token counts](#token-counts).
+
+Failed requests are never counted. A streamed chat completion is counted when the stream ends; if it is cut off, only the tokens already delivered are counted.
+
+### Token counts
+
+Before the provider call, the provider has not answered yet: the prompt tokens checked against TPM and TPD are always estimated with the tokenizer set by `usage_tokenizer` (default `tiktoken_gpt2`). It is a generic tiktoken encoding, not the tokenizer of the model.
+
+After a successful response, the tokens counted come from the provider when it reports them:
+
+| Provider response | `prompt_tokens` and `completion_tokens` | `cached_tokens` |
+|-------------------|-----------------------------------------|-----------------|
+| Has a `usage` field | Read from the provider's `usage` | Read from `usage.prompt_tokens_details.cached_tokens`, `0` when absent |
+| Has no `usage` field | Counted with `usage_tokenizer` on the prompt and the completion | `0` |
+
+Audio transcriptions are always counted with `usage_tokenizer`: their providers report usage in seconds, not tokens.
+
+For a streamed chat completion, OpenGateLLM asks the provider for a final usage chunk (`stream_options.include_usage`) and keeps the last `usage` the provider sends. A stream cut before its end is counted with `usage_tokenizer` on the text already delivered, without cached tokens.
+
+Cached tokens are prompt tokens the provider served from its prompt cache. They are already included in `prompt_tokens`, and `rate_limiting_cached_tokens_discount` deducts a share of them from what counts against TPM and TPD:
+
+```
+counted_tokens = round(prompt_tokens + completion_tokens - rate_limiting_cached_tokens_discount × cached_tokens)
+```
+
+For example, a request with 1,000 prompt tokens, 800 of them cached, and 200 completion tokens counts `1000 + 200 - 0.8 × 800 = 560` tokens with the default discount of `0.8`.
+
+### Response headers
+
+The model endpoints return the state of the limits in the response headers, on success and on a 429:
+
+| Header | Content |
+|--------|---------|
+| `x-ratelimit-limit-requests` | Value of the request limit |
+| `x-ratelimit-remaining-requests` | Requests left in the window |
+| `x-ratelimit-reset-requests` | Time until the window resets, e.g. `1m30s` |
+| `x-ratelimit-limit-tokens` | Value of the token limit |
+| `x-ratelimit-remaining-tokens` | Tokens left in the window |
+| `x-ratelimit-reset-tokens` | Time until the window resets, e.g. `45s` |
+
+When both the minute and the day limits are set, the headers report the one with the fewest left. On success, the remaining values already take the current request into account. A family without any limit has no headers.
+
+The 429 response tells which limit was exceeded, for example `Token limit per minute exceeded.`
+
+## See your limits
+
+Users see their limits on the *Limits* page of the Playground: for each model they can use, the value of each limit and what is used of it in the current window. The page refreshes every 30 seconds.
+
+The same data is available from the `GET /v1/limits` endpoint. In its response, a `value` of `null` means no limit on that type, and `remaining` is then meaningless.
+
+The *Limits* page can be hidden with `playground_disabled_pages: [limits]` in the Playground configuration, and the `GET /v1/limits` endpoint disabled with `disabled_routers: [limits]`.
+
+<LinkButton href="/reference/" icon="external">API Reference</LinkButton>
 
 ## Configuration
 
-To configure the rate limiting strategy, set `rate_limiting_strategy` in the `settings` section of your `config.yml`:
+Set the rate limiting options in the `settings` section of your `config.yml`:
 
 ```yaml
 settings:
     [...]
     rate_limiting_strategy: fixed_window
+    rate_limiting_cached_tokens_discount: 0.8
 ```
+
+- **`rate_limiting_strategy`** (default `fixed_window`): how the windows are computed.
+  - `fixed_window`: use when low memory usage and high performance are critical, and occasional bursts are acceptable or can be mitigated by additional fine-grained limits.
+  - `moving_window`: use when exactly accurate rate limiting is required and extra memory overhead is acceptable.
+  - `sliding_window`: use when a balance between memory efficiency and accuracy is needed. This strategy smooths transitions between time periods with less overhead than a full moving window, though it may trade off some precision near bucket boundaries.
+
+  For more information about how strategies are computed, see [Limits package documentation](https://limits.readthedocs.io/en/stable/strategies.html).
+- **`rate_limiting_cached_tokens_discount`** (default `0.8`, between `0` and `1`): share of the cached prompt tokens deducted from TPM and TPD, see [Token counts](#token-counts). `0` counts cached tokens in full, `1` does not count them at all.
+- **`usage_tokenizer`** (default `tiktoken_gpt2`): tokenizer used to estimate the prompt before the provider call, and to count the tokens when the provider does not report them.
 
 <LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
 
-## Setup router rate limits
-
-<Aside type="caution">
-🚧 This page is under construction. 🚧
+<Aside type="note">
+The counters are stored in [Redis](/configuration/dependencies/redis/). The Redis database is flushed when the API starts, so restarting the API resets every counter.
 </Aside>

@@ -19,12 +19,32 @@ The usage table contains the following information:
 - user ID
 - router ID
 - provider ID
-- number of input tokens
-- number of output tokens
+- number of prompt tokens
+- number of completion tokens
 - environmental footprint (see the dedicated documentation [here](/features/usage/environmental_footprint/))
 - cost (see the dedicated documentation [here](/features/usage/budget/))
 
 User can see their usage in the *Usage* page of the Playground.
+
+### Token counts
+
+The token counts come from the provider when its response has a `usage` field. Otherwise, OpenGateLLM counts the prompt and the completion with the tokenizer set by `usage_tokenizer` in the `settings` section of the configuration (default `tiktoken_gpt2`, a generic tiktoken encoding, not the tokenizer of the model). Audio transcriptions are always counted with this tokenizer.
+
+For a streamed chat completion, OpenGateLLM asks the provider for a final usage chunk and keeps the last `usage` it sends. A stream cut before its end is counted with the tokenizer on the text already delivered.
+
+When the provider served part of the prompt from its cache, it reports those tokens in `usage.prompt_tokens_details.cached_tokens`. OpenGateLLM returns them in the response, and they are already included in `prompt_tokens`:
+
+```json
+"usage": {
+  "prompt_tokens": 1000,
+  "completion_tokens": 200,
+  "total_tokens": 1200,
+  "prompt_tokens_details": {"cached_tokens": 800},
+  ...
+}
+```
+
+The cached tokens are not stored in the usage table, so `GET /v1/usage` and the *Usage* page only show `prompt_tokens`, cached ones included. When Langfuse is configured, each trace splits them: `input` holds the prompt tokens not cached and `input_cached_tokens` the cached ones. Cached tokens are partly deducted from rate limits, see [Rate limiting](/features/usage/rate_limiting/#token-counts).
 
 ![Usage playground page](../../../../assets/img/playground_usage_page.png)
 
