@@ -29,9 +29,9 @@ Closes #
 
 **If [`api/infrastructure/postgres/models.py`](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/infrastructure/postgres/models.py) has been modified:**
 
-- [ ] Alembic migration has been generated
-- [ ] Alembic migration upgrade has been tested locally
-- [ ] Alembic migration downgrade has been tested locally
+- [ ] Alembic migration has been generated, following the [migration rules](https://docs.opengatellm.org/contributing/sql)
+- [ ] The migration is an expand, or the contract of an expand shipped in release …
+- [ ] The downgrade was run on a copy of real data, or loses nothing (see [rule 5](https://docs.opengatellm.org/contributing/sql#5-downgrades-that-run-and-say-what-they-lose))
 
 ## Deployment checklist
 

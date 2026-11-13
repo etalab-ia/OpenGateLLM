@@ -65,7 +65,7 @@ Self-service `/v1/organizations/me` reuses `GetOneOrganizationUseCase` with `org
 ```
 - [ ] Domain entity + errors in api/domain/<context>/
 - [ ] Repository port in api/domain/<context>/_<entity>repository.py — or query port + view for a read-only projection (see Query and view)
-- [ ] SQL model in api/infrastructure/postgres/models.py if the schema changes, then an Alembic revision: uv run alembic -c api/alembic.ini revision --autogenerate -m "<slug>" — test upgrade AND downgrade locally
+- [ ] SQL model in api/infrastructure/postgres/models.py if the schema changes, then an Alembic revision: uv run alembic -c api/alembic.ini revision --autogenerate -m "<slug>", written by the rules of [Migrations](#migrations)
 - [ ] Postgres adapter in api/infrastructure/postgres/_postgres<entity>repository.py
 - [ ] Use case in api/use_cases/<area>/_<verb><noun>usecase.py
 - [ ] Export from domain/__init__.py, use_cases/__init__.py, postgres/__init__.py
@@ -574,6 +574,82 @@ Reference: `ModelQuery` / `ModelView` / `PostgresModelQuery` (models API), `Auth
 A view is read-only: no `update_*` methods, no domain invariants. It may carry the id of the aggregate it was projected from (`ModelView.router_id`) so the use case can run access control on it.
 
 **Do not put a derived field on an entity just to expose it.** `vector_size` and `max_context_length` belong to `Provider`; `Router` does not mirror them. Consistency between providers of the same router is checked in the use case by reading the router's existing providers, and the models API reads the capability from the provider through `ModelQuery`.
+
+---
+
+## Migrations
+
+Revisions live in `api/alembic/versions/`. CI runs them on every pull request (`api/tests/integration/alembic/test_migrations.py`); the rules below are what it cannot check. Each one comes from a bug or a risk found in the existing migrations, which predate them: do not rewrite those.
+
+### 1. Expand, then contract
+
+During a rolling deployment the previous release keeps serving traffic on the new schema. A migration either **expands** the schema or **contracts** it, never both:
+
+| Kind | Operations | Ships |
+|------|------------|-------|
+| Expand | create a table, add a nullable column or one with a default, add an enum value, add an index | with the code that uses it |
+| Contract | drop or rename a table, a column, a type or a constraint, change a column type, set `NOT NULL` on an existing column | in a later release than the code that stopped using the old shape |
+
+A rename is an expand (add the new column, write both, copy), then a contract (drop the old one).
+
+### 2. No data read from Python
+
+A migration does not read rows or the schema through `op.get_bind()` to decide what to do next: that needs a live connection and breaks `alembic upgrade --sql`. The decision goes in SQL. Writing through `op.get_bind()` or `op.execute()` is fine.
+
+```python
+# bad
+count = op.get_bind().execute(sa.text("SELECT count(*) FROM provider WHERE model_total_params IS NULL")).scalar()
+if count > 0:
+    raise ValueError("...")
+
+# good: Postgres takes the decision, online and offline
+op.execute("""
+    DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM provider WHERE model_total_params IS NULL) THEN
+            RAISE EXCEPTION 'provider.model_total_params holds NULL values';
+        END IF;
+    END $$;
+""")
+```
+
+### 3. No long lock on a large table
+
+`usage` takes a write on every inference request. On it, and on any table that can grow, a statement must not hold a lock for the time of a full scan.
+
+Alembic runs every pending migration in **one** transaction, so splitting the work across two migrations does not release the locks in between. `op.get_context().autocommit_block()` does: it commits the transaction in progress and runs its statements in autocommit. But the revision is only stamped at the end of `upgrade()`, so a block that fails leaves half a migration behind and the rerun fails (`constraint "…" already exists`). **An `autocommit_block()` is therefore the whole `upgrade()` of its own migration**, and the work it depends on goes in the migration before it:
+
+```python
+# revision A
+def upgrade() -> None:
+    op.create_foreign_key("usage_router_id_fkey", "usage", "router", ["router_id"], ["id"], postgresql_not_valid=True)
+
+
+# revision B, down_revision = A
+def upgrade() -> None:
+    # Outside a transaction, VALIDATE does not keep the lock ADD CONSTRAINT took: writes go on during the scan.
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TABLE usage VALIDATE CONSTRAINT usage_router_id_fkey")
+```
+
+If `VALIDATE` fails, the database stays at revision A with the constraint not validated: fix the rows and rerun.
+
+- An index is created and dropped `CONCURRENTLY` (`postgresql_concurrently=True`), in its own migration, inside `autocommit_block()`. A failed `CREATE INDEX CONCURRENTLY` leaves an invalid index behind, so the migration first drops it with `if_exists=True`.
+- A foreign key or a check constraint is added `NOT VALID` (`postgresql_not_valid=True`), then validated in the next migration, as above.
+- `SET NOT NULL` on a large table goes through a `CHECK (col IS NOT NULL) NOT VALID` constraint, validated, then `SET NOT NULL`, which Postgres then accepts without a scan.
+
+### 4. Named constraints
+
+Every constraint has a name, so that `downgrade()` can drop it. The naming convention of `Base.metadata` (`api/infrastructure/postgres/models.py`) names the single-column ones; a constraint on several columns keeps an explicit name (`unique_rate_limit_per_role`).
+
+### 5. Downgrades that run, and say what they lose
+
+- A column put back `NOT NULL` gets a value first. When the column that replaced it holds the same data, rename it back (`op.alter_column(..., new_column_name=...)`) instead of adding and copying.
+- A type created by `upgrade()` is dropped by `downgrade()`: `drop_table` leaves enum types behind.
+- A `downgrade()` that loses data, or restores a state with a security meaning (revocation, permissions, expiry), says so in its docstring. Reference: `b7e4c1a90f23`, which deletes the revoked keys before dropping `token.revoked`, since the column gone would make them valid again.
+
+### 6. No configuration in a downgrade
+
+A rollback runs `alembic downgrade` with the image being rolled back, but with the configuration file of the target release. A `downgrade()` that calls `get_configuration()` would validate that file against a schema it was not written for. `downgrade()` reads nothing but the database.
 
 ---
 
