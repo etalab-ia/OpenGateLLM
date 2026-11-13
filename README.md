@@ -95,7 +95,7 @@
 | api/domain/usage/entities.py                                                                                    |       52 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/\_authenticateduserquery.py                                                                     |       10 |        2 |        0 |        0 |     80.00% |    10, 14 |
 | api/domain/user/\_userpasswordencoder.py                                                                        |        8 |        2 |        0 |        0 |     75.00% |     7, 11 |
-| api/domain/user/\_userrepository.py                                                                             |       36 |        9 |        0 |        0 |     75.00% |27, 31, 35, 39, 52, 56, 60, 64, 68 |
+| api/domain/user/\_userrepository.py                                                                             |       36 |        9 |        0 |        0 |     75.00% |27, 31, 35, 39, 54, 58, 62, 66, 70 |
 | api/domain/user/entities.py                                                                                     |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/errors.py                                                                                       |       24 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                                                        |       23 |        0 |        6 |        0 |    100.00% |           |
@@ -122,7 +122,7 @@
 | api/infrastructure/fastapi/endpoints/admin/providers.py                                                         |       83 |        0 |       42 |        5 |     96.00% |129-\>exit, 150-\>exit, 205-\>exit, 225-\>exit, 247-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/roles.py                                                             |       59 |        0 |       22 |        5 |     93.83% |59-\>exit, 87-\>exit, 107-\>exit, 132-\>exit, 154-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/routers.py                                                           |       62 |        0 |       24 |        5 |     94.19% |72-\>exit, 91-\>exit, 116-\>exit, 141-\>exit, 181-\>exit |
-| api/infrastructure/fastapi/endpoints/admin/users.py                                                             |       82 |        8 |       34 |        5 |     88.79% |92-\>exit, 113-114, 151-152, 183-184, 232-233 |
+| api/infrastructure/fastapi/endpoints/admin/users.py                                                             |       82 |        8 |       34 |        5 |     88.79% |92-\>exit, 113-114, 155-156, 187-188, 236-237 |
 | api/infrastructure/fastapi/endpoints/audio.py                                                                   |       62 |        2 |       30 |        1 |     96.74% |   115-116 |
 | api/infrastructure/fastapi/endpoints/auth.py                                                                    |       45 |        0 |       22 |        2 |     97.01% |46-\>exit, 100-\>exit |
 | api/infrastructure/fastapi/endpoints/chat.py                                                                    |       68 |        1 |       32 |        2 |     97.00% |103, 118-\>exit |
@@ -210,7 +210,7 @@
 | api/infrastructure/postgres/\_postgresrolesrepository.py                                                        |       83 |        2 |       14 |        3 |     94.85% |80, 151-\>154, 159 |
 | api/infrastructure/postgres/\_postgresrouterrepository.py                                                       |      110 |        2 |       22 |        3 |     96.21% |178, 196-\>199, 247 |
 | api/infrastructure/postgres/\_postgresusagerepository.py                                                        |       54 |        0 |       10 |        0 |    100.00% |           |
-| api/infrastructure/postgres/\_postgresusersrepository.py                                                        |      112 |        8 |       36 |        3 |     91.22% |105, 123-127, 200, 214 |
+| api/infrastructure/postgres/\_postgresusersrepository.py                                                        |      118 |        8 |       40 |        3 |     91.77% |107, 125-129, 212, 226 |
 | api/infrastructure/postgres/decorators.py                                                                       |       25 |        1 |        6 |        1 |     93.55% |        36 |
 | api/infrastructure/postgres/models.py                                                                           |      118 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/redis/\_keys.py                                                                              |        2 |        0 |        0 |        0 |    100.00% |           |
@@ -249,7 +249,7 @@
 | api/use\_cases/admin/users/\_createuserusecase.py                                                               |       27 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/admin/users/\_deleteuserusecase.py                                                               |       23 |        0 |        8 |        1 |     96.77% | 35-\>exit |
 | api/use\_cases/admin/users/\_getoneuserusecase.py                                                               |       19 |        0 |        2 |        0 |    100.00% |           |
-| api/use\_cases/admin/users/\_getusersusecase.py                                                                 |       20 |        0 |        0 |        0 |    100.00% |           |
+| api/use\_cases/admin/users/\_getusersusecase.py                                                                 |       22 |        0 |        0 |        0 |    100.00% |           |
 | api/use\_cases/admin/users/\_updateuserusecase.py                                                               |       37 |        0 |       10 |        0 |    100.00% |           |
 | api/use\_cases/audio/\_createaudiotranscriptionsusecase.py                                                      |       38 |        0 |        4 |        0 |    100.00% |           |
 | api/use\_cases/auth/\_authloginusecase.py                                                                       |       33 |        0 |        6 |        0 |    100.00% |           |
@@ -267,7 +267,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7807** |  **477** | **1402** |  **167** | **92.09%** |           |
+| **TOTAL**                                                                                                       | **7815** |  **477** | **1406** |  **167** | **92.10%** |           |
 
 
 ## Setup coverage badge
