@@ -196,7 +196,7 @@
 | api/infrastructure/http/adapters/rerank/tei/\_teireranksadapter.py                                              |       31 |        2 |        2 |        0 |     93.94% |     35-36 |
 | api/infrastructure/http/adapters/rerank/vllm/\_vllmreranksadapter.py                                            |        3 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/jwt/\_jwtkeyencoder.py                                                                       |       12 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/langfuse/\_langfuserequesttracer.py                                                          |       43 |        0 |       10 |        0 |    100.00% |           |
+| api/infrastructure/langfuse/\_langfuserequesttracer.py                                                          |       38 |        0 |        8 |        0 |    100.00% |           |
 | api/infrastructure/logging.py                                                                                   |       49 |        1 |       12 |        1 |     96.72% |        29 |
 | api/infrastructure/postgres/\_autocommitsession.py                                                              |       30 |        6 |        0 |        0 |     80.00% |19-22, 25-28 |
 | api/infrastructure/postgres/\_pagination.py                                                                     |        6 |        0 |        0 |        0 |    100.00% |           |
@@ -267,7 +267,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7815** |  **477** | **1404** |  **167** | **92.10%** |           |
+| **TOTAL**                                                                                                       | **7810** |  **477** | **1402** |  **167** | **92.10%** |           |
 
 
 ## Setup coverage badge
