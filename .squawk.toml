@@ -1,0 +1,14 @@
+pg_version = "16.5"
+excluded_rules = [
+    # Set once for the whole migration session in api/alembic/env.py, through the connection options, which the rendered SQL does not show.
+    "require-lock-timeout",
+    # An index built CONCURRENTLY legitimately runs long.
+    "require-statement-timeout",
+    # It flags CREATE INDEX CONCURRENTLY and VALIDATE CONSTRAINT in an autocommit_block(), which the migration rules require.
+    # Its fix for the index, IF NOT EXISTS, would keep the invalid index a failed build leaves behind.
+    "prefer-robust-stmts",
+    # Schema style, no deployment risk.
+    "prefer-bigint-over-int",
+    "prefer-identity",
+    "prefer-text-field",
+]
