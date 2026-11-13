@@ -113,7 +113,7 @@
 | api/infrastructure/fastapi/\_requesttracer.py                                                                   |       14 |        3 |        0 |        0 |     78.57% |11, 15, 20 |
 | api/infrastructure/fastapi/\_streamingresponsewithstatuscode.py                                                 |       50 |       14 |       20 |        7 |     64.29% |13-\>exit, 31, 33-\>36, 46-52, 54-\>56, 60-66, 69-\>exit |
 | api/infrastructure/fastapi/\_usagerecorder.py                                                                   |       45 |        0 |        6 |        0 |    100.00% |           |
-| api/infrastructure/fastapi/accesscontroller.py                                                                  |       48 |        0 |       16 |        1 |     98.44% |   62-\>66 |
+| api/infrastructure/fastapi/accesscontroller.py                                                                  |       47 |        0 |       16 |        1 |     98.41% |   61-\>65 |
 | api/infrastructure/fastapi/decorators.py                                                                        |       24 |        1 |        4 |        1 |     92.86% |        40 |
 | api/infrastructure/fastapi/dependencies.py                                                                      |       11 |        3 |        0 |        0 |     72.73% |11, 15, 19 |
 | api/infrastructure/fastapi/documentation.py                                                                     |       15 |        0 |        6 |        0 |    100.00% |           |
@@ -131,7 +131,7 @@
 | api/infrastructure/fastapi/endpoints/health.py                                                                  |       21 |        1 |        2 |        1 |     91.30% |21, 41-\>exit |
 | api/infrastructure/fastapi/endpoints/keys.py                                                                    |       68 |        0 |       22 |        5 |     94.44% |80-\>exit, 123-\>exit, 160-\>exit, 193-\>exit, 225-\>exit |
 | api/infrastructure/fastapi/endpoints/limits.py                                                                  |       17 |        0 |        2 |        1 |     94.74% | 32-\>exit |
-| api/infrastructure/fastapi/endpoints/me.py                                                                      |       37 |        2 |       10 |        2 |     91.49% |54-\>exit, 100-101 |
+| api/infrastructure/fastapi/endpoints/me.py                                                                      |       35 |        2 |       10 |        2 |     91.11% |47-\>exit, 85-86 |
 | api/infrastructure/fastapi/endpoints/models.py                                                                  |       29 |        0 |        6 |        2 |     94.29% |43-\>exit, 68-\>exit |
 | api/infrastructure/fastapi/endpoints/ocr.py                                                                     |       54 |        2 |       26 |        1 |     96.25% |     92-93 |
 | api/infrastructure/fastapi/endpoints/organizations.py                                                           |       21 |        0 |        4 |        1 |     96.00% | 37-\>exit |
@@ -267,7 +267,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7810** |  **477** | **1402** |  **167** | **92.10%** |           |
+| **TOTAL**                                                                                                       | **7807** |  **477** | **1402** |  **167** | **92.09%** |           |
 
 
 ## Setup coverage badge
