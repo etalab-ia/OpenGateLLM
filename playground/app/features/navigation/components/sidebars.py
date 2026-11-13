@@ -54,6 +54,7 @@ def navigation_sidebar() -> rx.Component:
         (PlaygroundPages.ACCOUNT, nav_item("Account", "user", "/account")),
         (PlaygroundPages.KEYS, nav_item("API Keys", "key", "/keys")),
         (PlaygroundPages.USAGE, nav_item("Usage", "chart_line", "/usage")),
+        (PlaygroundPages.LIMITS, nav_item("Limits", "gauge", "/limits")),
     ]
     user_items = [item for page, item in user_items if page not in configuration.settings.playground_disabled_pages]
 
