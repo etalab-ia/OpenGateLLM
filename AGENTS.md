@@ -579,7 +579,7 @@ A view is read-only: no `update_*` methods, no domain invariants. It may carry t
 
 ## Migrations
 
-Revisions live in `api/alembic/versions/`. CI runs them on every pull request (`api/tests/integration/alembic/test_migrations.py`); the rules below are what it cannot check. Each one comes from a bug or a risk found in the existing migrations, which predate them: do not rewrite those.
+Revisions live in `api/alembic/versions/`. CI runs them on every pull request (`api/tests/integration/alembic/test_migrations.py`), and the `lint-migrations` job lints the SQL of the new ones with Squawk (`.squawk.toml`): its findings, reported but not blocking, cover rules 1 and 3, and a migration that breaks rule 2 fails the render. The other rules are checked in review. Each one comes from a bug or a risk found in the existing migrations, which predate them: do not rewrite those.
 
 ### 1. Expand, then contract
 
