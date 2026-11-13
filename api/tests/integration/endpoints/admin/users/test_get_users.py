@@ -72,6 +72,38 @@ class TestGetUsers:
         assert data["total"] == 1
         assert [u["id"] for u in data["data"]] == [user.id]
 
+    async def test_should_filter_by_role_name_when_the_search_matches_part_of_it(self, client: AsyncClient, db_session):
+        user = UserSQLFactory(role=RoleSQLFactory(name="Data-Scientist"))
+        UserSQLFactory(role=RoleSQLFactory(name="Developer"))
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"role_name": "scien"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert [u["id"] for u in data["data"]] == [user.id]
+
+    async def test_should_filter_by_organization_name_when_the_search_matches_part_of_it(self, client: AsyncClient, db_session):
+        user = UserSQLFactory(organization=OrganizationSQLFactory(name="Acme Corporation"))
+        UserSQLFactory(organization=OrganizationSQLFactory(name="Globex"))
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"organization_name": "corp"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert [u["id"] for u in data["data"]] == [user.id]
+
     async def test_filters_by_organization_id(self, client: AsyncClient, db_session):
         organization = OrganizationSQLFactory()
         user_1 = UserSQLFactory(organization=organization)

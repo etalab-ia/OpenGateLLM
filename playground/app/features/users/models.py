@@ -8,7 +8,9 @@ class User(Entity):
     email: str | None = None
     name: str | None = None
     password: str | None = None
+    role_id: int | None = None
     role: str | None = None
+    organization_id: int | None = None
     organization: str | None = None
     priority: int = 0
     expires: str | None = None

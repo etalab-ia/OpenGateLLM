@@ -10,6 +10,8 @@ class GetUsersCommand:
     role_id: int | None
     organization_id: int | None
     email: str | None = None
+    role_name: str | None = None
+    organization_name: str | None = None
     offset: int = 0
     limit: int = 10
     sort_by: UserSortField = UserSortField.ID
@@ -33,6 +35,8 @@ class GetUsersUseCase:
             role_id=command.role_id,
             organization_id=command.organization_id,
             email=command.email,
+            role_name=command.role_name,
+            organization_name=command.organization_name,
             offset=command.offset,
             limit=command.limit,
             sort_by=command.sort_by,
