@@ -26,10 +26,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-#OpenAI
+# OpenAI
 # Nix requirement, to download: TIKTOKEN_CACHE_DIR=./.tiktoken-cache uv run python -c "import tiktoken; tiktoken.get_encoding('gpt2')"
 .tiktoken-cache 
-
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

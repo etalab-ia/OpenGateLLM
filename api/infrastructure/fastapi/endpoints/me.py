@@ -28,15 +28,8 @@ router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
 
 @router.get(
-    path=f"{EndpointRoute.ME}/info",
-    dependencies=[Security(dependency=AccessController(allow_expired=True))],
-    status_code=200,
-    responses=get_documentation_responses([]),
-    deprecated=True,
-)
-@router.get(
     path=EndpointRoute.ME,
-    dependencies=[Security(dependency=AccessController(allow_expired=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses([]),
 )
@@ -55,14 +48,6 @@ async def get_me(
             return MeResponse.model_validate(user, from_attributes=True)
 
 
-@router.patch(
-    path=f"{EndpointRoute.ME}/info",
-    dependencies=[Security(dependency=AccessController())],
-    status_code=204,
-    response_class=Response,
-    responses=get_documentation_responses([UserNotFoundHTTPException, UserAlreadyExistsHTTPException, InvalidCurrentPasswordHTTPException]),
-    deprecated=True,
-)
 @router.patch(
     path=EndpointRoute.ME,
     dependencies=[Security(dependency=AccessController())],

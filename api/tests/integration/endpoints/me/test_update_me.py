@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 from httpx import AsyncClient
@@ -6,6 +7,7 @@ import pytest_asyncio
 
 from api.dependencies import update_me_info_use_case_factory
 from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExistsError, UserNotFoundError
+from api.infrastructure.fastapi.endpoints.exceptions import AccountExpiredHTTPException
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import UserSQLFactory
@@ -131,3 +133,13 @@ class TestUpdateMeInfo:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
+
+    async def test_rejects_expired_user(self, client: AsyncClient, db_session):
+        expired_user = UserSQLFactory(role=self.user.role, expires=datetime.now(tz=UTC) - timedelta(days=1))
+        key = await create_key(db_session, name="expired_user_key", user=expired_user, never_expires=True)
+        response = await client.patch(
+            url=URL, headers={"Authorization": f"Bearer {key.token}"}, json={"email": expired_user.email, "name": "New Name"}
+        )
+
+        assert response.status_code == 403, response.text
+        assert response.json()["detail"] == AccountExpiredHTTPException.detail
