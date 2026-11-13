@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+import random
 from typing import Any
 
 from fastapi import BackgroundTasks, Depends, Request
@@ -12,8 +13,7 @@ from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, Mode
 from api.domain.organization import OrganizationRepository
 from api.domain.provider import (
     ProviderClient,
-    ProviderLoadBalancer,
-    ProviderMetricsLogger,
+    ProviderConcurrencyLimiter,
     ProviderRepository,
 )
 from api.domain.role import LimitRepository, PermissionRepository
@@ -43,7 +43,7 @@ from api.infrastructure.postgres import (
     PostgresUsageRepository,
     PostgresUserRepository,
 )
-from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
+from api.infrastructure.redis import RedisProviderConcurrencyLimiter, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.use_cases.admin.keys import CreateKeyUseCase, DeleteKeyUseCase, GetKeysUseCase, GetOneKeyUseCase, UpdateKeyUseCase
 from api.use_cases.admin.organizations import (
@@ -68,6 +68,7 @@ from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.chat import CreateChatCompletionsUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
+from api.use_cases.limits import GetLimitsUseCase
 from api.use_cases.me import GetMeUseCase, UpdateMeUseCase
 from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
 from api.use_cases.ocr import CreateOCRUseCase
@@ -132,10 +133,6 @@ def _model_environmental_impacts_computer() -> ModelEnvironmentalImpactsComputer
     return EcologitModelEnvironmentalImpactsComputer()
 
 
-def _provider_metrics_logger(redis_client: Redis = Depends(get_redis_client)) -> ProviderMetricsLogger:
-    return RedisProviderMetricsLogger(redis_client=redis_client)
-
-
 def _provider_adapter_builder() -> HttpProviderAdapterBuilder:
     return HttpProviderAdapterBuilder()
 
@@ -144,8 +141,8 @@ def _provider_client(provider_adapter_builder: HttpProviderAdapterBuilder = Depe
     return HttpProviderClient(adapter_builder=provider_adapter_builder)
 
 
-def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> ProviderLoadBalancer:
-    return RedisProviderLoadBalancer(redis_client=redis_client)
+def _provider_concurrency_limiter(redis_client: Redis = Depends(get_redis_client)) -> ProviderConcurrencyLimiter:
+    return RedisProviderConcurrencyLimiter(redis_client=redis_client)
 
 
 def _provider_capabilities_probe(provider_client: ProviderClient = Depends(_provider_client)) -> ProviderCapabilitiesProbe:
@@ -240,13 +237,13 @@ def create_audio_transcriptions_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_load_balancer=_provider_load_balancer(redis_client),
-        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
     )
 
@@ -266,13 +263,13 @@ def create_chat_completions_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_load_balancer=_provider_load_balancer(redis_client),
-        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 
@@ -312,7 +309,7 @@ def auth_sso_login_use_case_factory(
 
 # health use cases
 def get_health_models_use_case_factory(
-    postgres_session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     provider_client: ProviderClient = Depends(_provider_client),
     redis_client: Redis = Depends(get_redis_client),
 ) -> GetHealthModelsUseCase:
@@ -338,13 +335,13 @@ def create_embeddings_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_load_balancer=_provider_load_balancer(redis_client),
-        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 
@@ -408,6 +405,14 @@ def get_one_model_use_case_factory(postgres_session: AsyncSession = Depends(get_
     return GetOneModelUseCase(model_query=_model_query(postgres_session))
 
 
+# limits use cases
+def get_limits_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
+) -> GetLimitsUseCase:
+    return GetLimitsUseCase(model_query=_model_query(postgres_session), router_rate_limiter=router_rate_limiter)
+
+
 # ocr use cases
 def create_ocr_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
@@ -423,13 +428,13 @@ def create_ocr_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_load_balancer=_provider_load_balancer(redis_client),
-        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 
@@ -490,13 +495,13 @@ def create_rerank_use_case_factory(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
-        provider_load_balancer=_provider_load_balancer(redis_client),
-        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
         usage_repository=usage_repository,
+        random_generator=random.Random(),
     )
 
 

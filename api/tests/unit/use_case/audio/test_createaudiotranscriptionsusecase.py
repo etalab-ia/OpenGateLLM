@@ -1,3 +1,4 @@
+import random
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
@@ -97,13 +98,13 @@ def use_case(model_tokenizer, mock_usage_context, mock_usage_repository) -> Crea
         model_environmental_impacts_computer=MagicMock(),
         model_tokenizer=model_tokenizer,
         provider_client=AsyncMock(),
-        provider_load_balancer=AsyncMock(),
-        provider_metrics_logger=AsyncMock(),
+        provider_concurrency_limiter=AsyncMock(),
         provider_repository=AsyncMock(),
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
         usage_context=mock_usage_context,
         usage_repository=mock_usage_repository,
+        random_generator=random.Random(),
         audio_file_size_limit=None,
     )
 

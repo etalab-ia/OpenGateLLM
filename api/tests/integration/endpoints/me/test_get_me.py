@@ -5,6 +5,7 @@ import pytest
 import pytest_asyncio
 
 from api.domain.role.entities import LimitType, PermissionType
+from api.infrastructure.fastapi.endpoints.exceptions import AccountExpiredHTTPException
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -41,17 +42,23 @@ class TestGetMe:
         assert "created" not in data
         assert "updated" not in data
 
-    async def test_allows_expired_user(self, client: AsyncClient, db_session):
-        expires = datetime.now(tz=UTC) - timedelta(days=1)
-        expired_user = UserSQLFactory(role=self.user.role, expires=expires)
-        key = await create_key(db_session, name="expired_user_key", user=expired_user, never_expires=True)
-
+    async def test_allows_not_expired_user(self, client: AsyncClient, db_session):
+        expires = datetime.now(tz=UTC) + timedelta(days=1)
+        user = UserSQLFactory(role=self.user.role, expires=expires)
+        key = await create_key(db_session, name="not_expired_user_key", user=user, never_expires=True)
         response = await client.get(url=URL, headers={"Authorization": f"Bearer {key.token}"})
 
         assert response.status_code == 200, response.text
-        assert response.json()["id"] == expired_user.id
-        assert response.json()["object"] == "userInfo"
+        assert response.json()["id"] == user.id
         assert response.json()["expires"] == int(expires.timestamp())
+
+    async def test_rejects_expired_user(self, client: AsyncClient, db_session):
+        expired_user = UserSQLFactory(role=self.user.role, expires=datetime.now(tz=UTC) - timedelta(days=1))
+        key = await create_key(db_session, name="expired_user_key", user=expired_user, never_expires=True)
+        response = await client.get(url=URL, headers={"Authorization": f"Bearer {key.token}"})
+
+        assert response.status_code == 403, response.text
+        assert response.json()["detail"] == AccountExpiredHTTPException.detail
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

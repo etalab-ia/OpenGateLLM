@@ -6,8 +6,7 @@ from openai.types import Embedding
 
 from api.domain.chat.entities import CreateChatCompletionsBody
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
-from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderModel, ProviderModels, ProviderRequest, ProviderResponse
 from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
 from api.domain.router.entities import RouterType
 
@@ -89,7 +88,7 @@ class ProviderEmbeddingsFormattedResponseFactory(factory.Factory):
 
 class ProviderModelResponseFactory(factory.Factory):
     class Meta:
-        model = Model
+        model = ProviderModel
 
     id = factory.Faker("bothify", text="model-????-####")
     created = factory.Faker("unix_time")
@@ -106,7 +105,7 @@ class ProviderModelsFormattedResponseFactory(factory.Factory):
 
     count: int = 1
 
-    data = factory.LazyAttribute(lambda self: Models(data=[ProviderModelResponseFactory() for _ in range(self.count)]))
+    data = factory.LazyAttribute(lambda self: ProviderModels(data=[ProviderModelResponseFactory() for _ in range(self.count)]))
 
 
 class ProviderRerankFormattedResponseFactory(factory.Factory):

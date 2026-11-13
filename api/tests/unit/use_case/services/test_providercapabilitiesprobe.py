@@ -4,10 +4,9 @@ from openai.types import Embedding
 import pytest
 
 from api.domain.embeddings.entities import Embeddings
-from api.domain.model.entities import Model, Models
 from api.domain.model.errors import ModelNotFoundError, StatusCodeModelError
 from api.domain.provider import ProviderClient
-from api.domain.provider.entities import ProviderCapabilities, ProviderEndpoint, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderCapabilities, ProviderEndpoint, ProviderModel, ProviderModels, ProviderResponse, ProviderType
 from api.domain.provider.errors import (
     ProviderAdapterValidationResponseError,
     ProviderInvalidResponseError,
@@ -33,8 +32,8 @@ def probe(provider_client) -> ProviderCapabilitiesProbe:
     return ProviderCapabilitiesProbe(provider_client=provider_client)
 
 
-def model_entity(model_id: str = DEFAULT_MODEL_ID, aliases: list[str] | None = None, max_context_length: int | None = 4096) -> Model:
-    return Model(
+def model_entity(model_id: str = DEFAULT_MODEL_ID, aliases: list[str] | None = None, max_context_length: int | None = 4096) -> ProviderModel:
+    return ProviderModel(
         id=model_id,
         aliases=aliases or [],
         created=0,
@@ -44,8 +43,8 @@ def model_entity(model_id: str = DEFAULT_MODEL_ID, aliases: list[str] | None = N
     )
 
 
-def models_formatted_response(*models: Model) -> ProviderResponse:
-    return ProviderResponse(data=Models(data=list(models)))
+def models_formatted_response(*models: ProviderModel) -> ProviderResponse:
+    return ProviderResponse(data=ProviderModels(data=list(models)))
 
 
 def embeddings_formatted_response(dimensions: int = 3) -> ProviderResponse:

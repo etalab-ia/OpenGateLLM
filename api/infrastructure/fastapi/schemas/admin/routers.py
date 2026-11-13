@@ -14,6 +14,7 @@ class CreateRouterBody(BaseModel):
     load_balancing_strategy: Annotated[RouterLoadBalancingStrategy, Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.")]  # fmt: off
     cost_prompt_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Cost of a million prompt tokens")]
     cost_completion_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Cost of a million completion tokens")]
+    qos_retries_before_reject: Annotated[int | None, Field(default=None, ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
 
 
 class UpdateRouterBody(BaseModel):
@@ -23,6 +24,7 @@ class UpdateRouterBody(BaseModel):
     load_balancing_strategy: Annotated[RouterLoadBalancingStrategy, Field(..., description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["least_busy"])]  # fmt: off
     cost_prompt_tokens: Annotated[float, Field(..., ge=0.0, description="Cost of a million prompt tokens")]
     cost_completion_tokens: Annotated[float, Field(..., ge=0.0, description="Cost of a million completion tokens")]  # fmt: off
+    qos_retries_before_reject: Annotated[int | None, Field(..., ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
 
 
 class RouterResponse(BaseModel):
@@ -35,6 +37,7 @@ class RouterResponse(BaseModel):
     load_balancing_strategy: Annotated[RouterLoadBalancingStrategy, Field(description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["least_busy"])]  # fmt: off
     cost_prompt_tokens: Annotated[float, Field(description="Cost of a million prompt tokens")]
     cost_completion_tokens: Annotated[float, Field(description="Cost of a million completion tokens")]
+    qos_retries_before_reject: Annotated[int | None, Field(default=None, ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
     providers: Annotated[int, Field(default=0, description="Number of providers in the router.")]
     created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
     updated: Annotated[UnixTimestamp, Field(description="Time of last update, as Unix timestamp.")]

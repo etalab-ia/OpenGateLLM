@@ -37,7 +37,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -66,6 +66,20 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
 
+      - name: Read the Alembic head of the api image
+        id: alembic
+        if: matrix.image == 'api'
+        env:
+          IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        run: |
+          heads=$(docker run --rm --network none --entrypoint alembic "$IMAGE" -c api/alembic.ini heads)
+          echo "$heads"
+          if [ "$(echo "$heads" | grep -c '(head)')" -ne 1 ]; then
+            echo "::error::The image must hold exactly one Alembic head, or upgrade head cannot migrate it."
+            exit 1
+          fi
+          echo "label=org.opengatellm.alembic-head=${heads%% *}" >> "$GITHUB_OUTPUT"
+
       - name: Scan OpenGateLLM ${{ matrix.image }} image with Trivy
         uses: ./.github/actions/trivy-scan
         with:
@@ -82,7 +96,7 @@ jobs:
 
       - name: Show the api logs
         if: failure() && matrix.image == 'api'
-        run: docker compose --env-file .env.example --file compose.example.yml logs api
+        run: docker compose --env-file .env.example --file compose.example.yml logs db-migrate api
 
       - name: Push OpenGateLLM ${{ matrix.image }} image to GitHub
         if: inputs.push
@@ -96,6 +110,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            ${{ steps.alembic.outputs.label }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max

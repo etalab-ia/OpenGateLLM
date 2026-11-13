@@ -1,11 +1,9 @@
 from collections.abc import Callable
 
 from fastapi import FastAPI, Security
-import prometheus_client
-from prometheus_client import CollectorRegistry, Counter, Histogram, multiprocess
+from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from prometheus_fastapi_instrumentator.metrics import Info
-from starlette.responses import Response
 
 from api.domain.usage.entities import UsageRecord
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -219,7 +217,7 @@ def inference_tokens_total(metric_namespace: str = "") -> Callable[[Info], None]
     return instrumentation
 
 
-def setup_prometheus(app: FastAPI, prometheus_multiproc_dir: str, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
+def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
     app.instrumentator = (
         Instrumentator()
         .instrument(app=app)
@@ -231,21 +229,11 @@ def setup_prometheus(app: FastAPI, prometheus_multiproc_dir: str, metric_namespa
             inference_ttft_milliseconds(metric_namespace=metric_namespace),
             inference_tokens_total(metric_namespace=metric_namespace),
         )
-        .expose(app)
+        .expose(
+            app,
+            endpoint=EndpointRoute.METRICS,
+            include_in_schema=include_in_schema,
+            tags=[RouterName.MONITORING.title()],
+            dependencies=[Security(dependency=AccessController(only_admin=True))],
+        )
     )
-
-    @app.get(
-        path=EndpointRoute.METRICS,
-        tags=[RouterName.MONITORING.title()],
-        dependencies=[Security(dependency=AccessController())],
-        include_in_schema=include_in_schema,
-    )
-    def get_metrics() -> Response:
-        if prometheus_multiproc_dir:
-            registry = CollectorRegistry()
-            multiprocess.MultiProcessCollector(registry)
-        else:
-            registry = prometheus_client.REGISTRY
-
-        data = prometheus_client.generate_latest(registry)
-        return Response(content=data, media_type=prometheus_client.CONTENT_TYPE_LATEST)

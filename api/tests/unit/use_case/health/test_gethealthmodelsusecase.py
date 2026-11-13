@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model.entities import HealthStatus, ModelHealthStatus, Models
+from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.model.errors import StatusCodeModelError
-from api.domain.provider.entities import ProviderEndpoint, ProviderMetrics, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderMetrics, ProviderModels, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.role.entities import Limit, LimitType
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
@@ -348,7 +348,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_models_fallback(provider_client, models_response=ProviderResponse(data=Models(data=[])))
+        configure_models_fallback(provider_client, models_response=ProviderResponse(data=ProviderModels(data=[])))
 
         # Act
         result = await use_case.execute(command=default_command)

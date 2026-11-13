@@ -1,7 +1,7 @@
 import datetime as dt
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, false, func
+from sqlalchemy import DateTime, ForeignKey, MetaData, UniqueConstraint, false, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -10,7 +10,16 @@ from api.domain.role.entities import LimitType, PermissionType
 from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.infrastructure.configuration import DEFAULT_TIMEOUT
 
-Base = declarative_base()
+Base = declarative_base(
+    metadata=MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "%(table_name)s_%(column_0_name)s_key",
+            "fk": "%(table_name)s_%(column_0_name)s_fkey",
+            "pk": "%(table_name)s_pkey",
+        }
+    )
+)
 
 UtcDateTime = DateTime(timezone=True)
 
@@ -162,6 +171,7 @@ class Router(Base):
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[RouterType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
+    qos_retries_before_reject: Mapped[int | None]
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
@@ -195,6 +205,7 @@ class Provider(Base):
     key: Mapped[str | None]
     basic_auth: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
+    qos_limit: Mapped[int | None]
     model_name: Mapped[str]
     model_hosting_zone: Mapped[HostingZone | None]
     model_total_params: Mapped[int] = mapped_column(default=0)

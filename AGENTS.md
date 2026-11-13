@@ -18,7 +18,7 @@ use_cases/        Command, UseCase, UseCaseSuccess, execute()
 infrastructure/
   fastapi/        endpoints, schemas, HTTP exceptions, AccessController, routes, monitoring
   postgres/       Postgres*Repository / Postgres*Query adapters, AutocommitSession
-  configuration.py  Settings + get_configuration() — read lazily: library modules never read it at import time (entry points such as api/main.py and alembic/env.py may). create_app stores it on app.state; DI factories take Depends(get_app_configuration), lifespan reads app.state.configuration
+  configuration/  _configuration is the entry point (get_configuration reads the file given by CONFIG_FILE and validates it as Configuration, the schema of the file), the sections/ subpackage holds one module per section of the file (models, dependencies, settings), next to _interpolation (${VAR}) and _validationerrors; import from the package root. Read lazily: library modules never read it at import time (entry points such as api/main.py and alembic/env.py may). create_app stores it on app.state; DI factories take Depends(get_app_configuration), lifespan reads app.state.configuration
   context.py      GlobalContext — the process-wide infrastructure handles
   logging.py      configure_logging — configures the "api" logger (or applies the settings.log_config file), every module uses getLogger(__name__)
 app.py            create_app: middleware, router registration, monitoring
@@ -65,7 +65,7 @@ Self-service `/v1/organizations/me` reuses `GetOneOrganizationUseCase` with `org
 ```
 - [ ] Domain entity + errors in api/domain/<context>/
 - [ ] Repository port in api/domain/<context>/_<entity>repository.py — or query port + view for a read-only projection (see Query and view)
-- [ ] SQL model in api/infrastructure/postgres/models.py if the schema changes, then an Alembic revision: uv run alembic -c api/alembic.ini revision --autogenerate -m "<slug>" — test upgrade AND downgrade locally
+- [ ] SQL model in api/infrastructure/postgres/models.py if the schema changes, then an Alembic revision: uv run alembic -c api/alembic.ini revision --autogenerate -m "<slug>", written by the rules of [Migrations](#migrations)
 - [ ] Postgres adapter in api/infrastructure/postgres/_postgres<entity>repository.py
 - [ ] Use case in api/use_cases/<area>/_<verb><noun>usecase.py
 - [ ] Export from domain/__init__.py, use_cases/__init__.py, postgres/__init__.py
@@ -455,8 +455,8 @@ Rules:
 - The use case appends a final usage chunk (`ChatCompletionChunk.build_usage_chunk`) **before** `data: [DONE]`, and also when the provider closes without a `[DONE]`. It calls `_record_and_save_usage` (`usage_context.record_usage`, then `usage_repository.save_record`) and `_charge_rate_limits` there — that is the only point where a stream's usage is known. It does **not** close the request record; `RequestLogMiddleware` does, after the body (see [Usage recording](#usage-recording)).
 - A provider `usage` is read from every chunk that carries one, and the latest wins: its counts replace the tokenizer's in the final usage chunk, the usage row and the rate-limit charge. A usage-only chunk (`choices: []`) is never relayed; a content chunk carrying `usage` (Mistral reports it on its last content chunk) still is. `ChatCompletionsAdapter` forces `stream_options.include_usage` so OpenAI-compatible providers send a final usage chunk. Without any, the tokenizer counts the delivered deltas. A cut stream — the client disconnected, or a non-2xx chunk arrived after the first byte — is always billed with the tokenizer count of the delivered deltas, even when the provider sent running counts on its content chunks (vLLM `continuous_usage_stats`).
 - **The chain closes top-down, and the order is load-bearing.** A client that disconnects leaves every generator parked on its `yield`; `async for` does not close the iterator it consumes, so each level closes the next explicitly: `stream_response`'s `finally` closes `_as_stream_chunks`, which holds its own stream in `aclosing`, which closes the use case's generator, whose `finally` records the tokens already delivered. All of it runs inside the request task, where the `ContextVar` is still the request's; the middleware's `finally` then closes the record and schedules its write. Never let a finalizer do this work: the GC schedules it as a task, and a task copies whatever context is current at creation.
-- **A `CancelledError` escaping the cleanup is expected, not a bug.** Starlette cancels the request scope on a disconnect, so the Redis call releasing the inflight counter raises as soon as it suspends — measured: the `DECR` still reaches Redis (the command is written before the cancellation lands on the reply) and the provider connection is still closed. Do not "fix" it by detaching that call: it would touch all five forwarding use cases to chase a leak that does not exist.
-- **The usage row survives the disconnect** because `save_record` schedules its write on an `asyncio` task without awaiting anything, rather than on FastAPI `BackgroundTasks`, which the cancelled response never reaches. `api/tests/integration/fastapi/test_usagerecordedonclientdisconnect.py` pins the whole chain.
+- **A `CancelledError` escaping the cleanup is expected, not a bug.** Starlette cancels the request scope on a disconnect, so `ProviderConcurrencyLimiter.release` raises as soon as it suspends. That is why the `ZREM` freeing the provider reservation is its **first** `await`: the command is written to Redis before the cancellation lands on the reply, so the place is freed at once — any earlier `await` would raise first and leave the entry until it expires (`RESERVATION_TTL_MILLISECONDS`). `test_release_should_free_the_reservation_even_when_called_from_a_cancelled_request` pins it. The provider connection is still closed. Do not "fix" the escaping error by detaching that call: it would touch all five forwarding use cases to chase a leak that does not exist.
+- **The usage row survives the disconnect** because `save_record` schedules its write on an `asyncio` task without awaiting anything, rather than on FastAPI `BackgroundTasks`, which the cancelled response never reaches. `api/tests/integration/fastapi/test_clientdisconnect.py` pins the whole chain.
 - Add **two** `ForwardScenario` rows — streamed and not — to `test_autocommitsession.py`.
 
 ### Usage recording
@@ -577,6 +577,82 @@ A view is read-only: no `update_*` methods, no domain invariants. It may carry t
 
 ---
 
+## Migrations
+
+Revisions live in `api/alembic/versions/`. CI runs them on every pull request (`api/tests/integration/alembic/test_migrations.py`); the rules below are what it cannot check. Each one comes from a bug or a risk found in the existing migrations, which predate them: do not rewrite those.
+
+### 1. Expand, then contract
+
+During a rolling deployment the previous release keeps serving traffic on the new schema. A migration either **expands** the schema or **contracts** it, never both:
+
+| Kind | Operations | Ships |
+|------|------------|-------|
+| Expand | create a table, add a nullable column or one with a default, add an enum value, add an index | with the code that uses it |
+| Contract | drop or rename a table, a column, a type or a constraint, change a column type, set `NOT NULL` on an existing column | in a later release than the code that stopped using the old shape |
+
+A rename is an expand (add the new column, write both, copy), then a contract (drop the old one).
+
+### 2. No data read from Python
+
+A migration does not read rows or the schema through `op.get_bind()` to decide what to do next: that needs a live connection and breaks `alembic upgrade --sql`. The decision goes in SQL. Writing through `op.get_bind()` or `op.execute()` is fine.
+
+```python
+# bad
+count = op.get_bind().execute(sa.text("SELECT count(*) FROM provider WHERE model_total_params IS NULL")).scalar()
+if count > 0:
+    raise ValueError("...")
+
+# good: Postgres takes the decision, online and offline
+op.execute("""
+    DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM provider WHERE model_total_params IS NULL) THEN
+            RAISE EXCEPTION 'provider.model_total_params holds NULL values';
+        END IF;
+    END $$;
+""")
+```
+
+### 3. No long lock on a large table
+
+`usage` takes a write on every inference request. On it, and on any table that can grow, a statement must not hold a lock for the time of a full scan.
+
+Alembic runs every pending migration in **one** transaction, so splitting the work across two migrations does not release the locks in between. `op.get_context().autocommit_block()` does: it commits the transaction in progress and runs its statements in autocommit. But the revision is only stamped at the end of `upgrade()`, so a block that fails leaves half a migration behind and the rerun fails (`constraint "…" already exists`). **An `autocommit_block()` is therefore the whole `upgrade()` of its own migration**, and the work it depends on goes in the migration before it:
+
+```python
+# revision A
+def upgrade() -> None:
+    op.create_foreign_key("usage_router_id_fkey", "usage", "router", ["router_id"], ["id"], postgresql_not_valid=True)
+
+
+# revision B, down_revision = A
+def upgrade() -> None:
+    # Outside a transaction, VALIDATE does not keep the lock ADD CONSTRAINT took: writes go on during the scan.
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TABLE usage VALIDATE CONSTRAINT usage_router_id_fkey")
+```
+
+If `VALIDATE` fails, the database stays at revision A with the constraint not validated: fix the rows and rerun.
+
+- An index is created and dropped `CONCURRENTLY` (`postgresql_concurrently=True`), in its own migration, inside `autocommit_block()`. A failed `CREATE INDEX CONCURRENTLY` leaves an invalid index behind, so the migration first drops it with `if_exists=True`.
+- A foreign key or a check constraint is added `NOT VALID` (`postgresql_not_valid=True`), then validated in the next migration, as above.
+- `SET NOT NULL` on a large table goes through a `CHECK (col IS NOT NULL) NOT VALID` constraint, validated, then `SET NOT NULL`, which Postgres then accepts without a scan.
+
+### 4. Named constraints
+
+Every constraint has a name, so that `downgrade()` can drop it. The naming convention of `Base.metadata` (`api/infrastructure/postgres/models.py`) names the single-column ones; a constraint on several columns keeps an explicit name (`unique_rate_limit_per_role`).
+
+### 5. Downgrades that run, and say what they lose
+
+- A column put back `NOT NULL` gets a value first. When the column that replaced it holds the same data, rename it back (`op.alter_column(..., new_column_name=...)`) instead of adding and copying.
+- A type created by `upgrade()` is dropped by `downgrade()`: `drop_table` leaves enum types behind.
+- A `downgrade()` that loses data, or restores a state with a security meaning (revocation, permissions, expiry), says so in its docstring. Reference: `b7e4c1a90f23`, which deletes the revoked keys before dropping `token.revoked`, since the column gone would make them valid again.
+
+### 6. No configuration in a downgrade
+
+A rollback runs `alembic downgrade` with the image being rolled back, but with the configuration file of the target release. A `downgrade()` that calls `get_configuration()` would validate that file against a schema it was not written for. `downgrade()` reads nothing but the database.
+
+---
+
 ## Endpoint
 
 Thin handler — delegate to use case, map errors to HTTP.
@@ -600,11 +676,12 @@ async def get_roles(
             )
 ```
 
-- Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes, `allow_expired=True` when expired users must still reach the route, e.g. GET `/v1/me`)
+- Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes). It rejects users whose account has expired on every route, `/v1/me` included: there is no opt-out
 - Auth user: `authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user)` when the handler **uses** the user, to scope a command or build a response. Authentication itself comes from `Security(AccessController(...))`, so do not declare the parameter just to have it. Keep `get_request_context` only when the full `RequestContext` is required.
 - Sort query params: `sort_by` / `sort_order`
 - Document errors: `responses=get_documentation_responses([...])`
 - `case RoleNotFoundError(id=role_id, name=name)` **captures** `None`; it does not require an id. Pass both through to the HTTP exception (which already has a generic `"Role not found."` fallback). Map the fields the use case actually returns (`id=` from FK failures, not `name=` unless that path exists).
+- Model-forward endpoints are decorated with `@cancel_on_disconnect` (`api/infrastructure/fastapi/decorators.py`), so a client that leaves stops the provider call instead of letting it run to the end. The endpoint declares `request: Request` (checked at startup) and its body as a parameter: the decorator listens on `request.receive` for the disconnect, so the body must already be read when the endpoint runs. On a disconnect it answers 499 rather than raising, so `RequestLogMiddleware` still logs a status and ends the trace; a cancellation that does not come from the client propagates unchanged.
 
 ---
 
@@ -630,6 +707,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Unit domain | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | Entity methods (`need_to_update`) | Use-case orchestration |
 | Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
 | Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
+| Migrations | `api/tests/integration/alembic/test_migrations.py` | Single head, migrations match `models.py`, downgrade and upgrade with a row in every table — a new table needs a row in its seed | What each migration does to the data |
 | Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
 | Rate-limit charging | `api/tests/integration/endpoints/test_ocr.py`, `api/tests/integration/endpoints/test_chatcompletions.py` (`*charge*_the_router_limits`) | Redis counters after a real request; a 429 is not charged | The other model-forward endpoints (same non-streaming path) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
@@ -641,7 +719,7 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 
 - Packages: every test directory **must** contain an (empty) `__init__.py`. Without it pytest's default `prepend` import mode derives the module name from the basename alone, so two same-named files in two non-package directories collide (`import file mismatch`, e.g. `unit/.../keys/test_get_key.py` vs `integration/endpoints/keys/test_get_key.py`). Add it in the same change as the new directory
 - File names: entity tests **must** be `test_<domain>entities.py` (`test_ocrentities.py`, `test_userentities.py`) — not `test_<entity>.py`
-- Test names: unit `test_should_<behavior>` ; endpoint `test_happy_path`, `test_error_maps_to_correct_http_status`, `test_rejects_non_admin_user` ; postgres `test_returns_*` / `test_creates_*`
+- Test names: `test_should_<behavior>_when_<condition>` in every layer — the expected behavior, then the situation that triggers it (`test_should_return_403_when_the_key_belongs_to_a_user_who_is_not_an_admin`, `test_should_refuse_a_missing_configuration_file`). Drop `_when_` only when there is no condition to name. Older tests named `test_happy_path`, `test_error_maps_to_correct_http_status`, `test_rejects_*`, `test_returns_*` predate the rule: rename them when they are next touched, not in bulk
 - Mocks: every mock object and mock fixture is prefixed with `mock_` (`mock_use_case`, `mock_authenticated_user`)
 - Comments: `# Arrange` / `# Act` / `# Assert` (same as `test_createuserusecase.py`)
 - Async integration: `@pytest.mark.asyncio(loop_scope="session")` (including HTTP adapters)
@@ -674,6 +752,12 @@ If the autospec rejects a call, fix the call — or the port declaration if that
 `api/tests/unit/use_case/test_providerrequestforwadingusecase.py` is the reference. Tests still on bare
 mocks are migrated when they are next touched.
 
+A use case never calls `asyncio.sleep`: the pause between admission retries is
+`ProviderConcurrencyLimiter.wait_for_capacity`, so its tests assert on the autospecced limiter instead of patching
+`asyncio.sleep` by its module path. Nor does it call the `random` module: the forwarding use cases take a
+`random.Random` (`random_generator`), which the DI factories create and the tests replace with
+`create_autospec(random.Random, instance=True, spec_set=True)`. Never `patch` or `monkeypatch` a use case test.
+
 Cover:
 
 - Happy path (assert calls **and** payloads: `assert_awaited_once_with`, expire timestamps)
@@ -700,8 +784,8 @@ Assert usage from the texts actually passed (`len(get_prompts())`, `len(get_comp
 
 Necessary:
 
-1. `test_happy_path` — real use case + DB (`AsyncClient`). Assert response shape (`object`, ids, token prefix), not every side effect already covered in unit tests
-2. `test_error_maps_to_correct_http_status` — mock the use case:
+1. Happy path (`test_should_return_the_<resource>_when_<condition>`) — real use case + DB (`AsyncClient`). Assert response shape (`object`, ids, token prefix), not every side effect already covered in unit tests
+2. Error mapping (`test_should_map_each_domain_error_to_its_http_status`) — mock the use case:
 
 ```python
 mock_use_case = AsyncMock()

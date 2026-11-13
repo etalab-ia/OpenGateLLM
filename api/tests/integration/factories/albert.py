@@ -1,7 +1,8 @@
 import factory
 from faker import Faker
 
-from api.domain.model.entities import ModelCosts, RouterType
+from api.domain.model.entities import ModelCosts
+from api.domain.router.entities import RouterType
 
 fake = Faker()
 

@@ -1,7 +1,6 @@
 from http import HTTPMethod
 
-from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderModel, ProviderModels, ProviderRequest, ProviderResponse
 from api.domain.router.entities import RouterType
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
@@ -12,7 +11,7 @@ class ModelsAdapter(HttpProviderAdapter):
     SOURCE_ENDPOINT = ProviderEndpoint.MODELS
     TARGET_ENDPOINT_ROUTE = "/v1/models"
     TARGET_ENDPOINT_METHOD = HTTPMethod.GET
-    RESPONSE_TYPE = Model
+    RESPONSE_TYPE = ProviderModel
 
     def to_http_request(self, request: ProviderRequest) -> HttpProviderRequest:
         return HttpProviderRequest(
@@ -26,9 +25,9 @@ class ModelsAdapter(HttpProviderAdapter):
         request: ProviderRequest,
     ) -> ProviderResponse:
         return ProviderResponse(
-            data=Models(
+            data=ProviderModels(
                 data=[
-                    Model(
+                    ProviderModel(
                         id=model["id"],
                         aliases=model.get("aliases", []),
                         created=model.get("created", 0),

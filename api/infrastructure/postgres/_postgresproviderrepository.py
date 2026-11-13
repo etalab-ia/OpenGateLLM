@@ -25,6 +25,7 @@ class PostgresProviderRepository(ProviderRepository):
             key=row.key,
             basic_auth=BasicAuth(username=row.basic_auth["username"], password=row.basic_auth["password"]) if row.basic_auth else None,
             timeout=row.timeout,
+            qos_limit=row.qos_limit,
             model_name=row.model_name,
             model_hosting_zone=HostingZone[row.model_hosting_zone],
             model_total_params=row.model_total_params,
@@ -45,6 +46,7 @@ class PostgresProviderRepository(ProviderRepository):
                 .values(
                     router_id=provider.router_id,
                     timeout=provider.timeout,
+                    qos_limit=provider.qos_limit,
                     model_hosting_zone=provider.model_hosting_zone,
                     model_total_params=provider.model_total_params,
                     model_active_params=provider.model_active_params,
@@ -107,6 +109,7 @@ class PostgresProviderRepository(ProviderRepository):
         model_active_params: int,
         vector_size: int,
         max_context_length: int,
+        qos_limit: int | None = None,
     ) -> Provider | ProviderAlreadyExistsError:
         try:
             query = (
@@ -119,6 +122,7 @@ class PostgresProviderRepository(ProviderRepository):
                     key=key,
                     basic_auth={"username": basic_auth.username, "password": basic_auth.password} if basic_auth else None,
                     timeout=timeout,
+                    qos_limit=qos_limit,
                     model_name=model_name,
                     model_hosting_zone=model_hosting_zone,
                     model_total_params=model_total_params,

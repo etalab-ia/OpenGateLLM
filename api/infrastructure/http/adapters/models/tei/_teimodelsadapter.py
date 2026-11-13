@@ -1,5 +1,4 @@
-from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderModel, ProviderModels, ProviderRequest, ProviderResponse
 from api.domain.router.entities import RouterType
 from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters.models import ModelsAdapter
@@ -14,9 +13,9 @@ class TeiModelsAdapter(ModelsAdapter):
         request: ProviderRequest,
     ) -> ProviderResponse:
         return ProviderResponse(
-            data=Models(
+            data=ProviderModels(
                 data=[
-                    Model(
+                    ProviderModel(
                         id=http_response.data["model_id"],
                         created=0,
                         owned_by="tei",

@@ -7,13 +7,3 @@ repos:
         args: [ --fix ]
       - id: ruff-format
         types_or: [ python, pyi ]
-
-  - repo: local
-    hooks:
-      - id: encrypt-playground-config
-        name: Encrypt playground config
-        entry: scripts/encrypt_vault.sh
-        args: ['--vault-password-file=.vault']
-        language: system
-        types: [file]
-        files: .github/assets/config.playground.yml.j2

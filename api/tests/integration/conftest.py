@@ -1,6 +1,7 @@
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 import os
 
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
@@ -8,7 +9,7 @@ import redis.asyncio as redis
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
-from api.infrastructure.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.configuration import Configuration, Dependencies, Settings, get_configuration
 from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration.postgresfixtures import db_session, shared_test_session, test_postgres_engine  # noqa: F401
 from api.tests.integration.redisfixtures import (  # noqa: F401
@@ -27,7 +28,7 @@ def test_configuration():
 def _test_settings() -> Settings:
     test_config_file = os.getenv("TEST_CONFIG_FILE")
     if test_config_file:
-        settings = Configuration(config_file=test_config_file).settings
+        settings = get_configuration(config_file=test_config_file).settings
         return settings.model_copy(update={"auth_secret_key": TEST_AUTH_SECRET_KEY, "monitoring_prometheus_enabled": False})
 
     return Settings.model_construct(
@@ -58,31 +59,40 @@ def pytest_addoption(parser):
     )
 
 
-@pytest_asyncio.fixture(scope="session")
-async def app(test_configuration, test_redis_pool):  # noqa: F811
-    app = create_app(test_configuration, skip_lifespan=True)
+@pytest.fixture(scope="session")
+def create_test_app(test_redis_pool) -> Callable[[Configuration], FastAPI]:  # noqa: F811
+    def create(configuration: Configuration) -> FastAPI:
+        test_app = create_app(configuration, skip_lifespan=True)
 
-    async def override_get_postgres_session():
-        async with shared_test_session().session_for_http_request() as session:
+        async def override_get_postgres_session():
+            async with shared_test_session().session_for_http_request() as session:
+                try:
+                    yield session
+                    if session.in_transaction():
+                        await session.flush()
+                except Exception:
+                    if session.in_transaction():
+                        await session.rollback()
+                    raise
+
+        async def override_get_redis_client():
+            client = redis.Redis(connection_pool=test_redis_pool)
             try:
-                yield session
-                if session.in_transaction():
-                    await session.flush()
-            except Exception:
-                if session.in_transaction():
-                    await session.rollback()
-                raise
+                yield client
+            finally:
+                await client.aclose()
 
-    async def override_get_redis_client():
-        client = redis.Redis(connection_pool=test_redis_pool)
-        try:
-            yield client
-        finally:
-            await client.aclose()
+        test_app.dependency_overrides[get_postgres_session] = override_get_postgres_session
+        test_app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
+        test_app.dependency_overrides[get_redis_client] = override_get_redis_client
+        return test_app
 
-    app.dependency_overrides[get_postgres_session] = override_get_postgres_session
-    app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
-    app.dependency_overrides[get_redis_client] = override_get_redis_client
+    return create
+
+
+@pytest_asyncio.fixture(scope="session")
+async def app(create_test_app, test_configuration):
+    app = create_test_app(test_configuration)
 
     try:
         yield app

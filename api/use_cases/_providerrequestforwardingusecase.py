@@ -1,6 +1,6 @@
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
+import math
+import random
 from typing import ClassVar
 
 from pydantic import BaseModel
@@ -9,8 +9,16 @@ from api.domain import ForwardablePayload
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderRequest, ProviderResponse
+from api.domain.provider import (
+    ProviderClient,
+    ProviderConcurrencyLimiter,
+    ProviderLimitsCannotBeEnforced,
+    ProviderRepository,
+    ProviderReservation,
+    ProviderReservationRefused,
+    ProviderReservationResult,
+)
+from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderLoads, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -18,7 +26,7 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import Router, RouterRateLimitState, RouterType
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import BilledTokens, PromptTokensDetails, Usage
@@ -65,25 +73,25 @@ type ProviderRequestForwardingUseCaseResult[TData] = ProviderRequestForwardingUs
 class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     ROUTER_TYPE: ClassVar[RouterType]
     ENDPOINT: ClassVar[ProviderEndpoint]
+    RESERVATION_RETRY_DELAY_SECONDS: ClassVar[float] = 0.5
 
     def __init__(
         self,
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
         provider_client: ProviderClient,
-        provider_load_balancer: ProviderLoadBalancer,
-        provider_metrics_logger: ProviderMetricsLogger,
+        provider_concurrency_limiter: ProviderConcurrencyLimiter,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_context: UsageContext,
         usage_repository: UsageRepository,
+        random_generator: random.Random,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
         self.provider_client = provider_client
-        self.provider_load_balancer = provider_load_balancer
-        self.provider_metrics_logger = provider_metrics_logger
+        self.provider_concurrency_limiter = provider_concurrency_limiter
         self.provider_repository = provider_repository
 
         self.router_rate_limiter = router_rate_limiter
@@ -91,6 +99,8 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         self.usage_context = usage_context
         self.usage_repository = usage_repository
+
+        self.random_generator = random_generator
 
     async def execute(self, command: TCommand) -> TResult:
         authenticated_user = command.authenticated_user
@@ -198,13 +208,32 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         | StatusCodeModelError
         | ProviderAdapterValidationResponseError
         | UnsupportedProviderEndpointError
+        | NoAvailableProviderError
     ):
-        provider = await self._select_provider(router=router)
+        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=payload)
 
-        async with self._count_ongoing_request(provider=provider):
+        result = await self._reserve_provider(
+            providers=providers,
+            strategy=router.load_balancing_strategy,
+            retries_before_reject=router.qos_retries_before_reject,
+            request_id=request_id,
+        )
+        match result:
+            case ProviderReservation() as reservation:
+                provider = reservation.provider
+            case ProviderReservationRefused():
+                return NoAvailableProviderError(
+                    router_id=router.id,
+                    retry_after=self._compute_retry_after(retries_before_reject=router.qos_retries_before_reject),
+                )
+
+        try:
+            self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
             result = await self.provider_client.forward(provider=provider, request=request)
             latency = self.usage_context.elapsed_ms()
+        finally:
+            await self.provider_concurrency_limiter.release(reservation=reservation)
 
         match result:
             case ProviderResponse() as provider_response:
@@ -225,21 +254,79 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return provider_response
 
-    async def _select_provider(self, router: Router) -> Provider:
-        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
-        self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+    async def _reserve_provider(
+        self,
+        providers: list[Provider],
+        strategy: RouterLoadBalancingStrategy,
+        retries_before_reject: int | None,
+        request_id: str,
+    ) -> ProviderReservationResult:
+        open_providers = [provider for provider in providers if not provider.is_closed]
+        if not open_providers:
+            return ProviderReservationRefused()
 
-        return provider
+        remaining_retries = retries_before_reject or 0
 
-    @asynccontextmanager
-    async def _count_ongoing_request(self, provider: Provider) -> AsyncIterator[None]:
-        is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
-        try:
-            yield
-        finally:
-            if is_incremented:
-                await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
+        while True:
+            result = await self._reserve_first_available_provider(
+                providers=open_providers, strategy=strategy, enforce_limit=retries_before_reject is not None, request_id=request_id
+            )
+            match result:
+                case ProviderReservation():
+                    return result
+                case ProviderLimitsCannotBeEnforced():
+                    return ProviderReservation(provider=self.random_generator.choice(open_providers), request_id=request_id)
+                case ProviderReservationRefused() if remaining_retries == 0:
+                    return result
+                case ProviderReservationRefused():
+                    remaining_retries -= 1
+                    await self.provider_concurrency_limiter.wait_for_capacity(seconds=self.RESERVATION_RETRY_DELAY_SECONDS)
+                case unexpected:
+                    # Without this arm the loop would spin forever without ever awaiting.
+                    raise TypeError(f"Unexpected provider reservation result: {unexpected!r}")
+
+    async def _reserve_first_available_provider(
+        self,
+        providers: list[Provider],
+        strategy: RouterLoadBalancingStrategy,
+        enforce_limit: bool,
+        request_id: str,
+    ) -> ProviderReservation | ProviderReservationRefused | ProviderLimitsCannotBeEnforced:
+        result = await self._order_by_strategy(providers=providers, strategy=strategy)
+        match result:
+            case list(ordered_providers):
+                pass
+            case limits_cannot_be_enforced:
+                return limits_cannot_be_enforced
+
+        for provider in ordered_providers:
+            limit = provider.qos_limit if enforce_limit else None
+            result = await self.provider_concurrency_limiter.reserve(request_id=request_id, provider=provider, limit=limit)
+            match result:
+                case ProviderReservationRefused():
+                    continue
+                case reservation_or_limits_cannot_be_enforced:
+                    return reservation_or_limits_cannot_be_enforced
+
+        return ProviderReservationRefused()
+
+    async def _order_by_strategy(
+        self, providers: list[Provider], strategy: RouterLoadBalancingStrategy
+    ) -> list[Provider] | ProviderLimitsCannotBeEnforced:
+        match strategy:
+            case RouterLoadBalancingStrategy.SHUFFLE:
+                return self.random_generator.sample(providers, k=len(providers))
+            case RouterLoadBalancingStrategy.LEAST_BUSY:
+                result = await self.provider_concurrency_limiter.read_loads(providers=providers)
+                match result:
+                    case ProviderLoads() as loads:
+                        return loads.sort_least_loaded_first(providers)
+                    case limits_cannot_be_enforced:
+                        return limits_cannot_be_enforced
+
+    def _compute_retry_after(self, retries_before_reject: int | None) -> int:
+        retry_window = max(1, math.ceil((retries_before_reject or 0) * self.RESERVATION_RETRY_DELAY_SECONDS))
+        return self.random_generator.randint(retry_window, 2 * retry_window)
 
     def _get_billed_tokens(self, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> BilledTokens:
         if provider_usage is None:

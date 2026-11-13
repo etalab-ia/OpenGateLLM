@@ -2,8 +2,7 @@ from http import HTTPMethod
 
 import pytest
 
-from api.domain.model.entities import Models
-from api.domain.provider.entities import ProviderEndpoint, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderModels, ProviderResponse, ProviderType
 from api.domain.router.entities import RouterType
 from api.infrastructure.http import HttpProviderResponse
 from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
@@ -224,7 +223,7 @@ class TestModelsAdapter:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert isinstance(result.data, Models)
+        assert isinstance(result.data, ProviderModels)
         assert getattr(result.data, "usage", "not found") == "not found"
 
     def test_to_provider_response_correctly_when_provider_is_albert(self, albert_models_adapter: AlbertModelsAdapter):
@@ -238,7 +237,7 @@ class TestModelsAdapter:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert isinstance(result.data, Models)
+        assert isinstance(result.data, ProviderModels)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
         assert result.data.data[0].type is RouterType.TEXT_GENERATION
@@ -256,7 +255,7 @@ class TestModelsAdapter:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert isinstance(result.data, Models)
+        assert isinstance(result.data, ProviderModels)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
         assert result.data.data[0].type is RouterType.TEXT_GENERATION
@@ -275,7 +274,7 @@ class TestModelsAdapter:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert isinstance(result.data, Models)
+        assert isinstance(result.data, ProviderModels)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
         assert result.data.data[0].type is RouterType.TEXT_GENERATION
@@ -294,7 +293,7 @@ class TestModelsAdapter:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert isinstance(result.data, Models)
+        assert isinstance(result.data, ProviderModels)
         assert len(result.data.data) == 1
         assert result.data.data[0].id == response_data["model_id"]
         assert result.data.data[0].type is RouterType.TEXT_GENERATION
@@ -313,7 +312,7 @@ class TestModelsAdapter:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert isinstance(result.data, Models)
+        assert isinstance(result.data, ProviderModels)
         assert len(result.data.data) == 1
         assert result.data.data[0].id == response_data["data"][0]["id"]
         assert result.data.data[0].type is RouterType.TEXT_GENERATION
@@ -342,7 +341,7 @@ class TestModelsAdapter:
 
         # Assert
         assert isinstance(result, ProviderResponse)
-        assert isinstance(result.data, Models)
+        assert isinstance(result.data, ProviderModels)
         assert getattr(result.data, "id", "not found") == "not found"
 
     @pytest.mark.parametrize(
