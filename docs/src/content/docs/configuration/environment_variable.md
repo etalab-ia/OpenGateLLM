@@ -12,7 +12,7 @@ In addition to the configuration file (see the [configuration file documentation
 | --- | --- | --- | --- |
 | CONFIG_FILE | str | `"config.yml"` | Path to the configuration file. |
 | GUNICORN_CMD_ARGS | str | `""` | Additional gunicorn command arguments (ex. `--log-config app/log.conf`). |
-| PROMETHEUS_MULTIPROC_DIR | str | `"/tmp/prometheus_multiproc"` | Directory to store Prometheus multiprocessing files. |
+| PROMETHEUS_MULTIPROC_DIR | str | | Directory to store Prometheus multiprocessing files. When set, `/metrics` aggregates the metrics of every worker; when unset, it serves those of the process that answers. The API image sets it to `/tmp/prometheus_multiproc`. |
 
 ## Playground
 
@@ -25,6 +25,7 @@ For adapt the playground docker image for your deployment, you can build it with
 | REFLEX_FRONTEND_URL | str | `"http://localhost:8501"` | URL of the frontend application. |
 | REFLEX_FRONTEND_PATH | str | `""` | Path of the frontend application. |
 | FAVICON | str | `"./playground/assets/logo.svg"` | Path to your favicon file. |
+| BUILD_PLACEHOLDER_VARIABLES | str | `""` | Space-separated `NAME=value` pairs, for the variables of the configuration file that are only available at run time. The build resolves the variables of the fields the frontend reads, and fails when one of them is missing: the `playground_*` fields and `dependencies.redis.url`. The SSO fields only the container entrypoint reads, such as `auth_sso_client_secret` and `auth_playground_url`, are resolved when the container starts and need no placeholder. Give a placeholder, never the real value: it stays in the image history. |
 
 Example: 
 ```bash

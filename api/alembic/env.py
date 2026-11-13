@@ -4,14 +4,13 @@ from alembic import context
 from sqlalchemy import create_engine, make_url, pool
 
 from api.infrastructure.postgres.models import Base
-from api.infrastructure.configuration import get_configuration
+from api.infrastructure.configuration import get_postgres_dependency
 
 # A migration waiting for a lock queues every later request on the table behind it, reads included.
 LOCK_TIMEOUT = "5s"
 
-configuration = get_configuration()
 config = context.config
-url = make_url(configuration.dependencies.postgres.url).set(drivername="postgresql+psycopg2")
+url = make_url(get_postgres_dependency().url).set(drivername="postgresql+psycopg2")
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
