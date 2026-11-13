@@ -287,5 +287,5 @@ class UsageState(EntityState):
     @rx.event
     async def apply_filters(self):
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event

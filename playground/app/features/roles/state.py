@@ -86,6 +86,8 @@ class RolesState(EntityState):
             return
 
         self.entities_loading = True
+        self.entities = []
+        self.total = 0
         yield
 
         response = None
@@ -123,7 +125,6 @@ class RolesState(EntityState):
 
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
                 for role in data.get("data", []):
                     self.entities.append(self._format_role(role))
 
@@ -174,8 +175,8 @@ class RolesState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Role deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -214,8 +215,8 @@ class RolesState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Limit deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -282,8 +283,8 @@ class RolesState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Role created successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -323,8 +324,8 @@ class RolesState(EntityState):
 
                 self.new_limit = {"router": None, "rpm": None, "rpd": None, "tpm": None, "tpd": None}
                 yield rx.toast.success("Limits added successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                async for event in self.load_entities():
+                    yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -402,8 +403,8 @@ class RolesState(EntityState):
             self.handle_settings_entity_dialog_change(is_open=False)
             yield rx.toast.success("Role updated successfully", position="bottom-right")
 
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -433,8 +434,8 @@ class RolesState(EntityState):
         self.order_by_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def set_order_direction(self, value: str):
@@ -442,21 +443,21 @@ class RolesState(EntityState):
         self.order_direction_value = value
         self.page = 1
         yield
-        async for _ in self.load_entities():
-            yield
+        async for event in self.load_entities():
+            yield event
 
     @rx.event
     async def prev_page(self):
         if self.page > 1:
             self.page -= 1
             yield
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
 
     @rx.event
     async def next_page(self):
         if self.page < self.total_pages:
             self.page += 1
             yield
-            async for _ in self.load_entities():
-                yield
+            async for event in self.load_entities():
+                yield event
