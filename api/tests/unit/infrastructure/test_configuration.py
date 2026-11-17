@@ -16,6 +16,10 @@ from api.infrastructure.configuration import (
 REPOSITORY_ROOT = Path(__file__).parents[4]
 CONFIG_FILE_DEPENDENCIES = """
 dependencies:
+  openfga:
+    url: http://localhost:8080
+    store_name: opengatellm
+    api_token: changeme
   postgres:
     url: postgresql+asyncpg://localhost/postgres
   redis:
@@ -187,6 +191,10 @@ settings:
         # Arrange
         config_file = write_config_file("""
 dependencies:
+  openfga:
+    url: http://localhost:8080
+    store_name: opengatellm
+    api_token: changeme
   postgres:
     url: mysql://localhost/postgres
   redis: {}
