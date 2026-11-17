@@ -15,7 +15,7 @@ class OpenFgaOrganizationAuthorization(OrganizationAuthorization):
 
         return res
 
-    async def attach_organization_to_platform(self, organization_id: int) -> None:
+    async def register_organization(self, organization_id: int) -> None:
         platform_subject = AuthorizationObject.platform()
         organization_object = AuthorizationObject.organization(organization_id)
 

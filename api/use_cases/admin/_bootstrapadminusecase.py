@@ -63,7 +63,7 @@ class BootstrapAdminUseCase:
         result = await self.user_repository.get_first_admin_user()
         match result:
             case User() as user:
-                await self.bootstrap_authorization.attach_bootstrap_admin_to_platform(user_id=user.id)
+                await self.bootstrap_authorization.grant_platform_admin(user_id=user.id)
                 return BootstrapAdminUseCaseSkipped(user_id=user.id, email=user.email, role_id=user.role_id)
 
         result = await self.role_repository.get_role_with_permissions_and_limits_by_name(role_name=self.BOOTSTRAP_ADMIN_ROLE_NAME)
@@ -110,6 +110,6 @@ class BootstrapAdminUseCase:
                     case UserAlreadyExistsError():
                         return BootstrapAdminUseCaseSkipped()
 
-        await self.bootstrap_authorization.attach_bootstrap_admin_to_platform(user_id=user.id)
+        await self.bootstrap_authorization.grant_platform_admin(user_id=user.id)
 
         return BootstrapAdminUseCaseSuccess(user_id=user.id, email=user.email, role_id=role.id)

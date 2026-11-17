@@ -34,7 +34,7 @@ class CreateOrganizationUseCase:
 
         match result:
             case Organization() as organization:
-                await self.organization_authorization.attach_organization_to_platform(organization_id=organization.id)
+                await self.organization_authorization.register_organization(organization_id=organization.id)
                 return CreateOrganizationUseCaseSuccess(organization=organization)
             case error:
                 return error

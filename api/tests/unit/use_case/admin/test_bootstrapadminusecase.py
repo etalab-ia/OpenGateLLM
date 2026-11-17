@@ -102,7 +102,7 @@ class TestBootstrapAdminUserUseCase:
             organization_id=1,
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_USER_NAME,
         )
-        bootstrap_authorization.attach_bootstrap_admin_to_platform.assert_awaited_once_with(user_id=10)
+        bootstrap_authorization.grant_platform_admin.assert_awaited_once_with(user_id=10)
 
     @pytest.mark.asyncio
     async def test_should_skip_when_admin_user_already_exists(self, use_case, user_repository, role_repository, bootstrap_authorization, command):
@@ -118,7 +118,7 @@ class TestBootstrapAdminUserUseCase:
         role_repository.get_role_with_permissions_and_limits_by_name.assert_not_awaited()
         role_repository.create_role.assert_not_awaited()
         user_repository.create_user.assert_not_awaited()
-        bootstrap_authorization.attach_bootstrap_admin_to_platform.assert_awaited_once_with(user_id=7)
+        bootstrap_authorization.grant_platform_admin.assert_awaited_once_with(user_id=7)
 
     @pytest.mark.asyncio
     async def test_should_reuse_existing_role_and_create_user(
@@ -212,7 +212,7 @@ class TestBootstrapAdminUserUseCase:
         permission_repository.create_permissions.assert_not_awaited()
         user_repository.create_user.assert_not_awaited()
         assert user_repository.get_first_admin_user.await_count == 1
-        bootstrap_authorization.attach_bootstrap_admin_to_platform.assert_not_awaited()
+        bootstrap_authorization.grant_platform_admin.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_skip_when_create_user_conflicts_because_another_worker_took_over(
@@ -231,7 +231,7 @@ class TestBootstrapAdminUserUseCase:
         # Assert
         assert result == BootstrapAdminUseCaseSkipped()
         user_repository.update_user.assert_not_awaited()
-        bootstrap_authorization.attach_bootstrap_admin_to_platform.assert_not_awaited()
+        bootstrap_authorization.grant_platform_admin.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_create_the_default_organization_when_it_does_not_exist(
@@ -293,4 +293,4 @@ class TestBootstrapAdminUserUseCase:
         # Assert
         assert result == BootstrapAdminUseCaseSkipped()
         user_repository.create_user.assert_not_awaited()
-        bootstrap_authorization.attach_bootstrap_admin_to_platform.assert_not_awaited()
+        bootstrap_authorization.grant_platform_admin.assert_not_awaited()

@@ -36,9 +36,9 @@ lifespan.py       startup/shutdown: builds what GlobalContext holds, runs bootst
 | API schemas       | `api/infrastructure/fastapi/schemas/`                        |
 | Postgres adapters | `api/infrastructure/postgres/_postgres<entity>repository.py` |
 | Authorization     | `api/domain/authorization/` + `api/infrastructure/openfga/`  |
-| Read models | `api/domain/<context>/views.py` + `_<noun>query.py` |
-| DI | `api/dependencies.py` |
-| Composition root | `api/app.py`, `api/dependencies.py`, `api/lifespan.py` |
+| Read models       | `api/domain/<context>/views.py` + `_<noun>query.py`          |
+| DI                | `api/dependencies.py`                                        |
+| Composition root  | `api/app.py`, `api/dependencies.py`, `api/lifespan.py`       |
 
 Admin CRUD is grouped per resource: `api/use_cases/admin/roles/`, `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/schemas/admin/roles.py`. Everything else stays flat under its area (`api/use_cases/auth/`, `api/infrastructure/fastapi/endpoints/models.py`, `api/infrastructure/fastapi/schemas/models.py`).
 
@@ -113,11 +113,11 @@ from . import keys, organizations, providers, roles, routers, users  # noqa: F40
 
 Three enums address the API surface, and they are **not the same concept**:
 
-| Enum | Location | Holds | Used by |
-|------|----------|-------|---------|
-| `RouterName` | `api/infrastructure/fastapi/routes.py` | the 14 routers + their `module_path` | `_register_routers`, `disabled_routers` / `hidden_routers`, `tags=[...]` |
-| `EndpointRoute` | `api/infrastructure/fastapi/routes.py` | the 22 mount paths | `@router.<verb>(path=...)` only |
-| `ProviderEndpoint` | `api/domain/provider/entities.py` | the 6 **capabilities** a provider request targets | `ProviderRequest.endpoint`, `UnsupportedProviderEndpointError`, `HttpProviderAdapter.SOURCE_ENDPOINT`, `ADAPTER_REGISTRY`, the use cases' `ENDPOINT` |
+| Enum               | Location                               | Holds                                             | Used by                                                                                                                                              |
+|--------------------|----------------------------------------|---------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `RouterName`       | `api/infrastructure/fastapi/routes.py` | the 14 routers + their `module_path`              | `_register_routers`, `disabled_routers` / `hidden_routers`, `tags=[...]`                                                                             |
+| `EndpointRoute`    | `api/infrastructure/fastapi/routes.py` | the 22 mount paths                                | `@router.<verb>(path=...)` only                                                                                                                      |
+| `ProviderEndpoint` | `api/domain/provider/entities.py`      | the 6 **capabilities** a provider request targets | `ProviderRequest.endpoint`, `UnsupportedProviderEndpointError`, `HttpProviderAdapter.SOURCE_ENDPOINT`, `ADAPTER_REGISTRY`, the use cases' `ENDPOINT` |
 
 A new route needs an `EndpointRoute` member. A new **model-forward** capability also needs a `ProviderEndpoint` member — they are declared separately on purpose.
 
@@ -725,8 +725,18 @@ route that needs one is the work, not the modelling.
 | Generic client (infrastructure) | `AuthorizationClient` / `OpenFgaAuthorizationClient`                              | the raw triple: `check`, `write_relation`, `delete_relation` |
 
 An intent port lives next to the aggregate it protects, not in `api/domain/authorization/` — that package holds only the
-generic client port and the entities. Each port is named for what it is *for*, so the one that grants the bootstrap
-admin is `BootstrapAuthorization` in `api/domain/user/`, with a single `attach_bootstrap_admin_to_platform(user_id)`.
+generic client port and the entities. Each port is named for what it is *for*, so the one used at bootstrap is
+`BootstrapAuthorization` in `api/domain/user/`, with a single `grant_platform_admin(user_id)`.
+
+A method that writes a relation is named after the business act, in pairs, never after the tuple:
+
+| Pair                                           | Act                                                                 | Today                   |
+|------------------------------------------------|---------------------------------------------------------------------|-------------------------|
+| `register_<object>` / `unregister_<object>`    | declare an object to its parent (the relation points to the parent) | `register_organization` |
+| `grant_<scope>_admin` / `revoke_<scope>_admin` | give or take back a privilege                                       | `grant_platform_admin`  |
+| `add_<scope>_user` / `remove_<scope>_user`     | membership (the relation points into the scope)                     | —                       |
+
+Add the second method of a pair only when a route needs it.
 
 **A use case asks a business question, never composes a tuple.**
 
@@ -788,7 +798,7 @@ organization` therefore means `organization:42#platform@platform:api`, and writi
 when it is being created — so `can_create_organization` lives on `platform:api`. Anything acting on an existing
 organization belongs on `organization:<id>`.
 
-**Writing the attachment is part of creating.** A new organization gets `organization:<id>#platform@platform:api`,
+**Registering the organization is part of creating it.** `register_organization` writes `organization:<id>#platform@platform:api`,
 written *after* the row and *before* returning success: a failed write raises out of the use case, which rolls the
 Postgres transaction back, so it cannot leave an organization no one can reach.
 
@@ -797,8 +807,8 @@ deliberately unhandled for now, but never swallowed into a `False`, which would 
 Mapping it to a domain error and a 503 — a permission that could not be evaluated is not a permission that was denied —
 is the next step, once that failure mode is worth covering.
 
-**Granting the bootstrap admin belongs to the use case, like the organization attachment.** `BootstrapAdminUseCase`
-takes a `BootstrapAuthorization` port and writes `platform:api#admin@user:<id>` before returning, so a fresh store has
+**Granting the bootstrap admin belongs to the use case, like registering an organization.** `BootstrapAdminUseCase`
+takes a `BootstrapAuthorization` port and calls `grant_platform_admin`, which writes `platform:api#admin@user:<id>`, before returning, so a fresh store has
 someone who holds `can_create_organization`. It cannot move to a deploy step like the model does, because it needs the
 admin the use case may have just created.
 
@@ -841,17 +851,17 @@ Resource context that the middleware cannot know (the model name of an inference
 
 Each layer tests **its** responsibility. Do not re-run use-case branches through HTTP.
 
-| Layer | Path | Tests | Does not test |
-|-------|------|-------|----------------|
-| Unit use case | `api/tests/unit/use_case/<area>/test_<usecase>.py` | Every distinct `execute()` branch | SQL, HTTP status, Pydantic 422 |
-| Unit domain | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | Entity methods (`need_to_update`) | Use-case orchestration |
-| Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
-| Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
-| Migrations | `api/tests/integration/alembic/test_migrations.py` | Single head, migrations match `models.py`, downgrade and upgrade with a row in every table — a new table needs a row in its seed | What each migration does to the data |
-| Model-forward pool | `api/tests/integration/postgres/test_autocommitsession.py` | Connection released during provider call | Use-case branches |
-| Rate-limit charging | `api/tests/integration/endpoints/test_ocr.py`, `api/tests/integration/endpoints/test_chatcompletions.py` (`*charge*_the_router_limits`) | Redis counters after a real request; a 429 is not charged | The other model-forward endpoints (same non-streaming path) |
-| HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
-| Langfuse adapter | `api/tests/integration/langfuse/` | Exported spans and scores (real SDK, mocked HTTP) | Use-case policy |
+| Layer                  | Path                                                                                                                                    | Tests                                                                                                                            | Does not test                                               |
+|------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------|
+| Unit use case          | `api/tests/unit/use_case/<area>/test_<usecase>.py`                                                                                      | Every distinct `execute()` branch                                                                                                | SQL, HTTP status, Pydantic 422                              |
+| Unit domain            | `api/tests/unit/domain/<domain>/test_<domain>entities.py`                                                                               | Entity methods (`need_to_update`)                                                                                                | Use-case orchestration                                      |
+| Integration endpoint   | `api/tests/integration/endpoints/.../test_<action>_<resource>.py`                                                                       | Happy path, auth, error mapping, endpoint-only guards                                                                            | Create/update/link business flows                           |
+| Integration repository | `api/tests/integration/postgres/`                                                                                                       | Persist/read, constraints, new columns                                                                                           | Use-case policy                                             |
+| Migrations             | `api/tests/integration/alembic/test_migrations.py`                                                                                      | Single head, migrations match `models.py`, downgrade and upgrade with a row in every table — a new table needs a row in its seed | What each migration does to the data                        |
+| Model-forward pool     | `api/tests/integration/postgres/test_autocommitsession.py`                                                                              | Connection released during provider call                                                                                         | Use-case branches                                           |
+| Rate-limit charging    | `api/tests/integration/endpoints/test_ocr.py`, `api/tests/integration/endpoints/test_chatcompletions.py` (`*charge*_the_router_limits`) | Redis counters after a real request; a 429 is not charged                                                                        | The other model-forward endpoints (same non-streaming path) |
+| HTTP adapter           | `api/tests/integration/http/test_<adapter>.py`                                                                                          | Each distinct status / network branch (`respx`)                                                                                  | Callers of the adapter                                      |
+| Langfuse adapter       | `api/tests/integration/langfuse/`                                                                                                       | Exported spans and scores (real SDK, mocked HTTP)                                                                                | Use-case policy                                             |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).
 

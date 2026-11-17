@@ -7,5 +7,5 @@ class OrganizationAuthorization(ABC):
         pass
 
     @abstractmethod
-    async def attach_organization_to_platform(self, organization_id: int) -> None:
+    async def register_organization(self, organization_id: int) -> None:
         pass
