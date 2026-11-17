@@ -1,0 +1,11 @@
+from abc import ABC, abstractmethod
+
+
+class OrganizationAuthorization(ABC):
+    @abstractmethod
+    async def can_create_organization(self, user_id: int) -> bool:
+        pass
+
+    @abstractmethod
+    async def register_organization(self, organization_id: int) -> None:
+        pass

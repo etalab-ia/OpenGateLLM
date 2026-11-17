@@ -55,8 +55,21 @@ class RedisDependency(HiddenInputSchema):
 
 
 @custom_validation_error
+class OpenFgaDependency(HiddenInputSchema):
+    """
+    OpenFGA is a required dependency of OpenGateLLM. OpenFGA stores the authorization relationships that decide who can act on an OpenGateLLM resource.
+    The store is created if missing and the authorization model is published by `scripts/setup_openfga.sh`, which `scripts/startup_api.sh` runs once, before the API workers fork. That script reads this section of the configuration file.
+    """
+
+    url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(pattern=r"^https?://", description="OpenFGA API url.", examples=["http://localhost:8080"])]  # fmt: off
+    store_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(default="opengatellm", description="Name of the OpenFGA store, resolved to its ID at startup.", examples=["opengatellm"])]  # fmt: off
+    api_token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Pre-shared key sent as a Bearer token.", examples=["${OPENFGA_AUTHN_PRESHARED_KEYS}"])]  # fmt: off
+
+
+@custom_validation_error
 class Dependencies(HiddenInputSchema):
     langfuse: Annotated[LangfuseDependency | None, Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")]  # fmt: off
+    openfga: Annotated[OpenFgaDependency, Field(description="OpenFGA is a required dependency of OpenGateLLM to authorize actions on organizations.")]  # fmt: off
     postgres: Annotated[PostgresDependency, Field(description="Postgres is a required dependency of OpenGateLLM to store API data.")]  # fmt: off
     redis: Annotated[RedisDependency, Field(description="Redis is a required dependency for the API to store rate limiting counters and inflight gauges. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")]  # fmt: off
     sentry: Annotated[SentryDependency | None, Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")]  # fmt: off
