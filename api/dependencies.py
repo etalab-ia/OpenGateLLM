@@ -67,7 +67,7 @@ from api.use_cases.audio import CreateAudioTranscriptionsUseCase
 from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.chat import CreateChatCompletionsUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
-from api.use_cases.health import GetHealthModelsUseCase
+from api.use_cases.health import GetHealthModelsUseCase, ProviderLivenessProbe
 from api.use_cases.limits import GetLimitsUseCase
 from api.use_cases.me import GetMeUseCase, UpdateMeUseCase
 from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
@@ -147,6 +147,10 @@ def _provider_concurrency_limiter(redis_client: Redis = Depends(get_redis_client
 
 def _provider_capabilities_probe(provider_client: ProviderClient = Depends(_provider_client)) -> ProviderCapabilitiesProbe:
     return ProviderCapabilitiesProbe(provider_client=provider_client)
+
+
+def _provider_liveness_probe(provider_client: ProviderClient = Depends(_provider_client)) -> ProviderLivenessProbe:
+    return ProviderLivenessProbe(provider_client=provider_client)
 
 
 def _user_password_encoder() -> UserPasswordEncoder:
@@ -310,11 +314,12 @@ def auth_sso_login_use_case_factory(
 # health use cases
 def get_health_models_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
-    provider_client: ProviderClient = Depends(_provider_client),
+    provider_liveness_probe: ProviderLivenessProbe = Depends(_provider_liveness_probe),
     redis_client: Redis = Depends(get_redis_client),
 ) -> GetHealthModelsUseCase:
     return GetHealthModelsUseCase(
-        provider_client=provider_client,
+        provider_liveness_probe=provider_liveness_probe,
+        provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
     )

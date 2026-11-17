@@ -60,6 +60,10 @@ class Router(BaseModel):
         return self.model_copy(update={"qos_retries_before_reject": qos_retries_before_reject})
 
     @property
+    def has_providers(self) -> bool:
+        return self.providers > 0
+
+    @property
     def has_no_providers(self) -> bool:
         return self.providers == 0
 

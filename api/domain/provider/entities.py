@@ -153,6 +153,9 @@ class Provider(BaseModel):
 class ProviderLoads(BaseModel):
     load_by_provider_id: dict[int, int]
 
+    def load_of(self, provider: Provider) -> int:
+        return self.load_by_provider_id[provider.id]
+
     def sort_least_loaded_first(self, providers: list[Provider]) -> list[Provider]:
         if any(provider.qos_limit is None for provider in providers):
             return self._sort_by_load(providers)
