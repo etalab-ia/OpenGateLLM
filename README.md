@@ -77,7 +77,7 @@
 | api/domain/provider/\_providerclient.py                                                                         |       16 |        2 |        0 |        0 |     87.50% |    29, 33 |
 | api/domain/provider/\_providerconcurrencylimiter.py                                                             |       23 |        2 |        0 |        0 |     91.30% |    29, 42 |
 | api/domain/provider/\_providerrepository.py                                                                     |       29 |        8 |        0 |        0 |     72.41% |27, 31, 35, 46, 50, 54, 58, 62 |
-| api/domain/provider/entities.py                                                                                 |      108 |        4 |       12 |        2 |     95.00% |137, 140, 201, 204 |
+| api/domain/provider/entities.py                                                                                 |      105 |        4 |       12 |        2 |     94.87% |136, 139, 194, 197 |
 | api/domain/provider/errors.py                                                                                   |       22 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/rerank/entities.py                                                                                   |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/role/\_limitrepository.py                                                                            |       12 |        3 |        0 |        0 |     75.00% | 9, 16, 23 |
@@ -158,11 +158,11 @@
 | api/infrastructure/fastapi/schemas/rerank.py                                                                    |        7 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/usage.py                                                                     |       16 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/\_httpauthssosessionvalidator.py                                                        |       21 |        0 |        6 |        0 |    100.00% |           |
-| api/infrastructure/http/\_httpprovideradapterbuilder.py                                                         |       35 |        0 |        2 |        0 |    100.00% |           |
-| api/infrastructure/http/\_httpproviderclient.py                                                                 |       93 |        5 |       28 |        6 |     90.91% |30-\>33, 36-\>39, 84-\>91, 104-\>107, 110-\>113, 130, 132-\>exit, 143, 147, 149-150 |
-| api/infrastructure/http/\_httpproviderrequest.py                                                                |        6 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/http/\_httpprovideradapterbuilder.py                                                         |       33 |        0 |        2 |        0 |    100.00% |           |
+| api/infrastructure/http/\_httpproviderclient.py                                                                 |       90 |        6 |       28 |        7 |     88.98% |29-\>32, 35-\>38, 79-\>86, 91, 99-\>102, 105-\>108, 122, 124-\>exit, 135, 139, 141-142 |
+| api/infrastructure/http/\_httpproviderrequest.py                                                                |        5 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/\_httpproviderresponse.py                                                               |        4 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/\_httpprovideradapter.py                                                       |       28 |        0 |        2 |        0 |    100.00% |           |
+| api/infrastructure/http/adapters/\_httpprovideradapter.py                                                       |       28 |        0 |        2 |        1 |     96.67% |   30-\>33 |
 | api/infrastructure/http/adapters/audio/\_audiotranscriptionsadapter.py                                          |       27 |        3 |        2 |        1 |     86.21% | 37, 43-44 |
 | api/infrastructure/http/adapters/audio/albert/\_albertaudiotranscriptionsadapter.py                             |        3 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/audio/mistral/\_mistralaudiotranscriptionsadapter.py                           |       30 |        7 |        2 |        0 |     71.88% |30-31, 57-62 |
@@ -179,9 +179,6 @@
 | api/infrastructure/http/adapters/embeddings/openai/\_openaiembeddingsadapter.py                                 |        3 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/embeddings/tei/\_teiembeddingsadapter.py                                       |        3 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/embeddings/vllm/\_vllmembeddingsadapter.py                                     |        3 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/metrics/\_metricsadapter.py                                                    |        8 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/metrics/mistral/\_mistralmetricsadapter.py                                     |       23 |        0 |        8 |        0 |    100.00% |           |
-| api/infrastructure/http/adapters/metrics/vllm/\_vllmmetricsadapter.py                                           |       19 |        0 |        8 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/models/\_modelsadapter.py                                                      |       15 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/models/albert/\_albertmodelsadapter.py                                         |        3 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/http/adapters/models/mistral/\_mistralmodelsadapter.py                                       |        7 |        0 |        0 |        0 |    100.00% |           |
@@ -268,7 +265,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7834** |  **478** | **1394** |  **164** | **92.13%** |           |
+| **TOTAL**                                                                                                       | **7775** |  **479** | **1378** |  **166** | **92.04%** |           |
 
 
 ## Setup coverage badge
