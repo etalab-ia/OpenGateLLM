@@ -755,13 +755,15 @@ renamed relation turns every check into a silent `false`. The deployment repo ow
 (`fga model validate`).
 
 **Publishing the model is a start-up step, but it happens once, before the workers fork.** `scripts/startup_api.sh`
-runs `scripts/setup_openfga.sh` right next to `alembic upgrade head`; it can also be run on its own. It uses the `fga`
+runs `scripts/setup_openfga.sh` before starting gunicorn; it can also be run on its own. Unlike the Alembic migrations,
+which a deployment runs once before starting the API containers (`db-migrate` in `compose.example.yml`), it still runs
+in every API container, where the diff below keeps a restart from appending a version. It uses the `fga`
 CLI alone: it looks the store up by name (creating it if missing), then compares the published model with `model.fga` and writes a new version **only when they differ**. The CLI
 takes its connection from `FGA_API_URL`, `FGA_API_TOKEN` and `FGA_STORE_ID`; the script derives the last one from
 `FGA_STORE_NAME`. Those variables are a second source next to `dependencies.openfga` in the config file, so
 `config.example.yml` reads the same `FGA_*` variables to keep them in step. Workers then only *read* the published
 model — `create_openfga_client` looks the store up by name and loads the latest model, and raises if either is missing,
-exactly as the API fails on an unmigrated Postgres.
+so the API refuses to start without them.
 
 That ordering is load-bearing. Publishing from the lifespan instead appends one model version per worker and pins each
 worker to a different one, so during a rolling deploy workers of the same container answer checks against different
