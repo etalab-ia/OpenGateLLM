@@ -751,8 +751,8 @@ backed by its own `openfga` database on the shared Postgres — but `api/infrast
 repo for the same reason the Alembic revisions do: it has to change in the same commit as the code that reads it, or a
 renamed relation turns every check into a silent `false`. The deployment repo owns the server; this repo owns the schema.
 
-`model.fga` is the only source — there is no generated `model.json`. After changing the DSL, run `make fga-model`
-(`fga model validate`).
+`model.fga` is the only source — there is no generated `model.json`. After changing the DSL, run
+`fga model validate --file api/infrastructure/openfga/model.fga`.
 
 **Publishing the model is a start-up step, but it happens once, before the workers fork.** `scripts/startup_api.sh`
 runs `scripts/setup_openfga.sh` before starting gunicorn; it can also be run on its own. Unlike the Alembic migrations,
@@ -819,8 +819,8 @@ Only users holding a Postgres admin role at *bootstrap* get the relation. Promot
 still missing. The deployment repo's `openfga_migrations` role backfills the admins present when it runs
 (`m001_platform_admins.py`): a photograph, not a projection.
 
-**Nothing above is covered by tests, with one exception.** `api/tests/store.fga.yaml` does not exist yet, so `make fga-test`
-fails for the moment; CI does not validate `model.fga` either (issue #1209). The exception is
+**Nothing above is covered by tests, with one exception.** `api/tests/store.fga.yaml` does not exist yet, so
+`fga model test --tests api/tests/store.fga.yaml` fails for the moment; CI does not validate `model.fga` either (issue #1209). The exception is
 `BootstrapAdminUseCase`'s own unit tests, which do cover the grant: which branches write it, and which must not.
 
 ---

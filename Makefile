@@ -24,12 +24,4 @@ TEST_INTEG_SUFFIX := $(if $(TEST_INTEG_ARG),/$(TEST_INTEG_ARG),)
 semgrep: 
 	@semgrep semgrep ci --config auto --verbose
 
-FGA_DIR := api/infrastructure/openfga
-
-fga-test:
-	@fga model test --tests api/tests/store.fga.yaml
-
-fga-model:
-	@fga model validate --file $(FGA_DIR)/model.fga
-
-.PHONY: help quickstart dev lint test-unit create-api-key semgrep fga-test fga-model
+.PHONY: help quickstart dev lint test-unit create-api-key semgrep
