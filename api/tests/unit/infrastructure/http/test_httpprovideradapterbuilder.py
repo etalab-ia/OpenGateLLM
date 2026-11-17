@@ -8,9 +8,6 @@ from api.infrastructure.http.adapters.audio.mistral import MistralAudioTranscrip
 from api.infrastructure.http.adapters.chat import ChatCompletionsAdapter
 from api.infrastructure.http.adapters.chat.mistral import MistralChatCompletionsAdapter
 from api.infrastructure.http.adapters.embeddings import EmbeddingsAdapter
-from api.infrastructure.http.adapters.metrics import MetricsAdapter
-from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
-from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
 from api.infrastructure.http.adapters.models import ModelsAdapter
 from api.infrastructure.http.adapters.models.mistral import MistralModelsAdapter
 from api.infrastructure.http.adapters.models.tei import TeiModelsAdapter
@@ -156,20 +153,6 @@ class TestHttpProviderAdapterBuilder:
         # Assert
         assert isinstance(result, MistralModelsAdapter)
 
-    def test_should_return_mistral_metrics_adapter_for_mistral_provider(self, http_provider_adapter_builder: HttpProviderAdapterBuilder):
-        # Arrange
-        provider = ProviderFactory(type=ProviderType.MISTRAL, url="https://mistral.test")
-
-        # Act
-        result = http_provider_adapter_builder.build(
-            endpoint=ProviderEndpoint.METRICS,
-            provider=provider,
-        )
-
-        # Assert
-        assert isinstance(result, MistralMetricsAdapter)
-        assert isinstance(result, MetricsAdapter)
-
     def test_should_return_mistral_embeddings_adapter_for_mistral_provider(self, http_provider_adapter_builder: HttpProviderAdapterBuilder):
         # Arrange
         provider = ProviderFactory(type=ProviderType.MISTRAL, url="https://mistral.test")
@@ -300,20 +283,6 @@ class TestHttpProviderAdapterBuilder:
         # Assert
         assert isinstance(result, VllmModelsAdapter)
 
-    def test_should_return_vllm_metrics_adapter_for_vllm_provider(self, http_provider_adapter_builder: HttpProviderAdapterBuilder):
-        # Arrange
-        provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test")
-
-        # Act
-        result = http_provider_adapter_builder.build(
-            endpoint=ProviderEndpoint.METRICS,
-            provider=provider,
-        )
-
-        # Assert
-        assert isinstance(result, VllmMetricsAdapter)
-        assert isinstance(result, MetricsAdapter)
-
     def test_should_return_vllm_rerank_adapter_for_vllm_provider(self, http_provider_adapter_builder: HttpProviderAdapterBuilder):
         # Arrange
         provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test")
@@ -356,14 +325,11 @@ class TestHttpProviderAdapterBuilder:
     @pytest.mark.parametrize(
         "provider_type,endpoint",
         [
-            (ProviderType.ALBERT, ProviderEndpoint.METRICS),
             (ProviderType.MISTRAL, ProviderEndpoint.RERANK),
-            (ProviderType.OPENAI, ProviderEndpoint.METRICS),
             (ProviderType.OPENAI, ProviderEndpoint.OCR),
             (ProviderType.OPENAI, ProviderEndpoint.RERANK),
             (ProviderType.TEI, ProviderEndpoint.AUDIO_TRANSCRIPTIONS),
             (ProviderType.TEI, ProviderEndpoint.CHAT_COMPLETIONS),
-            (ProviderType.TEI, ProviderEndpoint.METRICS),
             (ProviderType.TEI, ProviderEndpoint.OCR),
             (ProviderType.VLLM, ProviderEndpoint.OCR),
         ],

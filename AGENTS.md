@@ -116,11 +116,11 @@ Three enums address the API surface, and they are **not the same concept**:
 |------|----------|-------|---------|
 | `RouterName` | `api/infrastructure/fastapi/routes.py` | the 14 routers + their `module_path` | `_register_routers`, `disabled_routers` / `hidden_routers`, `tags=[...]` |
 | `EndpointRoute` | `api/infrastructure/fastapi/routes.py` | the 22 mount paths | `@router.<verb>(path=...)` only |
-| `ProviderEndpoint` | `api/domain/provider/entities.py` | the 7 **capabilities** a provider request targets | `ProviderRequest.endpoint`, `UnsupportedProviderEndpointError`, `HttpProviderAdapter.SOURCE_ENDPOINT`, `ADAPTER_REGISTRY`, the use cases' `ENDPOINT` |
+| `ProviderEndpoint` | `api/domain/provider/entities.py` | the 6 **capabilities** a provider request targets | `ProviderRequest.endpoint`, `UnsupportedProviderEndpointError`, `HttpProviderAdapter.SOURCE_ENDPOINT`, `ADAPTER_REGISTRY`, the use cases' `ENDPOINT` |
 
 A new route needs an `EndpointRoute` member. A new **model-forward** capability also needs a `ProviderEndpoint` member — they are declared separately on purpose.
 
-Their 7 common members carry the **same string** today, and that is a contract, not a coincidence: `usage.endpoint` (a plain `str` column) holds the matched route — `/v1` + the `EndpointRoute` value — and `EndpointUsage` exposes those values through the public `GET /v1/usage` filter; the same value names each Langfuse trace. Changing either value means a data migration on `usage` **and** a breaking API change.
+Their 6 common members carry the **same string** today, and that is a contract, not a coincidence: `usage.endpoint` (a plain `str` column) holds the matched route — `/v1` + the `EndpointRoute` value — and `EndpointUsage` exposes those values through the public `GET /v1/usage` filter; the same value names each Langfuse trace. Changing either value means a data migration on `usage` **and** a breaking API change.
 
 Do not merge them back, and do not reintroduce `f"/{RouterName.X}/..."` inside `EndpointRoute`: the first would make the domain import `api/infrastructure/fastapi/`, the second would let a router rename silently move a public API path.
 

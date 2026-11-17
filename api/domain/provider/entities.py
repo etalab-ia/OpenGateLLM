@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated
 from uuid import uuid4
 
 import pycountry
@@ -14,7 +14,6 @@ class ProviderEndpoint(StrEnum):
     AUDIO_TRANSCRIPTIONS = "/audio/transcriptions"
     CHAT_COMPLETIONS = "/chat/completions"
     EMBEDDINGS = "/embeddings"
-    METRICS = "/metrics"
     MODELS = "/models"
     OCR = "/ocr"
     RERANK = "/rerank"
@@ -183,12 +182,6 @@ class ProviderRequest(BaseModel):
 class ProviderChunkResponse(BaseModel):
     content: Annotated[str, Field(description="One raw server-sent-event line as emitted by the provider.")]
     status_code: Annotated[int, Field(description="The HTTP status code of the streamed response.")]
-
-
-class ProviderMetrics(ProviderJsonResponse):
-    object: Literal["providerMetrics"] = "providerMetrics"
-    waiting_requests: float
-    running_requests: float
 
 
 class ProviderResponse(BaseModel):
