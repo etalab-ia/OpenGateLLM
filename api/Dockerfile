@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=openfga/cli:v0.8.1 /fga /usr/local/bin/fga
-COPY --from=mikefarah/yq:4.44.3 /usr/bin/yq /usr/local/bin/yq
+COPY --from=mikefarah/yq:4.54.3 /usr/bin/yq /usr/local/bin/yq
 
 # Set a non-root user
 USER opengatellm
