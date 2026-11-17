@@ -768,10 +768,15 @@ renamed relation turns every check into a silent `false`. The deployment repo ow
 runs `scripts/setup_openfga.sh` before starting gunicorn; it can also be run on its own. Unlike the Alembic migrations,
 which a deployment runs once before starting the API containers (`db-migrate` in `compose.example.yml`), it still runs
 in every API container, where the diff below keeps a restart from appending a version. It uses the `fga`
-CLI alone: it looks the store up by name (creating it if missing), then compares the published model with `model.fga` and writes a new version **only when they differ**. The CLI
-takes its connection from `FGA_API_URL`, `FGA_API_TOKEN` and `FGA_STORE_ID`; the script derives the last one from
-`FGA_STORE_NAME`. Those variables are a second source next to `dependencies.openfga` in the config file, so
-`config.example.yml` reads the same `FGA_*` variables to keep them in step. Workers then only *read* the published
+CLI alone: it looks the store up by name (creating it if missing), then compares the published model with `model.fga` and writes a new version **only when they differ**.
+
+The configuration file is the only source of the connection. The script reads `dependencies.openfga` from
+`CONFIG_FILE` with `yq` and hands it to each `fga` call as options (`--api-url`, `--api-token`, `--store-id`): it
+exports no `FGA_*` variable, so the CLI cannot pick up a stale one from the environment. `yq`'s `envsubst(nu,ne)` resolves `${NAME}` / `${NAME:-default}` with the same rules as `_interpolation.py`: a
+variable missing or empty without a default is an error. The only `OPENFGA_*` variables are
+the ones `config.example.yml` interpolates, `OPENFGA_HOST` and `OPENFGA_PORT` like Postgres and Redis, and
+`OPENFGA_AUTHN_PRESHARED_KEYS`, the name the OpenFGA server itself reads, so one variable feeds both sides of the
+pre-shared key. The store name is written in the file, like a database name. Workers then only *read* the published
 model — `create_openfga_client` looks the store up by name and loads the latest model, and raises if either is missing,
 so the API refuses to start without them.
 
@@ -780,7 +785,8 @@ worker to a different one, so during a rolling deploy workers of the same contai
 models. The diff is what makes a restart free: an authorization model is immutable and append-only, never pruned.
 
 Both the script and the lifespan refuse to guess when two stores share a name — `fga store import` is not idempotent
-and will happily create the duplicate.
+and will happily create the duplicate. The script must check it too, not only leave it to the lifespan: it writes
+before the API starts, so it would otherwise publish the model to an arbitrary one of them.
 
 **Only relations with brackets can be written.** `define member: [user]` is a fact you store; `define can_read: member
 or admin from platform` is a question you ask, and writing it returns a 400. In this model the `can_*` prefix marks

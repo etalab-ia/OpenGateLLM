@@ -6,10 +6,6 @@ services:
     restart: always
     ports:
       - "${API_PORT:-8000}:8000"
-    environment:
-      - "FGA_API_URL=http://openfga:8080"
-      - "FGA_API_TOKEN=${FGA_API_TOKEN:-changeme}"
-      - "FGA_STORE_NAME=${FGA_STORE_NAME:-opengatellm}"
     volumes:
       - "${CONFIG_FILE:-./config.yml}:/config.yml:ro"
     healthcheck:
@@ -77,11 +73,11 @@ services:
       - "OPENFGA_DATASTORE_URI=postgres://${POSTGRES_USER:-postgres}@postgres:5432/openfga?sslmode=disable"
       - "OPENFGA_DATASTORE_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
       - "OPENFGA_AUTHN_METHOD=preshared"
-      - "OPENFGA_AUTHN_PRESHARED_KEYS=${FGA_API_TOKEN:-changeme}"
+      - "OPENFGA_AUTHN_PRESHARED_KEYS=${OPENFGA_AUTHN_PRESHARED_KEYS:-changeme}"
       - "OPENFGA_LOG_FORMAT=json"
     command: run
     ports:
-      - "${FGA_PORT:-8080}:8080"
+      - "${OPENFGA_PORT:-8080}:8080"
     healthcheck:
       test: [ "CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081" ]
       interval: 4s

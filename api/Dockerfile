@@ -38,8 +38,8 @@ RUN apt-get update && apt-get install -y \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the OpenFGA CLI
 COPY --from=openfga/cli:v0.8.1 /fga /usr/local/bin/fga
+COPY --from=mikefarah/yq:4.44.3 /usr/bin/yq /usr/local/bin/yq
 
 # Set a non-root user
 USER opengatellm
