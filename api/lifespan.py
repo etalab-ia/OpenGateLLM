@@ -6,6 +6,7 @@ from langfuse import Langfuse
 from openfga_sdk import ClientConfiguration
 from openfga_sdk.client import OpenFgaClient
 from openfga_sdk.credentials import CredentialConfiguration, Credentials
+from openfga_sdk.models import Store
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 import tiktoken
@@ -250,7 +251,7 @@ async def create_openfga_client(configuration: Configuration) -> OpenFgaClient:
         )
     )
 
-    stores = (await client.list_stores(options={"name": openfga_config.store_name})).stores
+    stores = await list_openfga_stores_by_name(client=client, store_name=openfga_config.store_name)
     if len(stores) != 1:
         await client.close()
         raise RuntimeError(f"Expected one OpenFGA store named '{openfga_config.store_name}', found {len(stores)}.")
@@ -265,3 +266,17 @@ async def create_openfga_client(configuration: Configuration) -> OpenFgaClient:
     client.set_authorization_model_id(latest.authorization_model.id)
 
     return client
+
+
+async def list_openfga_stores_by_name(client: OpenFgaClient, store_name: str) -> list[Store]:
+    stores: list[Store] = []
+    continuation_token: str | None = None
+    while True:
+        options = {"name": store_name}
+        if continuation_token:
+            options["continuation_token"] = continuation_token
+        response = await client.list_stores(options=options)
+        stores.extend(response.stores)
+        continuation_token = response.continuation_token
+        if not continuation_token:
+            return stores
