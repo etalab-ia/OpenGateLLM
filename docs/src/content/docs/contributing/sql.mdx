@@ -41,9 +41,24 @@ If you modify API database tables in [`api/infrastructure/postgres/models.py`](h
 
 The CI runs every migration on each pull request: it checks that there is a single head, that the migrations match the models, and that `downgrade` then `upgrade` work on a database holding a row in every table.
 
+## Lint the migrations with Squawk
+
+On each pull request, the CI also renders the SQL of the migrations the pull request adds, and lints it with [Squawk](https://squawkhq.com/docs/rules). The findings appear in the summary of the "Lint the migrations" job; they do not fail it, but the pull request description answers each of them. A migration that cannot be rendered (rule 2 below) fails the job.
+
+To run the same lint locally, render the migrations after a revision, here `a9c2e7b41d35`, then lint the file:
+
+```bash
+CONFIG_FILE=./config.example.yml .venv/bin/alembic -c api/alembic.ini upgrade a9c2e7b41d35:head --sql > migrations.sql
+.venv/bin/squawk --config .squawk.toml migrations.sql
+```
+
+`uv run alembic -c api/alembic.ini history` lists the revisions, newest first: start from the one before your first migration. Call the binaries of `.venv` directly: under `uv run`, a redirected output stays empty.
+
+Squawk's advice to add `concurrently` does not apply as is: Alembic runs the migrations in a transaction, where `CREATE INDEX CONCURRENTLY` fails. Follow [rule 3](#3-no-long-lock-on-a-large-table) instead.
+
 ## Write a migration that is safe to deploy
 
-The CI cannot check the rules below. Each one comes from a bug or a risk found in the existing migrations, which predate them.
+Each rule below comes from a bug or a risk found in the existing migrations, which predate them. Squawk reports breaches of rules 1 and 3, and the render fails on a breach of rule 2; the others are checked in review.
 
 ### 1. Expand, then contract
 

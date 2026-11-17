@@ -51,7 +51,6 @@ class ProviderRequestFactory(factory.Factory):
             ),
         )
         models = factory.Trait(endpoint=ProviderEndpoint.MODELS)
-        metrics = factory.Trait(endpoint=ProviderEndpoint.METRICS)
         rerank = factory.Trait(
             endpoint=ProviderEndpoint.RERANK,
             payload=factory.LazyAttribute(

@@ -17,6 +17,10 @@ jobs:
     name: Tests
     uses: ./.github/workflows/_run_tests.yml
 
+  lint-migrations:
+    name: Migrations
+    uses: ./.github/workflows/_lint_migrations.yml
+
   semgrep:
     name: Semgrep
     uses: ./.github/workflows/_semgrep.yml

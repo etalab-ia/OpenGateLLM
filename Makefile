@@ -23,5 +23,5 @@ TEST_INTEG_SUFFIX := $(if $(TEST_INTEG_ARG),/$(TEST_INTEG_ARG),)
 
 semgrep: 
 	@semgrep semgrep ci --config auto --verbose
-	
+
 .PHONY: help quickstart dev lint test-unit create-api-key semgrep

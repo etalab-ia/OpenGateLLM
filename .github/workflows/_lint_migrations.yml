@@ -1,0 +1,35 @@
+name: Lint the migrations
+
+on:
+  workflow_call:
+
+jobs:
+  lint-migrations:
+    name: Lint the migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The merge result, not the head of the branch: a branch behind main does not hold the latest revisions of main.
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Install test dependencies
+        uses: ./.github/actions/test-dependencies
+
+      - name: Render the migrations of the pull request
+        env:
+          CONFIG_FILE: ./config.example.yml
+        run: |
+          . .venv/bin/activate
+          MAIN_BRANCH_COMMIT=HEAD^1
+          git worktree add --detach /tmp/main "$MAIN_BRANCH_COMMIT"
+          MAIN_BRANCH_ALEMBIC_HEAD=$(cd /tmp/main && alembic -c api/alembic.ini heads | awk '{print $1}')
+          alembic -c api/alembic.ini upgrade "${MAIN_BRANCH_ALEMBIC_HEAD}:head" --sql > migrations.sql
+
+      - name: Report the Squawk findings
+        run: |
+          . .venv/bin/activate
+          squawk --config .squawk.toml --reporter gcc migrations.sql > findings.txt || true
+          { echo '```'; cat findings.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

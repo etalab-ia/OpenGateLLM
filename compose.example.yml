@@ -21,6 +21,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      openfga:
+        condition: service_healthy
 
   db-migrate:
     image: ghcr.io/etalab-ia/opengatellm/api:latest
@@ -51,6 +53,41 @@ services:
       redis:
         condition: service_healthy
 
+  openfga-migrate:
+    image: openfga/openfga:v1.20.0
+    environment:
+      - "OPENFGA_DATASTORE_ENGINE=postgres"
+      - "OPENFGA_DATASTORE_URI=postgres://${POSTGRES_USER:-postgres}@postgres:5432/openfga?sslmode=disable"
+      - "OPENFGA_DATASTORE_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
+    command: migrate
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  openfga:
+    image: openfga/openfga:v1.20.0
+    restart: always
+    environment:
+      - "OPENFGA_DATASTORE_ENGINE=postgres"
+      - "OPENFGA_DATASTORE_URI=postgres://${POSTGRES_USER:-postgres}@postgres:5432/openfga?sslmode=disable"
+      - "OPENFGA_DATASTORE_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
+      - "OPENFGA_AUTHN_METHOD=preshared"
+      - "OPENFGA_AUTHN_PRESHARED_KEYS=${OPENFGA_AUTHN_PRESHARED_KEYS:-changeme}"
+      - "OPENFGA_LOG_FORMAT=json"
+    command: run
+    ports:
+      - "${OPENFGA_PORT:-8080}:8080"
+    healthcheck:
+      test: [ "CMD", "/usr/local/bin/grpc_health_probe", "-addr=localhost:8081" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
+
   postgres:
     image: postgres:16.5
     restart: always
@@ -59,10 +96,12 @@ services:
       - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
       - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
       - "POSTGRES_DB=postgres"
+      - "CREATE_DB=openfga"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres:/var/lib/postgresql/data
+      - ./scripts/postgres_entrypoint.sh:/docker-entrypoint-initdb.d/postgres_entrypoint.sh:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready", "-U", "postgres" ]
       interval: 4s

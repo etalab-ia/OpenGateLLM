@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
-from api.domain.provider import ProviderClient, ProviderRepository
-from api.domain.provider.entities import ProviderEndpoint, ProviderRequest, ProviderResponse, ProviderType
-from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
+from api.domain.provider import ProviderConcurrencyLimiter, ProviderLimitsCannotBeEnforced, ProviderRepository
+from api.domain.provider.entities import Provider, ProviderLoads
 from api.domain.router import RouterRepository
+from api.domain.router.entities import Router
 from api.domain.user.views import AuthenticatedUserView
+
+from ._providerlivenessprobe import ProviderLivenessProbe
 
 
 @dataclass
@@ -22,72 +24,42 @@ type GetHealthModelsUseCaseResult = GetHealthModelsUseCaseSuccess
 
 
 class GetHealthModelsUseCase:
-    WAITING_REQUESTS_THRESHOLD = 10
-    RUNNING_REQUESTS_THRESHOLD = 100
-
     def __init__(
         self,
-        provider_client: ProviderClient,
+        provider_liveness_probe: ProviderLivenessProbe,
+        provider_concurrency_limiter: ProviderConcurrencyLimiter,
         provider_repository: ProviderRepository,
         router_repository: RouterRepository,
     ):
-        self.provider_client = provider_client
+        self.provider_liveness_probe = provider_liveness_probe
+        self.provider_concurrency_limiter = provider_concurrency_limiter
         self.provider_repository = provider_repository
         self.router_repository = router_repository
 
     async def execute(self, command: GetHealthModelsCommand) -> GetHealthModelsUseCaseResult:
-        models = []
         routers = await self.router_repository.get_all_routers()
         providers = await self.provider_repository.get_all_providers()
 
-        for router in routers:
-            if router.has_no_providers:
-                continue
-            if command.authenticated_user.cannot_access_router(router_id=router.id):
-                continue
+        match await self.provider_concurrency_limiter.read_loads(providers=providers):
+            case ProviderLoads() as loads:
+                pass
+            case ProviderLimitsCannotBeEnforced():
+                loads = None
 
-            health = ModelHealthStatus(id=router.name, status=HealthStatus.GREEN)
-            for provider in providers:
-                if provider.router_id != router.id:
-                    continue
-
-                request = ProviderRequest(endpoint=ProviderEndpoint.METRICS)
-                response = await self.provider_client.forward(provider=provider, request=request)
-
-                match response:
-                    case ProviderResponse() as provider_response:
-                        pass
-                    case UnsupportedProviderEndpointError():
-                        request = ProviderRequest(endpoint=ProviderEndpoint.MODELS)
-                        response = await self.provider_client.forward(provider=provider, request=request)
-                        match response:
-                            # the fallback only probes liveness: an unparsable payload still proves the provider answered
-                            case ProviderResponse() | ProviderAdapterValidationResponseError():
-                                continue
-                            case _:
-                                health.status = HealthStatus.RED
-                                continue
-                    case _:
-                        # @TODO: if another provider is healthy, we should not set the health to red
-                        # @TODO: connect load balancing strategy to the health status
-                        health.status = HealthStatus.RED
-                        continue
-
-                match provider.type:
-                    case ProviderType.VLLM:
-                        if health.status != HealthStatus.RED:
-                            if provider_response.data.waiting_requests > 0:
-                                health.status = HealthStatus.YELLOW
-                            if provider_response.data.running_requests > 20:
-                                health.status = HealthStatus.RED
-
-                    case ProviderType.MISTRAL:
-                        if health.status != HealthStatus.RED:
-                            if provider_response.data.running_requests > 58:
-                                health.status = HealthStatus.YELLOW
-                            if provider_response.data.running_requests > 63:
-                                health.status = HealthStatus.RED
-
-            models.append(health)
+        routers_to_check = [
+            router for router in routers if router.has_providers and command.authenticated_user.can_access_router(router_id=router.id)
+        ]
+        models = [await self._get_model_health(router, providers, loads) for router in routers_to_check]
 
         return GetHealthModelsUseCaseSuccess(models=models)
+
+    async def _get_model_health(self, router: Router, providers: list[Provider], loads: ProviderLoads | None) -> ModelHealthStatus:
+        providers_of_router = [provider for provider in providers if provider.router_id == router.id]
+        provider_statuses = []
+        for provider in providers_of_router:
+            is_live = await self.provider_liveness_probe.is_live(provider=provider)
+            load = loads.load_of(provider) if loads is not None else None
+            provider_status = HealthStatus.of_provider(provider=provider, is_live=is_live, load=load)
+            provider_statuses.append(provider_status)
+
+        return ModelHealthStatus(id=router.name, status=HealthStatus.best_of(provider_statuses))

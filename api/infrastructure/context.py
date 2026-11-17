@@ -7,6 +7,7 @@ from tiktoken import Encoding
 
 if TYPE_CHECKING:
     from langfuse import Langfuse
+    from openfga_sdk.client import OpenFgaClient
     from redis.asyncio import ConnectionPool
     from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
@@ -19,6 +20,7 @@ class GlobalContext(BaseModel):
     autocommit_postgres_session_factory: async_sessionmaker | None = None
     postgres_engine: AsyncEngine | None = None
     langfuse: Langfuse | None = None
+    openfga_client: OpenFgaClient | None = None
     tokenizer: Encoding | None = None
 
 

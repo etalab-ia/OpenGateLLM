@@ -7,24 +7,19 @@ from api.domain.provider.entities import ProviderType
 from api.domain.router.entities import RouterType
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_metrics_responses
+from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_models_responses
 from api.tests.integration.factories.sql import LimitSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.vllm import VllmModelsResponseFactory
 
 HEALTH_URL = EndpointRoute.HEALTH
 HEALTH_MODELS_URL = EndpointRoute.HEALTH_MODELS
 
 HEALTH_MODEL_NAME = "health-model"
-METRICS_BODY = (
-    "# HELP vllm:num_requests_running\n"
-    "# TYPE vllm:num_requests_running gauge\n"
-    f'vllm:num_requests_running{{model_name="{HEALTH_MODEL_NAME}"}} 0.0\n'
-    f'vllm:num_requests_waiting{{model_name="{HEALTH_MODEL_NAME}"}} 0.0\n'
-)
 
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetHealth:
-    async def test_happy_path(self, client: AsyncClient):
+    async def test_should_return_ok(self, client: AsyncClient):
         response = await client.get(url=HEALTH_URL)
 
         assert response.status_code == 200, response.text
@@ -40,7 +35,8 @@ class TestGetHealthModels:
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
 
     @respx.mock
-    async def test_happy_path(self, client: AsyncClient, db_session):
+    async def test_should_return_the_status_of_the_models_the_user_can_access(self, client: AsyncClient, db_session):
+        # Arrange
         router = RouterSQLFactory(
             user=self.router_owner,
             name="router_1",
@@ -61,13 +57,15 @@ class TestGetHealthModels:
         )
         LimitSQLFactory(role=self.user.role, router=router)
         await db_session.flush()
+        mock_models_responses(respx, ProviderType.VLLM, body=VllmModelsResponseFactory(), status_code=200)
 
-        mock_metrics_responses(respx, ProviderType.VLLM, METRICS_BODY, 200)
+        # Act
         response = await client.get(
             url=HEALTH_MODELS_URL,
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
+        # Assert
         assert response.status_code == 200, response.text
         assert response.json() == {"data": [{"id": "router_1", "status": "green"}]}
 
@@ -79,8 +77,10 @@ class TestGetHealthModels:
             ({"Authorization": f"Bearer {INVALID_API_KEY}"}, 401, "Invalid API key."),
         ],
     )
-    async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
+    async def test_should_return_401_when_the_key_is_missing_or_invalid(self, client: AsyncClient, headers, expected_status, expected_detail):
+        # Act
         response = await client.get(url=HEALTH_MODELS_URL, headers=headers)
 
+        # Assert
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail

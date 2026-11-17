@@ -32,6 +32,7 @@ Closes #
 - [ ] Alembic migration has been generated, following the [migration rules](https://docs.opengatellm.org/contributing/sql)
 - [ ] The migration is an expand, or the contract of an expand shipped in release …
 - [ ] The downgrade was run on a copy of real data, or loses nothing (see [rule 5](https://docs.opengatellm.org/contributing/sql#5-downgrades-that-run-and-say-what-they-lose))
+- [ ] Each finding of the "Lint the migrations" job is answered in the description
 
 ## Deployment checklist
 
