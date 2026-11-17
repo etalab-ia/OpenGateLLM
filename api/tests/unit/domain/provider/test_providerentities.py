@@ -42,6 +42,11 @@ class TestProviderLoads:
 
         assert sorted_providers == [first_provider, second_provider]
 
+    def test_should_return_the_load_counted_for_the_provider(self):
+        loads = ProviderLoads(load_by_provider_id={1: 3})
+
+        assert loads.load_of(ProviderFactory(id=1)) == 3
+
 
 class TestProviderRequest:
     def test_should_generate_request_id_when_omitted(self):

@@ -3,6 +3,23 @@ import re
 
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterRateLimitState, RpdRateLimitState, RpmRateLimitState, TpdRateLimitState, TpmRateLimitState
+from api.tests.unit.use_case.factories import RouterFactory
+
+
+class TestRouterHasProviders:
+    def test_should_be_true_when_the_router_has_one_provider(self):
+        # Arrange
+        router = RouterFactory(providers=1)
+
+        # Act & Assert
+        assert router.has_providers is True
+
+    def test_should_be_false_when_the_router_has_no_provider(self):
+        # Arrange
+        router = RouterFactory(providers=0)
+
+        # Act & Assert
+        assert router.has_providers is False
 
 
 class TestRouterRateLimitStateExceededLimits:
