@@ -2,17 +2,41 @@
 
 ## Overview
 
+<!-- The shortest text a human can read to know what this PR is for and whether it deserves their attention: one to three sentences, written or approved by you, not pasted from an agent. Add a screenshot if it shows the change faster. -->
+
 Closes #
 
-<!-- Describe what this PR does and why, then the Definition of Done (DoD) criteria that apply to it. -->
+<!-- The Definition of Done (DoD) criteria that apply to this PR. -->
 
 - [ ] DoD 1
 - ...
 
-**Breaking changes:**
+<!-- The full description (problem, solution, how it was verified) goes in the block below. Name the summary after its author: the model and effort level if an agent wrote it ("Claude Opus 5.5 Medium"), "Details" otherwise. Keep the blank line after </summary>, or GitHub does not render the Markdown inside. Delete the block if the opener says it all. -->
 
-- [ ] No breaking changes
-- [ ] This PR contains breaking changes (explain below)
+<details>
+<summary>Details</summary>
+
+…
+
+</details>
+
+## Deployment and compatibility (for the release notes)
+
+<!-- One line per change, in the imperative, for whoever deploys OpenGateLLM: each line must make sense without the context of this PR. -->
+
+This PR:
+
+- [ ] needs nothing at deployment, and breaks or deprecates nothing
+- [ ] adds an Alembic migration to run:
+  - …
+- [ ] changes the configuration file:
+  - …
+- [ ] changes environment variables:
+  - …
+- [ ] introduces breaking changes:
+  - …
+- [ ] introduces deprecations: <!-- what replaces it, and the issue or release that removes it -->
+  - …
 
 ## Check lists
 
@@ -33,17 +57,6 @@ Closes #
 - [ ] The migration is an expand, or the contract of an expand shipped in release …
 - [ ] The downgrade was run on a copy of real data, or loses nothing (see [rule 5](https://docs.opengatellm.org/contributing/sql#5-downgrades-that-run-and-say-what-they-lose))
 - [ ] Each finding of the "Lint the migrations" job is answered in the description
-
-## Deployment checklist
-
-This PR requires, at deployment:
-
-- [ ] Nothing
-- [ ] An Alembic migration to run
-- [ ] A configuration file change
-- [ ] Environment variable changes
-
-<!-- List the new or updated environment variables, and any other special deployment step. -->
 
 ## Additional Notes
 
