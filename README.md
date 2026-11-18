@@ -90,7 +90,7 @@
 | api/domain/role/errors.py                                                                                       |        9 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/router/\_routerratelimiter.py                                                                        |       13 |        3 |        0 |        0 |     76.92% |10, 16, 21 |
 | api/domain/router/\_routerrepository.py                                                                         |       35 |       10 |        0 |        0 |     71.43% |11, 21, 25, 29, 43, 47, 51, 55, 59, 63 |
-| api/domain/router/entities.py                                                                                   |      101 |        0 |       12 |        0 |    100.00% |           |
+| api/domain/router/entities.py                                                                                   |       98 |        0 |       12 |        0 |    100.00% |           |
 | api/domain/router/errors.py                                                                                     |       17 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/router/views.py                                                                                      |        7 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/usage/\_usagecontext.py                                                                              |       25 |        7 |        0 |        0 |     72.00% |10, 14, 18, 22, 26, 30, 34 |
@@ -102,7 +102,7 @@
 | api/domain/user/\_userrepository.py                                                                             |       36 |        9 |        0 |        0 |     75.00% |27, 31, 35, 39, 54, 58, 62, 66, 70 |
 | api/domain/user/entities.py                                                                                     |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/errors.py                                                                                       |       24 |        0 |        0 |        0 |    100.00% |           |
-| api/domain/user/views.py                                                                                        |       30 |        0 |       10 |        0 |    100.00% |           |
+| api/domain/user/views.py                                                                                        |       21 |        0 |        4 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                                                        |        7 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/configuration/\_configuration.py                                                             |       32 |        2 |        6 |        2 |     89.47% |    48, 52 |
 | api/infrastructure/configuration/\_interpolation.py                                                             |       26 |        0 |       12 |        0 |    100.00% |           |
@@ -272,7 +272,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7955** |  **545** | **1396** |  **166** | **91.35%** |           |
+| **TOTAL**                                                                                                       | **7943** |  **545** | **1390** |  **166** | **91.33%** |           |
 
 
 ## Setup coverage badge
