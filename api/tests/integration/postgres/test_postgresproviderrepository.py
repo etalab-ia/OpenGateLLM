@@ -21,7 +21,6 @@ def _create_provider_args(user, router, **overrides):
         "provider_type": ProviderType.ALBERT,
         "url": "http://test.com/",
         "key": "model-key",
-        "basic_auth": None,
         "timeout": 60,
         "qos_limit": 9,
         "model_name": "my-model",

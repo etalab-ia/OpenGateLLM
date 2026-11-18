@@ -24,11 +24,6 @@ _country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(_country_codes))})
 
 
-class BasicAuth(BaseModel):
-    username: str
-    password: str
-
-
 class ProviderJsonResponse(BaseModel):
     def get_completions(self) -> list[str]:
         return []
@@ -105,7 +100,6 @@ class Provider(BaseModel):
     type: ProviderType
     url: str
     key: str | None = None
-    basic_auth: BasicAuth | None = None
     timeout: int
     model_name: str
     model_hosting_zone: HostingZone = HostingZone.WOR

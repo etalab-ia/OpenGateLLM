@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import Field, StringConstraints, field_validator, model_validator
 
-from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.infrastructure.configuration._validationerrors import HiddenInputSchema, custom_validation_error
 
@@ -19,7 +19,6 @@ class ModelProvider(HiddenInputSchema):
     type: Annotated[ProviderType, Field(description="Model provider type.")]
     url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).")]  # fmt: off
     key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API key.")]  # fmt: off
-    basic_auth: Annotated[BasicAuth | None, Field(default=None, description="Model provider basic authentication.")]
     timeout: Annotated[int, Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 503 error (model is too busy).")]  # fmt: off
     qos_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum concurrent load for this provider. If omitted, admission is unlimited.")]  # fmt: off
     model_name: Annotated[str, Field(description="Model name from the model provider.")]  # fmt: off

@@ -199,7 +199,6 @@ def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[Ro
                     type=provider.type,
                     url=provider.url,
                     key=provider.key,
-                    basic_auth=provider.basic_auth,
                     timeout=provider.timeout,
                     qos_limit=provider.qos_limit,
                     model_name=provider.model_name,
