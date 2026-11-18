@@ -32,7 +32,7 @@ class GetLimitsUseCase:
 
         limits = []
         for model in models:
-            if user.cannot_access_router(router_id=model.router_id):
+            if not user.can_access_router(router_id=model.router_id):
                 continue
 
             if user.is_admin:

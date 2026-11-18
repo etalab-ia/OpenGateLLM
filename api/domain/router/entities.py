@@ -63,10 +63,6 @@ class Router(BaseModel):
     def has_providers(self) -> bool:
         return self.providers > 0
 
-    @property
-    def has_no_providers(self) -> bool:
-        return self.providers == 0
-
 
 class TpmRateLimitState(BaseModel):
     PERIOD_SECONDS: ClassVar[int] = 60

@@ -37,16 +37,3 @@ class AuthenticatedUserView(BaseModel):
             return False
 
         return all(limit.value != 0 for limit in router_limits)
-
-    def cannot_access_router(self, router_id: int) -> bool:
-        if PermissionType.ADMIN in self.permissions:
-            return False
-
-        router_limits = self.limits_for(router_id=router_id)
-        if len(router_limits) == 0:
-            return True
-
-        if 0 in [limit.value for limit in router_limits]:
-            return True
-
-        return False

@@ -160,11 +160,11 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         self.usage_context.record_router(router_id=router.id, router_name=router.name)
 
-        if router.has_no_providers:
+        if not router.has_providers:
             return RouterHasNoProvidersError(id=router.id)
         if router.type != self.ROUTER_TYPE:
             return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=self.ROUTER_TYPE)
-        if authenticated_user.cannot_access_router(router_id=router.id):
+        if not authenticated_user.can_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
         return router

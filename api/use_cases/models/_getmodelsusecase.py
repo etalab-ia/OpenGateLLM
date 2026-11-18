@@ -25,6 +25,4 @@ class GetModelsUseCase:
     async def execute(self, command: GetModelsCommand) -> GetModelsUseCaseResult:
         models = await self.model_query.get_models()
 
-        return GetModelsUseCaseSucess(
-            models=[model for model in models if not command.authenticated_user.cannot_access_router(router_id=model.router_id)]
-        )
+        return GetModelsUseCaseSucess(models=[model for model in models if command.authenticated_user.can_access_router(router_id=model.router_id)])
