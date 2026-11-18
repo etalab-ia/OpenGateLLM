@@ -2,12 +2,23 @@
 
 ## Overview
 
+<!-- The shortest text a human can read to know what this PR is for and whether it deserves their attention: one to three sentences, written or approved by you, not pasted from an agent. Add a screenshot if it shows the change faster. -->
+
 Closes #
 
-<!-- Describe what this PR does and why, then the Definition of Done (DoD) criteria that apply to it. -->
+<!-- The Definition of Done (DoD) criteria that apply to this PR. -->
 
 - [ ] DoD 1
 - ...
+
+<!-- The full description (problem, solution, how it was verified) goes in the block below. Name the summary after its author: the model and effort level if an agent wrote it ("Claude Opus 5.5 Medium"), "Details" otherwise. Keep the blank line after </summary>, or GitHub does not render the Markdown inside. Delete the block if the opener says it all. -->
+
+<details>
+<summary>Details</summary>
+
+…
+
+</details>
 
 ## Deployment and compatibility (for the release notes)
 
