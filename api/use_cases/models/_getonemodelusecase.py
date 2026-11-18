@@ -32,7 +32,7 @@ class GetOneModelUseCase:
             case ModelNotFoundError() as error:
                 return error
 
-        if command.authenticated_user.cannot_access_router(router_id=model.router_id):
+        if not command.authenticated_user.can_access_router(router_id=model.router_id):
             return ModelNotFoundError(name=command.name)
 
         return GetOneModelUseCaseSuccess(model=model)
