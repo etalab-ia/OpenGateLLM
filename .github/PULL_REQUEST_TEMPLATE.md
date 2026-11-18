@@ -9,10 +9,23 @@ Closes #
 - [ ] DoD 1
 - ...
 
-**Breaking changes:**
+## Deployment and compatibility (for the release notes)
 
-- [ ] No breaking changes
-- [ ] This PR contains breaking changes (explain below)
+<!-- One line per change, in the imperative, for whoever deploys OpenGateLLM: each line must make sense without the context of this PR. -->
+
+This PR:
+
+- [ ] needs nothing at deployment, and breaks or deprecates nothing
+- [ ] adds an Alembic migration to run:
+  - …
+- [ ] changes the configuration file:
+  - …
+- [ ] changes environment variables:
+  - …
+- [ ] introduces breaking changes:
+  - …
+- [ ] introduces deprecations: <!-- what replaces it, and the issue or release that removes it -->
+  - …
 
 ## Check lists
 
@@ -33,17 +46,6 @@ Closes #
 - [ ] The migration is an expand, or the contract of an expand shipped in release …
 - [ ] The downgrade was run on a copy of real data, or loses nothing (see [rule 5](https://docs.opengatellm.org/contributing/sql#5-downgrades-that-run-and-say-what-they-lose))
 - [ ] Each finding of the "Lint the migrations" job is answered in the description
-
-## Deployment checklist
-
-This PR requires, at deployment:
-
-- [ ] Nothing
-- [ ] An Alembic migration to run
-- [ ] A configuration file change
-- [ ] Environment variable changes
-
-<!-- List the new or updated environment variables, and any other special deployment step. -->
 
 ## Additional Notes
 
