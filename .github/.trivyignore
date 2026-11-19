@@ -1,3 +1,10 @@
 # Python XML Expat hash-flooding protection weakness — full fix needs libexpat >= 2.8.0 and a Python patch
 # Reported in python3.13 from the Debian base image of the playground (HIGH, no fixed version on 2026-10-13). Re-evaluate after 2027-01-15.
 CVE-2026-7210 exp:2027-01-15
+
+# nginx HTTP/2 and HTTP/3 flaws (use-after-free with HTTP/3, HTTP/2 flow control window overflow, HTTP/2 issue)
+# Reported in nginx / nginx-common 1.26.3 from the Debian base image of the playground (CRITICAL, no fixed version on 2026-11-19).
+# Not reachable: the playground's nginx only listens in plain HTTP/1.1 on 8501 (playground/nginx*.conf, no http2 / quic). Re-evaluate after 2027-01-15.
+CVE-2026-121810 exp:2027-01-15
+CVE-2026-123007 exp:2027-01-15
+CVE-2026-123633 exp:2027-01-15
