@@ -4,7 +4,7 @@ import logging
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
@@ -19,7 +19,6 @@ class ProviderToCreate:
     type: ProviderType
     url: str
     key: str | None
-    basic_auth: BasicAuth | None
     timeout: int
     qos_limit: int | None
     model_name: str
@@ -171,7 +170,6 @@ class BootstrapModelsUseCase:
                     provider_type=provider_to_create.type,
                     url=provider_to_create.url,
                     key=provider_to_create.key,
-                    basic_auth=provider_to_create.basic_auth,
                     timeout=provider_to_create.timeout,
                     qos_limit=provider_to_create.qos_limit,
                     model_name=provider_to_create.model_name,
