@@ -7,11 +7,12 @@ from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserAuthorization, UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
-from api.domain.user.errors import UserAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError, UserCannotCreateUserError
 
 
 @dataclass
 class CreateUserCommand:
+    authenticated_user_id: int
     email: str
     role_id: int
     organization_id: int
@@ -26,7 +27,9 @@ class CreateUserUseCaseSuccess:
     user: User
 
 
-type CreateUserUseCaseResult = CreateUserUseCaseSuccess | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError
+type CreateUserUseCaseResult = (
+    CreateUserUseCaseSuccess | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError | UserCannotCreateUserError
+)
 
 
 class CreateUserUseCase:
@@ -43,6 +46,11 @@ class CreateUserUseCase:
         self.user_authorization = user_authorization
 
     async def execute(self, command: CreateUserCommand) -> CreateUserUseCaseResult:
+        is_authorized = await self.user_authorization.can_create_user(user_id=command.authenticated_user_id, organization_id=command.organization_id)
+
+        if not is_authorized:
+            return UserCannotCreateUserError(user_id=command.authenticated_user_id)
+
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
         match role:
             case RoleNotFoundError() as error:
