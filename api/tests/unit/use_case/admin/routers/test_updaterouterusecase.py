@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.tests.unit.use_case.factories import RouterFactory
 from api.use_cases.admin.routers import UpdateRouterCommand, UpdateRouterUseCase, UpdateRouterUseCaseSuccess
@@ -30,7 +30,6 @@ def full_command(router, **overrides) -> UpdateRouterCommand:
         name=router.name,
         router_type=router.type,
         aliases=router.aliases,
-        load_balancing_strategy=router.load_balancing_strategy,
         cost_prompt_tokens=router.cost_prompt_tokens,
         cost_completion_tokens=router.cost_completion_tokens,
         qos_retries_before_reject=router.qos_retries_before_reject,
@@ -47,7 +46,6 @@ class TestUpdateRouterUseCase:
         updated_router = (
             sample_router.with_name("new-name")
             .with_type(RouterType.TEXT_EMBEDDINGS_INFERENCE)
-            .with_load_balancing_strategy(RouterLoadBalancingStrategy.LEAST_BUSY)
             .with_cost_prompt_tokens(0.005)
             .with_cost_completion_tokens(0.010)
             .with_qos_retries_before_reject(2)
@@ -64,7 +62,6 @@ class TestUpdateRouterUseCase:
                 sample_router,
                 name="new-name",
                 router_type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
-                load_balancing_strategy=RouterLoadBalancingStrategy.LEAST_BUSY,
                 cost_prompt_tokens=0.005,
                 cost_completion_tokens=0.010,
                 qos_retries_before_reject=2,

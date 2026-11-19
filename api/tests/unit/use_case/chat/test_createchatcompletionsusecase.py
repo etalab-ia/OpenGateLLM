@@ -10,11 +10,11 @@ from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation, ProviderReservationRefused
-from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderLoads, ProviderResponse, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterRateLimitState, RouterType
+from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
@@ -51,14 +51,12 @@ def mock_usage_repository():
 
 @pytest.fixture
 def router():
-    return RouterFactory(
-        id=1, name=MODEL_NAME, type=RouterType.TEXT_GENERATION, providers=1, load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE
-    )
+    return RouterFactory(id=1, name=MODEL_NAME, type=RouterType.TEXT_GENERATION, providers=1)
 
 
 @pytest.fixture
 def provider():
-    return ProviderFactory(id=7, router_id=1)
+    return ProviderFactory(id=7, router_id=1, qos_limit=10)
 
 
 @pytest.fixture
@@ -141,6 +139,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case._get_remaining_rate_limits = AsyncMock(return_value=RouterRateLimitState.unlimited())
         use_case._forward_request_to_provider = AsyncMock(return_value=ProviderResponse(data=sample_completion))
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
+        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={provider.id: 0})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider, request_id=REQUEST_ID)
         use_case.provider_client.forward_stream = AsyncMock(return_value=_chunk_stream())
 

@@ -11,9 +11,9 @@ Redis is a **required dependency** for OpenGateLLM to function.
 
 OpenGateLLM uses Redis as an in-memory data store. It has **two** main purposes:
 - **Rate limiting**: Tracks API usage limits (RPM, RPD, TPM, TPD)
-- **Load support**: Stores one ZSET per provider for [Quality of Service](/features/usage/load/). Each active request is a member, so the member count supplies the load used for atomic admission, `least_busy` load balancing, and health saturation.
+- **Load support**: Stores one ZSET per provider with a `qos_limit` for [Quality of Service](/features/usage/load/). Each active request is a member, so the member count supplies the load used for atomic admission, provider selection, and health saturation. The load of a provider without a limit is not recorded: nothing reads it.
 
-Load tracking is always active, even when admission caps are disabled. An admitted request refreshes its member with a heartbeat while the provider call runs and removes it immediately on release. If a worker stops, the heartbeat expires and the next admission purges the member.
+For a provider with a `qos_limit`, load tracking is always active, even when admission caps are disabled. An admitted request refreshes its member with a heartbeat while the provider call runs and removes it immediately on release. If a worker stops, the heartbeat expires and the next admission purges the member.
 
 ## Configuration
 

@@ -20,7 +20,7 @@ from api.domain.provider.entities import ProviderEndpoint, ProviderJsonResponse,
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
+from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
@@ -119,6 +119,7 @@ def mock_usage_repository():
 def mock_random_generator():
     random_generator = create_autospec(random.Random, instance=True, spec_set=True)
     random_generator.sample.side_effect = lambda population, k: list(population)[:k]
+    random_generator.random.return_value = 0.5
     random_generator.choice.side_effect = lambda candidates: candidates[0]
     random_generator.randint.side_effect = lambda low, high: low
     return random_generator
@@ -131,7 +132,6 @@ def router():
         name="test-router",
         type=RouterType.TEXT_GENERATION,
         providers=1,
-        load_balancing_strategy="shuffle",
         cost_prompt_tokens=2.0,
         cost_completion_tokens=4.0,
     )
@@ -139,7 +139,7 @@ def router():
 
 @pytest.fixture
 def provider():
-    return ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM, model_name="vllm-model")
+    return ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM, model_name="vllm-model", qos_limit=10)
 
 
 @pytest.fixture
@@ -340,6 +340,7 @@ class TestForwardRequestToProvider:
     @pytest.fixture(autouse=True)
     def configure_provider_flow(self, use_case, provider, sample_data):
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
+        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={provider.id: 0})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider, request_id=REQUEST_ID)
         use_case.provider_client.forward.return_value = ProviderResponse(data=sample_data)
 
@@ -423,6 +424,7 @@ class TestForwardRequestToProvider:
         router.qos_retries_before_reject = 2
         provider_with_limit = provider.with_qos_limit(2)
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider_with_limit]
+        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={provider_with_limit.id: 2})
         use_case.provider_concurrency_limiter.reserve.side_effect = [
             ProviderReservationRefused(),
             ProviderReservationRefused(),
@@ -619,8 +621,8 @@ class TestReserveProvider:
     @pytest.mark.asyncio
     async def test_should_try_the_next_provider_when_one_refuses(self, use_case):
         # Arrange
-        full_provider = ProviderFactory(id=1)
-        available_provider = ProviderFactory(id=2)
+        full_provider = ProviderFactory(id=1, qos_limit=10)
+        available_provider = ProviderFactory(id=2, qos_limit=10)
         use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 0, 2: 1})
         use_case.provider_concurrency_limiter.reserve.side_effect = [
             ProviderReservationRefused(),
@@ -630,7 +632,6 @@ class TestReserveProvider:
         # Act
         result = await use_case._reserve_provider(
             providers=[available_provider, full_provider],
-            strategy=RouterLoadBalancingStrategy.LEAST_BUSY,
             retries_before_reject=None,
             request_id=REQUEST_ID,
         )
@@ -643,16 +644,16 @@ class TestReserveProvider:
         assert tried_providers == [full_provider, available_provider]
 
     @pytest.mark.asyncio
-    async def test_should_never_try_a_closed_provider(self, use_case):
+    async def test_should_not_try_a_provider_when_it_is_closed(self, use_case):
         # Arrange
         closed_provider = ProviderFactory(id=1, qos_limit=0)
-        open_provider = ProviderFactory(id=2)
+        open_provider = ProviderFactory(id=2, qos_limit=10)
+        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={2: 0})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=open_provider, request_id=REQUEST_ID)
 
         # Act
         await use_case._reserve_provider(
             providers=[closed_provider, open_provider],
-            strategy=RouterLoadBalancingStrategy.SHUFFLE,
             retries_before_reject=None,
             request_id=REQUEST_ID,
         )
@@ -664,47 +665,68 @@ class TestReserveProvider:
     async def test_should_not_enforce_the_provider_limit_when_the_router_has_no_retries_before_reject(self, use_case):
         # Arrange
         provider_with_limit = ProviderFactory(id=1, qos_limit=1)
+        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 0})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider_with_limit, request_id=REQUEST_ID)
 
         # Act
-        await use_case._reserve_provider(
-            providers=[provider_with_limit], strategy=RouterLoadBalancingStrategy.SHUFFLE, retries_before_reject=None, request_id=REQUEST_ID
-        )
+        await use_case._reserve_provider(providers=[provider_with_limit], retries_before_reject=None, request_id=REQUEST_ID)
 
         # Assert
         use_case.provider_concurrency_limiter.reserve.assert_awaited_once_with(request_id=REQUEST_ID, provider=provider_with_limit, limit=None)
 
     @pytest.mark.asyncio
-    async def test_should_try_the_least_loaded_provider_first_with_least_busy(self, use_case):
+    async def test_should_try_the_provider_with_the_lowest_load_rate_first_when_every_provider_has_a_limit(self, use_case):
         # Arrange
-        busy_provider = ProviderFactory(id=1)
-        idle_provider = ProviderFactory(id=2)
-        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 5, 2: 0})
+        idle_provider = ProviderFactory(id=1, qos_limit=10)
+        busy_provider = ProviderFactory(id=2, qos_limit=10)
+        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 0, 2: 5})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=idle_provider, request_id=REQUEST_ID)
 
         # Act
-        await use_case._reserve_provider(
-            providers=[busy_provider, idle_provider],
-            strategy=RouterLoadBalancingStrategy.LEAST_BUSY,
-            retries_before_reject=None,
-            request_id=REQUEST_ID,
-        )
+        await use_case._reserve_provider(providers=[idle_provider, busy_provider], retries_before_reject=None, request_id=REQUEST_ID)
 
         # Assert
-        use_case.provider_concurrency_limiter.read_loads.assert_awaited_once_with(providers=[busy_provider, idle_provider])
+        use_case.provider_concurrency_limiter.read_loads.assert_awaited_once_with(providers=[idle_provider, busy_provider])
         use_case.provider_concurrency_limiter.reserve.assert_awaited_once_with(request_id=REQUEST_ID, provider=idle_provider, limit=None)
+
+    @pytest.mark.asyncio
+    async def test_should_shuffle_the_providers_without_reading_their_loads_when_a_provider_has_no_limit(self, use_case):
+        # Arrange
+        provider_without_limit = ProviderFactory(id=1, qos_limit=None)
+        provider_with_limit = ProviderFactory(id=2, qos_limit=10)
+        use_case.random_generator.sample.side_effect = lambda population, k: list(reversed(population))[:k]
+        use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider_with_limit, request_id=REQUEST_ID)
+
+        # Act
+        await use_case._reserve_provider(providers=[provider_without_limit, provider_with_limit], retries_before_reject=None, request_id=REQUEST_ID)
+
+        # Assert
+        use_case.random_generator.sample.assert_called_once_with([provider_without_limit, provider_with_limit], k=2)
+        use_case.provider_concurrency_limiter.read_loads.assert_not_awaited()
+        use_case.provider_concurrency_limiter.reserve.assert_awaited_once_with(request_id=REQUEST_ID, provider=provider_with_limit, limit=None)
+
+    @pytest.mark.asyncio
+    async def test_should_forward_to_a_provider_without_reserving_it_when_it_has_no_limit(self, use_case):
+        # Arrange
+        provider_without_limit = ProviderFactory(id=1, qos_limit=None)
+
+        # Act
+        result = await use_case._reserve_provider(providers=[provider_without_limit], retries_before_reject=3, request_id=REQUEST_ID)
+
+        # Assert
+        assert result == ProviderReservation(provider=provider_without_limit, request_id=REQUEST_ID)
+        use_case.provider_concurrency_limiter.reserve.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_forward_to_a_random_open_provider_when_the_reservation_cannot_be_checked(self, use_case):
         # Arrange
         closed_provider = ProviderFactory(id=1, qos_limit=0)
-        open_provider = ProviderFactory(id=2)
+        open_provider = ProviderFactory(id=2, qos_limit=10)
+        use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={2: 0})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderLimitsCannotBeEnforced()
 
         # Act
-        result = await use_case._reserve_provider(
-            providers=[closed_provider, open_provider], strategy=RouterLoadBalancingStrategy.SHUFFLE, retries_before_reject=3, request_id=REQUEST_ID
-        )
+        result = await use_case._reserve_provider(providers=[closed_provider, open_provider], retries_before_reject=3, request_id=REQUEST_ID)
 
         # Assert
         assert result == ProviderReservation(provider=open_provider, request_id=REQUEST_ID)
@@ -714,13 +736,11 @@ class TestReserveProvider:
     @pytest.mark.asyncio
     async def test_should_forward_to_a_random_open_provider_when_the_loads_cannot_be_read(self, use_case):
         # Arrange
-        open_provider = ProviderFactory(id=1)
+        open_provider = ProviderFactory(id=1, qos_limit=10)
         use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLimitsCannotBeEnforced()
 
         # Act
-        result = await use_case._reserve_provider(
-            providers=[open_provider], strategy=RouterLoadBalancingStrategy.LEAST_BUSY, retries_before_reject=None, request_id=REQUEST_ID
-        )
+        result = await use_case._reserve_provider(providers=[open_provider], retries_before_reject=None, request_id=REQUEST_ID)
 
         # Assert
         assert result == ProviderReservation(provider=open_provider, request_id=REQUEST_ID)
@@ -732,9 +752,7 @@ class TestReserveProvider:
         closed_provider = ProviderFactory(id=1, qos_limit=0)
 
         # Act
-        result = await use_case._reserve_provider(
-            providers=[closed_provider], strategy=RouterLoadBalancingStrategy.SHUFFLE, retries_before_reject=3, request_id=REQUEST_ID
-        )
+        result = await use_case._reserve_provider(providers=[closed_provider], retries_before_reject=3, request_id=REQUEST_ID)
 
         # Assert
         assert result == ProviderReservationRefused()
