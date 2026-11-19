@@ -15,3 +15,7 @@ class AuthorizationClient(ABC):
     @abstractmethod
     async def delete_relation(self, relation_tuple: RelationTuple) -> None:
         pass
+
+    @abstractmethod
+    async def delete_relation_if_exists(self, relation_tuple: RelationTuple) -> None:
+        pass
