@@ -9,6 +9,7 @@ type platform
 
     define can_create_organization: admin
     define can_create_user: admin
+    define can_delete_user: admin
 
 type organization
   relations

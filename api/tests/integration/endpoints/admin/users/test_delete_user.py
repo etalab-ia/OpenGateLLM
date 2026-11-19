@@ -1,11 +1,12 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import delete_user_use_case_factory
-from api.domain.user.errors import UserHasProvidersError, UserHasRoutersError, UserNotFoundError
+from api.dependencies import _get_user_authorization, delete_user_use_case_factory
+from api.domain.user import UserAuthorization
+from api.domain.user.errors import UserCannotDeleteUserError, UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import UserSQLFactory
@@ -16,9 +17,12 @@ URL = f"/v1{EndpointRoute.ADMIN_USERS}"
 @pytest.mark.asyncio(loop_scope="session")
 class TestDeleteUser:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+        self.mock_user_authorization = create_autospec(UserAuthorization, instance=True, spec_set=True)
+        self.mock_user_authorization.can_delete_user.return_value = True
+        app.dependency_overrides[_get_user_authorization] = lambda: self.mock_user_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
@@ -51,6 +55,11 @@ class TestDeleteUser:
                 409,
                 "User 1 still has providers and cannot be removed.",
             ),
+            (
+                UserCannotDeleteUserError(user_id=42),
+                403,
+                "User 42 is not allowed to perform this action.",
+            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -69,6 +78,7 @@ class TestDeleteUser:
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+        self.mock_user_authorization.can_delete_user.return_value = False
 
         response = await client.delete(
             url=f"{URL}/1",
@@ -76,7 +86,7 @@ class TestDeleteUser:
         )
 
         assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
+        assert response.json().get("detail") == f"User {regular_user.id} is not allowed to perform this action."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

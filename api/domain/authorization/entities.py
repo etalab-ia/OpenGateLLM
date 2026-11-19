@@ -17,6 +17,7 @@ class PlatformRelation(StrEnum):
     ADMIN = "admin"
     CAN_CREATE_ORGANIZATION = "can_create_organization"
     CAN_CREATE_USER = "can_create_user"
+    CAN_DELETE_USER = "can_delete_user"
 
 
 class OrganizationRelation(StrEnum):
