@@ -264,6 +264,14 @@ class RoleHasUsersHTTPException(HTTPException):
         super().__init__(status_code=409, detail=f"Role {role_id} still has users and cannot be removed.")
 
 
+class RoleAdminPermissionChangeHTTPException(HTTPException):
+    status_code = 409
+    detail = "The admin permission of role {role_id} cannot be added or removed."
+
+    def __init__(self, role_id: int) -> None:
+        super().__init__(status_code=409, detail=f"The admin permission of role {role_id} cannot be added or removed.")
+
+
 class OrganizationHasUsersHTTPException(HTTPException):
     status_code = 409
     detail = "Organization {organization_id} still has users and cannot be removed."

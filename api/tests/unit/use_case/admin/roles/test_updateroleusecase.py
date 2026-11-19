@@ -124,7 +124,7 @@ class TestUpdateRoleUseCase:
     @pytest.mark.asyncio
     async def test_should_replace_permissions_when_permissions_are_changed(self, use_case, role_repository, permission_repository, sample_role):
         # Arrange
-        new_permissions = [PermissionType.ADMIN, PermissionType.READ_METRIC]
+        new_permissions = [PermissionType.PROVIDE_MODELS, PermissionType.READ_METRIC]
         updated_role = sample_role.with_permissions(new_permissions)
 
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
@@ -146,7 +146,7 @@ class TestUpdateRoleUseCase:
     ):
         # Arrange
         new_limits = [LimitFactory(router_id=2, type=LimitType.RPD, value=500)]
-        new_permissions = [PermissionType.ADMIN]
+        new_permissions = [PermissionType.PROVIDE_MODELS]
         updated_role = sample_role.with_name("updated").with_limits(new_limits).with_permissions(new_permissions)
 
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
@@ -169,7 +169,7 @@ class TestUpdateRoleUseCase:
     @pytest.mark.asyncio
     async def test_should_clear_limits_and_permissions_when_lists_are_empty(self, use_case, role_repository, limit_repository, permission_repository):
         # Arrange
-        role = RoleFactory(id=1, name="original-role", permissions=[PermissionType.ADMIN], limits=[LimitFactory(router_id=1, type=LimitType.TPM, value=1000)])  # fmt: off
+        role = RoleFactory(id=1, name="original-role", permissions=[PermissionType.READ_METRIC], limits=[LimitFactory(router_id=1, type=LimitType.TPM, value=1000)])  # fmt: off
         cleared_role = role.with_permissions([]).with_limits([])
         command = full_command(role, permissions=[], limits=[])
 

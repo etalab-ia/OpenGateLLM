@@ -9,12 +9,13 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
-from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
+from api.domain.role.errors import RoleAdminPermissionChangeError, RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     NotAdminUserHTTPException,
+    RoleAdminPermissionChangeHTTPException,
     RoleAlreadyExistsHTTPException,
     RoleHasUsersHTTPException,
     RoleNotFoundHTTPException,
@@ -64,7 +65,9 @@ async def create_role(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException]),
+    responses=get_documentation_responses(
+        [NotAdminUserHTTPException, RoleAdminPermissionChangeHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException]
+    ),
 )
 async def update_role(
     role_id: int = Path(description="The ID of the role to update."),
@@ -86,6 +89,8 @@ async def update_role(
             raise RoleNotFoundHTTPException(not_found_role_id)
         case RoleAlreadyExistsError(name=name):
             raise RoleAlreadyExistsHTTPException(name)
+        case RoleAdminPermissionChangeError(id=unchangeable_role_id):
+            raise RoleAdminPermissionChangeHTTPException(unchangeable_role_id)
 
 
 @router.get(
