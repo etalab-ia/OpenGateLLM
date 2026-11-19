@@ -14,6 +14,7 @@ from api.domain.organization.errors import (
     OrganizationHasUsersError,
     OrganizationNotFoundError,
     UserCannotCreateOrganizationError,
+    UserCannotDeleteOrganizationError,
 )
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -125,15 +126,16 @@ async def get_organization(
 
 @router.delete(
     path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, OrganizationNotFoundHTTPException, OrganizationHasUsersHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException, OrganizationNotFoundHTTPException, OrganizationHasUsersHTTPException]),
 )
 async def delete_organization(
     organization_id: int = Path(description="The ID of the organization to delete."),
     delete_organization_use_case: DeleteOrganizationUseCase = Depends(delete_organization_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
-    command = DeleteOrganizationCommand(organization_id=organization_id)
+    command = DeleteOrganizationCommand(authenticated_user_id=authenticated_user.id, organization_id=organization_id)
     result = await delete_organization_use_case.execute(command)
 
     match result:
@@ -143,6 +145,8 @@ async def delete_organization(
             raise OrganizationNotFoundHTTPException(organization_id)
         case OrganizationHasUsersError(id=organization_id):
             raise OrganizationHasUsersHTTPException(organization_id=organization_id)
+        case UserCannotDeleteOrganizationError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.patch(

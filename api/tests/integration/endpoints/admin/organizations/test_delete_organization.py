@@ -1,14 +1,16 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import delete_organization_use_case_factory
-from api.domain.organization.errors import OrganizationHasUsersError, OrganizationNotFoundError
+from api.dependencies import _get_organization_authorization, delete_organization_use_case_factory
+from api.domain.organization import OrganizationAuthorization
+from api.domain.organization.errors import OrganizationHasUsersError, OrganizationNotFoundError, UserCannotDeleteOrganizationError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
+from api.use_cases.admin.organizations import DeleteOrganizationUseCase
 
 URL = f"/v1{EndpointRoute.ADMIN_ORGANIZATIONS}"
 
@@ -20,7 +22,10 @@ class TestDeleteOrganization:
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
-    async def test_happy_path(self, client: AsyncClient, db_session):
+    async def test_happy_path(self, client: AsyncClient, app, db_session):
+        mock_organization_authorization = create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+        mock_organization_authorization.can_delete_organization.return_value = True
+        app.dependency_overrides[_get_organization_authorization] = lambda: mock_organization_authorization
         organization = OrganizationSQLFactory(name="to-delete")
         await db_session.flush()
 
@@ -49,10 +54,15 @@ class TestDeleteOrganization:
                 409,
                 "Organization 999 still has users and cannot be removed.",
             ),
+            (
+                UserCannotDeleteOrganizationError(user_id=7),
+                403,
+                "User 7 is not allowed to perform this action.",
+            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
-        mock_use_case = AsyncMock()
+        mock_use_case = create_autospec(DeleteOrganizationUseCase, instance=True, spec_set=True)
         mock_use_case.execute.return_value = use_case_result
         app.dependency_overrides[delete_organization_use_case_factory] = lambda: mock_use_case
 
@@ -63,18 +73,6 @@ class TestDeleteOrganization:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
-
-    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
-        regular_user = UserSQLFactory(regular_user=True)
-        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
-
-        response = await client.delete(
-            url=f"{URL}/1",
-            headers={"Authorization": f"Bearer {key.token}"},
-        )
-
-        assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
