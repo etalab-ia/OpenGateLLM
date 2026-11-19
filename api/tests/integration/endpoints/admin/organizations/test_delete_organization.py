@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, create_autospec
+from unittest.mock import create_autospec
 
 from httpx import AsyncClient
 import pytest
@@ -10,6 +10,7 @@ from api.domain.organization.errors import OrganizationHasUsersError, Organizati
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
+from api.use_cases.admin.organizations import DeleteOrganizationUseCase
 
 URL = f"/v1{EndpointRoute.ADMIN_ORGANIZATIONS}"
 
@@ -61,7 +62,7 @@ class TestDeleteOrganization:
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
-        mock_use_case = AsyncMock()
+        mock_use_case = create_autospec(DeleteOrganizationUseCase, instance=True, spec_set=True)
         mock_use_case.execute.return_value = use_case_result
         app.dependency_overrides[delete_organization_use_case_factory] = lambda: mock_use_case
 
