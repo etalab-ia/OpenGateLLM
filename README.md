@@ -79,8 +79,8 @@
 | api/domain/organization/errors.py                                                                               |       11 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/provider/\_providerclient.py                                                                         |       16 |        2 |        0 |        0 |     87.50% |    29, 33 |
 | api/domain/provider/\_providerconcurrencylimiter.py                                                             |       23 |        2 |        0 |        0 |     91.30% |    29, 42 |
-| api/domain/provider/\_providerrepository.py                                                                     |       29 |        8 |        0 |        0 |     72.41% |27, 31, 35, 46, 50, 54, 58, 62 |
-| api/domain/provider/entities.py                                                                                 |      105 |        4 |       12 |        2 |     94.87% |136, 139, 194, 197 |
+| api/domain/provider/\_providerrepository.py                                                                     |       29 |        8 |        0 |        0 |     72.41% |26, 30, 34, 45, 49, 53, 57, 61 |
+| api/domain/provider/entities.py                                                                                 |      103 |        4 |       12 |        2 |     94.78% |130, 133, 188, 191 |
 | api/domain/provider/errors.py                                                                                   |       22 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/rerank/entities.py                                                                                   |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/role/\_limitrepository.py                                                                            |       12 |        3 |        0 |        0 |     75.00% | 9, 16, 23 |
@@ -108,7 +108,7 @@
 | api/infrastructure/configuration/\_interpolation.py                                                             |       26 |        0 |       12 |        0 |    100.00% |           |
 | api/infrastructure/configuration/\_validationerrors.py                                                          |       43 |        1 |        8 |        2 |     94.12% |25-\>34, 27 |
 | api/infrastructure/configuration/sections/dependencies.py                                                       |       22 |        2 |        2 |        1 |     87.50% |     21-22 |
-| api/infrastructure/configuration/sections/models.py                                                             |       29 |        8 |       10 |        2 |     58.97% |33, 39-41, 63-67 |
+| api/infrastructure/configuration/sections/models.py                                                             |       29 |        8 |       10 |        2 |     58.97% |32, 38-40, 62-66 |
 | api/infrastructure/configuration/sections/settings.py                                                           |       28 |        1 |        2 |        1 |     93.33% |        79 |
 | api/infrastructure/context.py                                                                                   |       14 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/ecologit/\_ecologitmodelenvironmentalimpactscomputer.py                                      |       12 |        0 |        2 |        0 |    100.00% |           |
@@ -123,7 +123,7 @@
 | api/infrastructure/fastapi/documentation.py                                                                     |       15 |        0 |        6 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/endpoints/admin/keys.py                                                              |       51 |        0 |       18 |        4 |     94.20% |60-\>exit, 80-\>exit, 103-\>exit, 132-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/organizations.py                                                     |       63 |        0 |       24 |        5 |     94.25% |75-\>exit, 97-\>exit, 122-\>exit, 144-\>exit, 167-\>exit |
-| api/infrastructure/fastapi/endpoints/admin/providers.py                                                         |       83 |        0 |       42 |        5 |     96.00% |129-\>exit, 150-\>exit, 205-\>exit, 225-\>exit, 247-\>exit |
+| api/infrastructure/fastapi/endpoints/admin/providers.py                                                         |       83 |        0 |       42 |        5 |     96.00% |128-\>exit, 149-\>exit, 204-\>exit, 224-\>exit, 246-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/roles.py                                                             |       59 |        0 |       22 |        5 |     93.83% |59-\>exit, 87-\>exit, 107-\>exit, 132-\>exit, 154-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/routers.py                                                           |       62 |        0 |       24 |        5 |     94.19% |72-\>exit, 91-\>exit, 116-\>exit, 141-\>exit, 181-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/users.py                                                             |       82 |        8 |       34 |        5 |     88.79% |92-\>exit, 113-114, 155-156, 187-188, 236-237 |
@@ -210,7 +210,7 @@
 | api/infrastructure/postgres/\_postgresmodelquery.py                                                             |       35 |        0 |        2 |        0 |    100.00% |           |
 | api/infrastructure/postgres/\_postgresorganizationrepository.py                                                 |       82 |        3 |       16 |        3 |     93.88% |30, 120, 135 |
 | api/infrastructure/postgres/\_postgrespermissionrepository.py                                                   |       24 |        0 |        4 |        0 |    100.00% |           |
-| api/infrastructure/postgres/\_postgresproviderrepository.py                                                     |       74 |        2 |       10 |        2 |     95.24% |   62, 141 |
+| api/infrastructure/postgres/\_postgresproviderrepository.py                                                     |       74 |        2 |       10 |        2 |     95.24% |   61, 138 |
 | api/infrastructure/postgres/\_postgresrolesrepository.py                                                        |       83 |        2 |       14 |        3 |     94.85% |80, 151-\>154, 159 |
 | api/infrastructure/postgres/\_postgresrouterrepository.py                                                       |      110 |        2 |       22 |        3 |     96.21% |178, 196-\>199, 247 |
 | api/infrastructure/postgres/\_postgresusagerepository.py                                                        |       54 |        0 |       10 |        0 |    100.00% |           |
@@ -221,7 +221,7 @@
 | api/infrastructure/redis/\_redisproviderconcurrencylimiter.py                                                   |       85 |        1 |       10 |        0 |     98.95% |       132 |
 | api/infrastructure/redis/\_redisrouterratelimiter.py                                                            |      117 |       15 |       42 |        9 |     84.91% |33-\>exit, 52, 65-\>39, 68, 110-111, 115, 120-\>exit, 127, 137-140, 159, 168-169, 173-176 |
 | api/infrastructure/tiktoken/\_tiktokenmodeltokenizer.py                                                         |        9 |        0 |        2 |        0 |    100.00% |           |
-| api/lifespan.py                                                                                                 |      165 |       78 |       62 |        4 |     47.14% |59-86, 90-96, 100, 104, 138-141, 142-\>exit, 180, 183-\>exit, 218-230, 234-242, 246-268, 272-282 |
+| api/lifespan.py                                                                                                 |      165 |       78 |       62 |        4 |     47.14% |59-86, 90-96, 100, 104, 138-141, 142-\>exit, 180, 183-\>exit, 217-229, 233-241, 245-267, 271-281 |
 | api/main.py                                                                                                     |        2 |        2 |        0 |        0 |      0.00% |       1-3 |
 | api/use\_cases/\_providerrequestforwardingusecase.py                                                            |      181 |        2 |       52 |        3 |     97.85% |225-\>231, 284-286, 319-\>exit |
 | api/use\_cases/admin/\_bootstrapadminusecase.py                                                                 |       76 |        0 |       30 |        7 |     93.40% |74-\>82, 79-\>82, 85-\>113, 87-\>113, 92-\>100, 97-\>100, 110-\>113 |
@@ -272,7 +272,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **7943** |  **545** | **1390** |  **166** | **91.33%** |           |
+| **TOTAL**                                                                                                       | **7941** |  **545** | **1390** |  **166** | **91.33%** |           |
 
 
 ## Setup coverage badge
