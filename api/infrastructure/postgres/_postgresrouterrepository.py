@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortField, SortOrder
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterType
+from api.domain.router.entities import Router, RouterPage, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
@@ -44,7 +44,6 @@ class PostgresRouterRepository(RouterRepository):
             RouterTable.name,
             RouterTable.user_id,
             RouterTable.type,
-            RouterTable.load_balancing_strategy,
             RouterTable.qos_retries_before_reject,
             RouterTable.cost_prompt_tokens,
             RouterTable.cost_completion_tokens,
@@ -62,7 +61,6 @@ class PostgresRouterRepository(RouterRepository):
             user_id=row.user_id,
             type=RouterType(row.type),
             aliases=row.aliases if aliases is None else aliases,
-            load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
             qos_retries_before_reject=row.qos_retries_before_reject,
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,
@@ -124,7 +122,6 @@ class PostgresRouterRepository(RouterRepository):
         self,
         name: str,
         router_type: RouterType,
-        load_balancing_strategy: RouterLoadBalancingStrategy,
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
         user_id: int,
@@ -140,7 +137,6 @@ class PostgresRouterRepository(RouterRepository):
                     user_id=user_id,
                     name=name,
                     type=router_type.value,
-                    load_balancing_strategy=load_balancing_strategy.value,
                     qos_retries_before_reject=qos_retries_before_reject,
                     cost_prompt_tokens=cost_prompt_tokens,
                     cost_completion_tokens=cost_completion_tokens,
@@ -150,7 +146,6 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.name,
                     RouterTable.user_id,
                     RouterTable.type,
-                    RouterTable.load_balancing_strategy,
                     RouterTable.qos_retries_before_reject,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
@@ -214,7 +209,6 @@ class PostgresRouterRepository(RouterRepository):
                     user_id=router.user_id,
                     name=router.name,
                     type=router.type.value,
-                    load_balancing_strategy=router.load_balancing_strategy.value,
                     qos_retries_before_reject=router.qos_retries_before_reject,
                     cost_prompt_tokens=router.cost_prompt_tokens,
                     cost_completion_tokens=router.cost_completion_tokens,
@@ -224,7 +218,6 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.name,
                     RouterTable.user_id,
                     RouterTable.type,
-                    RouterTable.load_balancing_strategy,
                     RouterTable.qos_retries_before_reject,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
@@ -252,7 +245,6 @@ class PostgresRouterRepository(RouterRepository):
             user_id=router.user_id,
             type=RouterType(row.type),
             aliases=router.aliases,
-            load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
             qos_retries_before_reject=row.qos_retries_before_reject,
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,

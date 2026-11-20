@@ -1,13 +1,13 @@
 import datetime as dt
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, ForeignKey, MetaData, UniqueConstraint, false, func
+from sqlalchemy import DateTime, Enum, ForeignKey, MetaData, UniqueConstraint, false, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import RouterType
 from api.infrastructure.configuration import DEFAULT_TIMEOUT
 
 Base = declarative_base(
@@ -170,7 +170,9 @@ class Router(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="RESTRICT"))
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[RouterType]
-    load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
+    # No longer read nor written: the strategy is inferred from the providers' qos_limit. Kept, with a default, for the
+    # release still running during a rolling deployment, which reads it on every router; dropped in a later release.
+    load_balancing_strategy: Mapped[str] = mapped_column(Enum("SHUFFLE", "LEAST_BUSY", name="routerloadbalancingstrategy"), server_default="SHUFFLE")
     qos_retries_before_reject: Mapped[int | None]
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)

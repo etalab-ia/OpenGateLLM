@@ -1,4 +1,5 @@
 from enum import StrEnum
+import random
 from typing import Annotated
 from uuid import uuid4
 
@@ -149,17 +150,13 @@ class ProviderLoads(BaseModel):
     def load_of(self, provider: Provider) -> int:
         return self.load_by_provider_id[provider.id]
 
-    def sort_least_loaded_first(self, providers: list[Provider]) -> list[Provider]:
-        if any(provider.qos_limit is None for provider in providers):
-            return self._sort_by_load(providers)
+    def sort_by_load_rate(self, providers: list[Provider], random_generator: random.Random) -> list[Provider]:
+        return sorted(providers, key=lambda provider: self._load_rate_sort_key(provider, random_generator))
 
-        return self._sort_by_free_capacity(providers)
-
-    def _sort_by_load(self, providers: list[Provider]) -> list[Provider]:
-        return sorted(providers, key=lambda provider: (self.load_by_provider_id[provider.id], provider.id))
-
-    def _sort_by_free_capacity(self, providers: list[Provider]) -> list[Provider]:
-        return sorted(providers, key=lambda provider: (-(provider.qos_limit - self.load_by_provider_id[provider.id]), provider.id))
+    def _load_rate_sort_key(self, provider: Provider, random_generator: random.Random) -> tuple[float, int, float]:
+        load = self.load_by_provider_id[provider.id]
+        free_slots = provider.qos_limit - load
+        return load / provider.qos_limit, -free_slots, random_generator.random()
 
 
 class ProviderCapabilities(BaseModel):

@@ -31,14 +31,6 @@ def router_settings_form_fields() -> rx.Component:
             disable=RoutersState.edit_entity_loading,
             placeholder="No aliases",
         ),
-        entity_form_select_field(
-            label="Load balancing strategy",
-            items=RoutersState.router_load_balancing_strategies_list,
-            value=RoutersState.entity.load_balancing_strategy,
-            on_change=lambda value: RoutersState.set_edit_entity_attribut("load_balancing_strategy", value),
-            tooltip="Strategy to use for load balancing between providers of the router",
-            disable=RoutersState.edit_entity_loading,
-        ),
         entity_form_input_field(
             label="QoS retries before reject",
             value=RoutersState.entity.qos_retries_before_reject,
@@ -99,14 +91,6 @@ def router_create_form_fields() -> rx.Component:
             type="list",
             placeholder="Enter aliases (comma-separated)",
             tooltip="Aliases of the router (e.g., alias1, alias2)",
-        ),
-        entity_form_select_field(
-            label="Load balancing strategy",
-            items=RoutersState.router_load_balancing_strategies_list,
-            value=RoutersState.entity_to_create.load_balancing_strategy,
-            on_change=lambda value: RoutersState.set_new_entity_attribut("load_balancing_strategy", value),
-            tooltip="Strategy to use for load balancing between providers of the router",
-            placeholder="Select strategy",
         ),
         entity_form_input_field(
             label="QoS retries before reject",

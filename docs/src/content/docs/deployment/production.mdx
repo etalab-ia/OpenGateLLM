@@ -121,7 +121,7 @@ For more information, see [configuration file documentation](/configuration/conf
 
 - Add stable aliases to models so applications do not depend on provider-specific names.
 - Tune provider timeouts according to workload (`timeout: 120` is a common production baseline for long generations).
-- If you run multiple providers for one model, choose a load-balancing strategy that matches your objective (`shuffle` for distribution, `least_busy` for latency under load).
+- If you run multiple providers for one model, set a `qos_limit` on every one of them to send each request to the provider with the lowest load rate. Without a limit on all of them, requests are spread at random.
 
 
 ## API metadata and versioning
