@@ -1,5 +1,5 @@
 # A named stage rather than a download pinned in an ARG, which Dependabot does not read
-FROM quay.io/oauth2-proxy/oauth2-proxy:v7.15.4 AS oauth2-proxy
+FROM quay.io/oauth2-proxy/oauth2-proxy:v7.15.6 AS oauth2-proxy
 
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
