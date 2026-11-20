@@ -7,7 +7,7 @@ from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.use_cases.services import ProviderCapabilitiesProbe
 
@@ -32,7 +32,6 @@ class RouterToCreate:
     name: str
     type: RouterType
     aliases: list[str]
-    load_balancing_strategy: RouterLoadBalancingStrategy
     qos_retries_before_reject: int | None
     cost_prompt_tokens: float
     cost_completion_tokens: float
@@ -107,7 +106,6 @@ class BootstrapModelsUseCase:
             router = await self.router_repository.create_router(
                 name=router_to_create.name,
                 router_type=router_to_create.type,
-                load_balancing_strategy=router_to_create.load_balancing_strategy,
                 qos_retries_before_reject=router_to_create.qos_retries_before_reject,
                 cost_prompt_tokens=router_to_create.cost_prompt_tokens,
                 cost_completion_tokens=router_to_create.cost_completion_tokens,

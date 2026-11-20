@@ -11,7 +11,7 @@ A request that cannot be admitted waits in the gateway instead of being forwarde
 
 ## Measuring load
 
-The load of a provider is the number of requests OpenGateLLM is currently forwarding to it. The gateway counts those requests itself. It does not ask the inference engine, so the same measure applies to every provider, including one that is already failing and can no longer report its own state.
+The load of a provider is the number of requests OpenGateLLM is currently forwarding to it. The gateway measures it only for providers with a `qos_limit`, and counts those requests itself. It does not ask the inference engine, so the same measure applies to every such provider, including one that is already failing and can no longer report its own state.
 
 The count also has to stay correct when the process that owns the request disappears:
 
@@ -33,7 +33,7 @@ Quality of Service (QoS) is the load-support mechanism available today. It uses 
 Configure the cap with `qos_limit` on the provider. OpenGateLLM does not compute this number. 
 Choose it by load-testing the deployed model: raise concurrency until the engine fails, or until the quality you require is no longer held — time to first token (TTFT) and throughput.
 
-- `null` (default): no cap. The provider stays eligible whatever its current load. Health stays `green` while the provider is live.
+- `null` (default): no cap. The provider stays eligible, and its load is not recorded. Health stays `green` while the provider is live.
 - `0`: closed. The provider cannot receive requests, and health is `red`.
 - Positive integer: maximum number of concurrent requests. The cap is enforced only when the router asks for it.
 
@@ -41,7 +41,7 @@ Choose it by load-testing the deployed model: raise concurrency until the engine
 
 Configure what a saturated request does with `qos_retries_before_reject` on the router:
 
-- `null` (default): do not enforce positive caps. Load is still recorded, so `least_busy` and health can use it. A closed provider (`qos_limit = 0`) stays ineligible.
+- `null` (default): do not enforce positive caps. Load is still recorded, so provider selection and health can use it. A closed provider (`qos_limit = 0`) stays ineligible.
 - `0`: return 503 as soon as no provider has capacity.
 - Positive integer `n`: retry admission `n` times, every 0.5 seconds, then return 503. The request waits in the gateway. It is sent on only when a provider is under its limit.
 
@@ -49,5 +49,8 @@ When every provider of the router is closed, the request gets a 503 at once, wit
 
 ### Choosing a provider
 
-`shuffle` picks an eligible provider without looking at its load. `least_busy` picks the provider with the most free capacity. If an uncapped provider is eligible, free capacity cannot be compared, so `least_busy` compares the raw number of active requests.
+The router does not take a strategy: OpenGateLLM infers it from the `qos_limit` of its eligible providers (closed providers excluded).
+
+- Every eligible provider has a limit: the request goes to the provider with the lowest load rate, its active requests divided by its `qos_limit`. When two providers have the same load rate, the one with the most free slots (`qos_limit` minus its active requests) comes first. When they also have the same number of free slots, one of them is picked at random.
+- At least one eligible provider has no limit: load rates cannot be compared, so the request goes to a provider picked at random, without looking at its load.
 

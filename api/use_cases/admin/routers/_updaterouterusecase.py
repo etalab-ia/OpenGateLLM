@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import Router, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 
 
@@ -11,7 +11,6 @@ class UpdateRouterCommand:
     name: str
     router_type: RouterType
     aliases: list[str]
-    load_balancing_strategy: RouterLoadBalancingStrategy
     cost_prompt_tokens: float
     cost_completion_tokens: float
     qos_retries_before_reject: int | None
@@ -43,7 +42,6 @@ class UpdateRouterUseCase:
         router_to_persist = (
             router.with_name(command.name)
             .with_type(command.router_type)
-            .with_load_balancing_strategy(command.load_balancing_strategy)
             .with_cost_prompt_tokens(command.cost_prompt_tokens)
             .with_cost_completion_tokens(command.cost_completion_tokens)
             .with_qos_retries_before_reject(command.qos_retries_before_reject)
