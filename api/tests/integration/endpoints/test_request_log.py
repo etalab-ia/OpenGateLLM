@@ -1,13 +1,14 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_one_organization_use_case_factory
+from api.dependencies import get_my_organization_use_case_factory
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import UserSQLFactory
+from api.use_cases.organizations import GetMyOrganizationUseCase
 
 URL = f"/v1{EndpointRoute.ORGANIZATIONS_ME}"
 
@@ -26,9 +27,9 @@ class TestRequestLog:
         assert len(response.headers["X-Request-ID"]) == 32
 
     async def test_unexpected_use_case_exception_answers_generic_500(self, client: AsyncClient, app):
-        mock_use_case = AsyncMock()
+        mock_use_case = create_autospec(GetMyOrganizationUseCase, instance=True, spec_set=True)
         mock_use_case.execute.side_effect = RuntimeError("database is gone")
-        app.dependency_overrides[get_one_organization_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[get_my_organization_use_case_factory] = lambda: mock_use_case
 
         response = await client.get(url=URL, headers={"Authorization": f"Bearer {self.key.token}"})
 
