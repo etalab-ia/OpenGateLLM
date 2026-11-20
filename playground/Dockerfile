@@ -41,7 +41,11 @@ WORKDIR /playground
 ARG OAUTH2_PROXY_VERSION=v7.15.4
 ARG TARGETARCH=amd64
 
+# Changes once a day in CI, so that the next layer is rebuilt and brings the Debian fixes instead of being reused from the cache
+ARG APT_REFRESH
+
 RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     apt-get install -y nginx supervisor curl unzip ca-certificates && \
     rm -rf /var/lib/apt/lists/* && \
     rm -f /etc/nginx/sites-enabled/default

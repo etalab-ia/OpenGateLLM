@@ -30,8 +30,11 @@ FROM python:3.12-slim AS runtime
 RUN groupadd --gid 1100 opengatellm && \
     useradd --home /api --gid 1100 --uid 1100 opengatellm
 
+# Changes once a day in CI, so that the next layer is rebuilt and brings the Debian fixes instead of being reused from the cache
+ARG APT_REFRESH
+
 # Only runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && apt-get install -y \
     libpq5 \
     poppler-utils \
     curl \
