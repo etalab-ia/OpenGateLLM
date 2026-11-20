@@ -478,8 +478,13 @@ def delete_organization_use_case_factory(
     )
 
 
-def get_organizations_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOrganizationsUseCase:
-    return GetOrganizationsUseCase(organization_repository=_organization_repository(session=postgres_session))
+def get_organizations_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
+) -> GetOrganizationsUseCase:
+    return GetOrganizationsUseCase(
+        organization_repository=_organization_repository(session=postgres_session), organization_authorization=organization_authorization
+    )
 
 
 def get_one_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneOrganizationUseCase:

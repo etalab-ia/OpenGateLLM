@@ -15,6 +15,7 @@ from api.domain.organization.errors import (
     OrganizationNotFoundError,
     UserCannotCreateOrganizationError,
     UserCannotDeleteOrganizationError,
+    UserCannotReadOrganizationsError,
     UserCannotUpdateOrganizationError,
 )
 from api.domain.user.views import AuthenticatedUserView
@@ -80,9 +81,9 @@ async def create_organization(
 
 @router.get(
     path=EndpointRoute.ADMIN_ORGANIZATIONS,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException]),
 )
 async def get_organizations(
     name: str | None = Query(default=None, description="Name substring to filter the organizations by (case-insensitive)."),
@@ -91,8 +92,11 @@ async def get_organizations(
     sort_by: OrganizationSortField = Query(default=OrganizationSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_organizations_use_case: GetOrganizationsUseCase = Depends(get_organizations_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationsResponse:
-    command = GetOrganizationsCommand(name=name, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
+    command = GetOrganizationsCommand(
+        authenticated_user_id=authenticated_user.id, name=name, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order
+    )
     result = await get_organizations_use_case.execute(command)
 
     match result:
@@ -103,6 +107,8 @@ async def get_organizations(
                 limit=limit,
                 data=[OrganizationResponse.model_validate(organization, from_attributes=True) for organization in organization_page.data],
             )
+        case UserCannotReadOrganizationsError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.get(
