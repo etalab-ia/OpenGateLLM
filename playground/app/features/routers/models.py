@@ -9,7 +9,6 @@ class Router(Entity):
     user: str | None = None
     type: str | None = None
     aliases: str | None = None
-    load_balancing_strategy: str | None = None
     qos_retries_before_reject: int | None = None
     cost_prompt_tokens: float | None = None
     cost_completion_tokens: float | None = None

@@ -25,11 +25,6 @@ class RoutersState(EntityState):
             ]
         )
 
-    @rx.var
-    def router_load_balancing_strategies_list(self) -> list[str]:
-        """Get list of router load balancing strategies."""
-        return ["Shuffle", "Least Busy"]
-
     ############################################################
     # Load entities
     ############################################################
@@ -38,18 +33,12 @@ class RoutersState(EntityState):
 
     def _format_router(self, router: dict) -> Router:
         """Format router."""
-
-        _load_balancing_strategy_converter = {
-            "shuffle": "Shuffle",
-            "least_busy": "Least Busy",
-        }
         return Router(
             id=router["id"],
             name=router["name"],
             user=self.router_owners[router["user_id"]],
             type=router["type"],
             aliases=",".join(router["aliases"]) if router["aliases"] else "",
-            load_balancing_strategy=_load_balancing_strategy_converter.get(router["load_balancing_strategy"]),
             qos_retries_before_reject=router["qos_retries_before_reject"],
             cost_prompt_tokens=router["cost_prompt_tokens"],
             cost_completion_tokens=router["cost_completion_tokens"],
@@ -171,7 +160,6 @@ class RoutersState(EntityState):
     ############################################################
     entity_to_create: Router = Router(
         type="text-generation",
-        load_balancing_strategy="Shuffle",
         cost_prompt_tokens=0.0,
         cost_completion_tokens=0.0,
     )
@@ -194,12 +182,9 @@ class RoutersState(EntityState):
         self.create_entity_loading = True
         yield
 
-        new_router_load_balancing_strategy = self.entity_to_create.load_balancing_strategy.lower().replace(" ", "_")
-
         payload = {
             "name": self.entity_to_create.name,
             "type": self.entity_to_create.type,
-            "load_balancing_strategy": new_router_load_balancing_strategy,
             "qos_retries_before_reject": (
                 self.entity_to_create.qos_retries_before_reject if self.entity_to_create.qos_retries_before_reject != "" else None
             ),
@@ -269,13 +254,11 @@ class RoutersState(EntityState):
         yield
 
         router_aliases = [alias.strip() for alias in self.entity.aliases.split(",") if alias.strip()]
-        router_load_balancing_strategy = self.entity.load_balancing_strategy.lower().replace(" ", "_")
 
         payload = {
             "name": self.entity.name,
             "type": self.entity.type,
             "aliases": router_aliases,
-            "load_balancing_strategy": router_load_balancing_strategy,
             "qos_retries_before_reject": self.entity.qos_retries_before_reject if self.entity.qos_retries_before_reject != "" else None,
             "cost_prompt_tokens": self.entity.cost_prompt_tokens,
             "cost_completion_tokens": self.entity.cost_completion_tokens,
