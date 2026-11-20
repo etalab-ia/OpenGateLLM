@@ -7,6 +7,7 @@ type platform
   relations
     define admin: [user]
 
+    define can_read_organization: admin
     define can_create_organization: admin
     define can_create_user: admin
     define can_delete_user: admin
