@@ -27,6 +27,7 @@ Each ADR follows this structure:
 | [2026-07-01](2026-07-01-split-rag.md)                    | Extract RAG into OpenGateRAG (OGR)                  | Accepted    | 2026-07-01 |
 | [2026-08-27](2026-08-27-datetime-handling.md)            | Datetime handling across API, domain and playground | Accepted    | 2026-08-27 |
 | [2026-09-04](2026-09-04-response-schema-mapping.md)      | Mapping domain entities to response schemas         | Accepted    | 2026-09-04 |
+| [2026-11-11](2026-11-11-batch-mode.md)                   | Batch mode for chat completions                     | Proposed    | 2026-11-11 |
 
 
 ## Creating a new ADR
