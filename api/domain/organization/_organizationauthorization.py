@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class OrganizationAuthorization(ABC):
     @abstractmethod
-    async def can_read_organizations(self, user_id: int) -> bool:
+    async def can_read_organization(self, user_id: int) -> bool:
         pass
 
     @abstractmethod
