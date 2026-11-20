@@ -18,7 +18,6 @@ def _valid_body(**overrides) -> dict:
         "name": "test-router",
         "type": "text-generation",
         "aliases": [],
-        "load_balancing_strategy": "shuffle",
         "qos_retries_before_reject": 4,
         "cost_prompt_tokens": 0.001,
         "cost_completion_tokens": 0.002,

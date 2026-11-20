@@ -1,3 +1,8 @@
+import random
+from unittest.mock import create_autospec
+
+import pytest
+
 from api.domain.provider.entities import ProviderEndpoint, ProviderLoads, ProviderRequest, ProviderResponse
 from api.domain.rerank.entities import Rerank
 from api.domain.usage.entities import Usage
@@ -15,32 +20,39 @@ class TestProviderQoSLimit:
 
 
 class TestProviderLoads:
-    def test_should_put_the_lowest_load_first_when_a_provider_has_no_limit(self):
-        provider_with_limit = ProviderFactory(id=1, qos_limit=20)
-        provider_without_limit = ProviderFactory(id=2, qos_limit=None)
-        loads = ProviderLoads(load_by_provider_id={1: 3, 2: 5})
+    @pytest.fixture
+    def mock_random_generator(self):
+        random_generator = create_autospec(random.Random, instance=True, spec_set=True)
+        random_generator.random.return_value = 0.5
+        return random_generator
 
-        sorted_providers = loads.sort_least_loaded_first([provider_without_limit, provider_with_limit])
+    def test_should_put_the_lowest_load_rate_provider_first_when_the_other_one_has_more_free_slots(self, mock_random_generator):
+        large_provider = ProviderFactory(id=1, qos_limit=100)
+        small_provider = ProviderFactory(id=2, qos_limit=10)
+        loads = ProviderLoads(load_by_provider_id={1: 80, 2: 0})
 
-        assert sorted_providers == [provider_with_limit, provider_without_limit]
+        sorted_providers = loads.sort_by_load_rate([large_provider, small_provider], mock_random_generator)
 
-    def test_should_put_the_most_remaining_capacity_first_when_every_provider_has_a_limit(self):
-        least_loaded_provider = ProviderFactory(id=1, qos_limit=4)
-        provider_with_most_remaining_capacity = ProviderFactory(id=2, qos_limit=10)
-        loads = ProviderLoads(load_by_provider_id={1: 1, 2: 5})
+        assert sorted_providers == [small_provider, large_provider]
 
-        sorted_providers = loads.sort_least_loaded_first([least_loaded_provider, provider_with_most_remaining_capacity])
+    def test_should_put_the_provider_with_more_free_slots_first_when_both_have_the_same_load_rate(self, mock_random_generator):
+        small_provider = ProviderFactory(id=1, qos_limit=10)
+        large_provider = ProviderFactory(id=2, qos_limit=100)
+        loads = ProviderLoads(load_by_provider_id={1: 5, 2: 50})
 
-        assert sorted_providers == [provider_with_most_remaining_capacity, least_loaded_provider]
+        sorted_providers = loads.sort_by_load_rate([small_provider, large_provider], mock_random_generator)
 
-    def test_should_put_the_smallest_provider_id_first_when_loads_are_equal(self):
-        first_provider = ProviderFactory(id=1)
-        second_provider = ProviderFactory(id=2)
+        assert sorted_providers == [large_provider, small_provider]
+
+    def test_should_put_the_provider_with_the_lowest_draw_first_when_both_have_the_same_load_rate_and_free_slots(self, mock_random_generator):
+        other_provider = ProviderFactory(id=1, qos_limit=5)
+        drawn_provider = ProviderFactory(id=2, qos_limit=5)
         loads = ProviderLoads(load_by_provider_id={1: 2, 2: 2})
+        mock_random_generator.random.side_effect = [0.9, 0.1]
 
-        sorted_providers = loads.sort_least_loaded_first([second_provider, first_provider])
+        sorted_providers = loads.sort_by_load_rate([other_provider, drawn_provider], mock_random_generator)
 
-        assert sorted_providers == [first_provider, second_provider]
+        assert sorted_providers == [drawn_provider, other_provider]
 
     def test_should_return_the_load_counted_for_the_provider(self):
         loads = ProviderLoads(load_by_provider_id={1: 3})

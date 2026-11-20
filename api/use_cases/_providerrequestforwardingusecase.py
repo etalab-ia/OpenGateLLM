@@ -26,7 +26,7 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterRateLimitState, RouterType
+from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.usage.entities import BilledTokens, PromptTokensDetails, Usage
@@ -215,7 +215,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         result = await self._reserve_provider(
             providers=providers,
-            strategy=router.load_balancing_strategy,
             retries_before_reject=router.qos_retries_before_reject,
             request_id=request_id,
         )
@@ -257,7 +256,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     async def _reserve_provider(
         self,
         providers: list[Provider],
-        strategy: RouterLoadBalancingStrategy,
         retries_before_reject: int | None,
         request_id: str,
     ) -> ProviderReservationResult:
@@ -269,7 +267,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         while True:
             result = await self._reserve_first_available_provider(
-                providers=open_providers, strategy=strategy, enforce_limit=retries_before_reject is not None, request_id=request_id
+                providers=open_providers, enforce_limit=retries_before_reject is not None, request_id=request_id
             )
             match result:
                 case ProviderReservation():
@@ -288,11 +286,10 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     async def _reserve_first_available_provider(
         self,
         providers: list[Provider],
-        strategy: RouterLoadBalancingStrategy,
         enforce_limit: bool,
         request_id: str,
     ) -> ProviderReservation | ProviderReservationRefused | ProviderLimitsCannotBeEnforced:
-        result = await self._order_by_strategy(providers=providers, strategy=strategy)
+        result = await self._order_providers(providers=providers)
         match result:
             case list(ordered_providers):
                 pass
@@ -300,6 +297,9 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
                 return limits_cannot_be_enforced
 
         for provider in ordered_providers:
+            if provider.qos_limit is None:
+                return ProviderReservation(provider=provider, request_id=request_id)
+
             limit = provider.qos_limit if enforce_limit else None
             result = await self.provider_concurrency_limiter.reserve(request_id=request_id, provider=provider, limit=limit)
             match result:
@@ -310,19 +310,16 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return ProviderReservationRefused()
 
-    async def _order_by_strategy(
-        self, providers: list[Provider], strategy: RouterLoadBalancingStrategy
-    ) -> list[Provider] | ProviderLimitsCannotBeEnforced:
-        match strategy:
-            case RouterLoadBalancingStrategy.SHUFFLE:
-                return self.random_generator.sample(providers, k=len(providers))
-            case RouterLoadBalancingStrategy.LEAST_BUSY:
-                result = await self.provider_concurrency_limiter.read_loads(providers=providers)
-                match result:
-                    case ProviderLoads() as loads:
-                        return loads.sort_least_loaded_first(providers)
-                    case limits_cannot_be_enforced:
-                        return limits_cannot_be_enforced
+    async def _order_providers(self, providers: list[Provider]) -> list[Provider] | ProviderLimitsCannotBeEnforced:
+        if any(provider.qos_limit is None for provider in providers):
+            return self.random_generator.sample(providers, k=len(providers))
+
+        result = await self.provider_concurrency_limiter.read_loads(providers=providers)
+        match result:
+            case ProviderLoads() as loads:
+                return loads.sort_by_load_rate(providers, self.random_generator)
+            case limits_cannot_be_enforced:
+                return limits_cannot_be_enforced
 
     def _compute_retry_after(self, retries_before_reject: int | None) -> int:
         retry_window = max(1, math.ceil((retries_before_reject or 0) * self.RESERVATION_RETRY_DELAY_SECONDS))

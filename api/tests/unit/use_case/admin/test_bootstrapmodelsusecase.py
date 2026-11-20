@@ -82,7 +82,6 @@ class TestBootstrapModelsUseCase:
         router_repository.create_router.assert_awaited_once_with(
             name=router_to_create.name,
             router_type=router_to_create.type,
-            load_balancing_strategy=router_to_create.load_balancing_strategy,
             qos_retries_before_reject=router_to_create.qos_retries_before_reject,
             cost_prompt_tokens=router_to_create.cost_prompt_tokens,
             cost_completion_tokens=router_to_create.cost_completion_tokens,

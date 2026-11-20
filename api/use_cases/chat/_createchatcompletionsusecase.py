@@ -70,7 +70,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
 
             result = await self._reserve_provider(
                 providers=providers,
-                strategy=router.load_balancing_strategy,
                 retries_before_reject=router.qos_retries_before_reject,
                 request_id=request_id,
             )

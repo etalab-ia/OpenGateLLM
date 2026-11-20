@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortField, SortOrder
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import Router, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.infrastructure.postgres.models import Provider as ProviderTable
@@ -20,7 +20,6 @@ def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
         user_id=router_sql.user_id,
         type=RouterType(router_sql.type),
         aliases=aliases or [],
-        load_balancing_strategy=RouterLoadBalancingStrategy(router_sql.load_balancing_strategy),
         qos_retries_before_reject=router_sql.qos_retries_before_reject,
         cost_prompt_tokens=router_sql.cost_prompt_tokens or 0.0,
         cost_completion_tokens=router_sql.cost_completion_tokens or 0.0,
@@ -101,7 +100,6 @@ class TestCreateRouter:
         result = await repository.create_router(
             name="test-router",
             router_type=RouterType.TEXT_GENERATION,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             qos_retries_before_reject=4,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
@@ -112,7 +110,6 @@ class TestCreateRouter:
         assert isinstance(result, Router)
         assert result.name == "test-router"
         assert result.type == RouterType.TEXT_GENERATION
-        assert result.load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE
         assert result.qos_retries_before_reject == 4
         assert result.cost_prompt_tokens == 0.001
         assert result.cost_completion_tokens == 0.002
@@ -133,7 +130,6 @@ class TestCreateRouter:
         result = await repository.create_router(
             name="duplicate-router",
             router_type=RouterType.TEXT_GENERATION,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             user_id=user.id,
@@ -152,7 +148,6 @@ class TestCreateRouter:
         result = await repository.create_router(
             name="router-with-aliases",
             router_type=RouterType.TEXT_GENERATION,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             user_id=user.id,
@@ -180,7 +175,6 @@ class TestCreateRouter:
             name="router",
             router_type=RouterType.TEXT_GENERATION,
             aliases=[duplicate_alias],
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             user_id=user.id,
@@ -202,7 +196,6 @@ class TestCreateRouter:
             name="router",
             router_type=RouterType.TEXT_GENERATION,
             aliases=duplicate_aliases,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
             user_id=user.id,
