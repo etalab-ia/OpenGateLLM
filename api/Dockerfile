@@ -38,10 +38,8 @@ RUN groupadd --gid 1100 opengatellm && \
 ARG APT_REFRESH
 
 # Only runtime dependencies
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && apt-get install -y \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libpq5 \
-    poppler-utils \
-    curl \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
