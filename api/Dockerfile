@@ -1,3 +1,7 @@
+# Named stages rather than COPY --from=image:tag, which Dependabot does not read
+FROM openfga/cli:v0.8.1 AS fga
+FROM mikefarah/yq:4.54.3 AS yq
+
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
@@ -41,8 +45,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && apt-g
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=openfga/cli:v0.8.1 /fga /usr/local/bin/fga
-COPY --from=mikefarah/yq:4.54.3 /usr/bin/yq /usr/local/bin/yq
+COPY --from=fga /fga /usr/local/bin/fga
+COPY --from=yq /usr/bin/yq /usr/local/bin/yq
 
 # Set a non-root user
 USER opengatellm

@@ -28,6 +28,25 @@ updates:
         applies-to: version-updates
         update-types: ["minor", "patch"]
 
+  - package-ecosystem: "docker"
+    directories:
+      - "/api"
+      - "/playground"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    ignore:
+      # The project targets Python 3.12 (requires-python, ruff target-version).
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "*astral-sh/uv"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      docker:
+        patterns: ["*"]
+
   - package-ecosystem: "npm"
     directory: "/docs"
     schedule:
