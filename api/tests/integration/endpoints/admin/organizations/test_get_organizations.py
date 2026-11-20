@@ -1,7 +1,11 @@
+from unittest.mock import create_autospec
+
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
+from api.dependencies import _get_organization_authorization
+from api.domain.organization import OrganizationAuthorization
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
@@ -12,9 +16,12 @@ URL = f"/v1{EndpointRoute.ADMIN_ORGANIZATIONS}"
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetOrganizations:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+        self.mock_organization_authorization = create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+        self.mock_organization_authorization.can_read_organization.return_value = True
+        app.dependency_overrides[_get_organization_authorization] = lambda: self.mock_organization_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         organization = OrganizationSQLFactory(name="my-organization")
@@ -71,9 +78,10 @@ class TestGetOrganizations:
         assert data["total"] == 2
         assert [organization["id"] for organization in data["data"]] == [matching.id]
 
-    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
+    async def test_should_return_403_when_the_user_cannot_read_organizations(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+        self.mock_organization_authorization.can_read_organization.return_value = False
 
         response = await client.get(
             url=URL,
@@ -81,7 +89,7 @@ class TestGetOrganizations:
         )
 
         assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
+        assert response.json().get("detail") == f"User {regular_user.id} is not allowed to perform this action."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
