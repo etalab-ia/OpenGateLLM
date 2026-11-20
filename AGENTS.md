@@ -56,7 +56,7 @@ Reference implementations of these patterns:
 
 Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`, `UpdateKeyUseCase`, `DeleteKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key. `PATCH /v1/keys/{id}` updates the name; `DELETE` revokes the key (it stays in the database and cannot be reactivated).
 
-Self-service `/v1/organizations/me` reuses `GetOneOrganizationUseCase` with `organization_id=authenticated_user.organization_id`. Later org routes land in the same module (`api/infrastructure/fastapi/endpoints/organizations.py`).
+Self-service `/v1/organizations/me` has its own `GetMyOrganizationUseCase` (`api/use_cases/organizations/`), called with `organization_id=authenticated_user.organization_id` and no permission check: unlike the admin `GetOneOrganizationUseCase`, it does not ask OpenFGA. Later org routes land in the same module (`api/infrastructure/fastapi/endpoints/organizations.py`).
 
 
 ---

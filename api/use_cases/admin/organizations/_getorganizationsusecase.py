@@ -30,7 +30,7 @@ class GetOrganizationsUseCase:
         self.organization_authorization = organization_authorization
 
     async def execute(self, command: GetOrganizationsCommand) -> GetOrganizationsUseCaseResult:
-        is_authorized = await self.organization_authorization.can_read_organizations(user_id=command.authenticated_user_id)
+        is_authorized = await self.organization_authorization.can_read_organization(user_id=command.authenticated_user_id)
 
         if not is_authorized:
             return UserCannotReadOrganizationsError(user_id=command.authenticated_user_id)
