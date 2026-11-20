@@ -1,5 +1,5 @@
 # Named stages rather than COPY --from=image:tag, which Dependabot does not read
-FROM openfga/cli:v0.8.1 AS fga
+FROM openfga/cli:v0.8.2 AS fga
 FROM mikefarah/yq:4.54.3 AS yq
 
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
