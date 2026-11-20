@@ -1,14 +1,15 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_one_organization_use_case_factory
+from api.dependencies import get_my_organization_use_case_factory
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
+from api.use_cases.organizations import GetMyOrganizationUseCase
 
 URL = f"/v1{EndpointRoute.ORGANIZATIONS_ME}"
 
@@ -60,10 +61,10 @@ class TestGetMyOrganization:
             ),
         ],
     )
-    async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
-        mock_use_case = AsyncMock()
+    async def test_should_map_each_domain_error_to_its_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
+        mock_use_case = create_autospec(GetMyOrganizationUseCase, instance=True, spec_set=True)
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_one_organization_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[get_my_organization_use_case_factory] = lambda: mock_use_case
 
         response = await client.get(
             url=URL,
