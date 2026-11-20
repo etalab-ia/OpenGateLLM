@@ -75,6 +75,7 @@ from api.use_cases.limits import GetLimitsUseCase
 from api.use_cases.me import GetMeUseCase, UpdateMeUseCase
 from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
 from api.use_cases.ocr import CreateOCRUseCase
+from api.use_cases.organizations import GetMyOrganizationUseCase
 from api.use_cases.reranks import CreateRerankUseCase
 from api.use_cases.services import ProviderCapabilitiesProbe
 from api.use_cases.usage import GetUsagesUseCase
@@ -487,8 +488,17 @@ def get_organizations_use_case_factory(
     )
 
 
-def get_one_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneOrganizationUseCase:
-    return GetOneOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
+def get_one_organization_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
+) -> GetOneOrganizationUseCase:
+    return GetOneOrganizationUseCase(
+        organization_repository=_organization_repository(session=postgres_session), organization_authorization=organization_authorization
+    )
+
+
+def get_my_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetMyOrganizationUseCase:
+    return GetMyOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
 
 
 def update_organization_use_case_factory(
