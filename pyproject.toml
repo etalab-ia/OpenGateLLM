@@ -31,7 +31,7 @@ api = [
     "langfuse==4.15.1",
     "limits==5.8.0",
     "mistralai==3.7.0",
-    "openai==2.15.0",
+    "openai==3.46.0",
     "openfga-sdk==0.10.5",
     "prometheus-fastapi-instrumentator==8.1.0",
     "psycopg2-binary==2.9.13",
