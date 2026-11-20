@@ -1,3 +1,6 @@
+# A named stage rather than a download pinned in an ARG, which Dependabot does not read
+FROM quay.io/oauth2-proxy/oauth2-proxy:v7.15.4 AS oauth2-proxy
+
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
@@ -38,9 +41,6 @@ FROM python:3.12-slim
 
 WORKDIR /playground
 
-ARG OAUTH2_PROXY_VERSION=v7.15.4
-ARG TARGETARCH=amd64
-
 # Changes once a day in CI, so that the next layer is rebuilt and brings the Debian fixes instead of being reused from the cache
 ARG APT_REFRESH
 
@@ -50,17 +50,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     rm -f /etc/nginx/sites-enabled/default
 
-RUN case "${TARGETARCH}" in \
-        amd64) OAUTH2_PROXY_ARCH=amd64 ;; \
-        arm64) OAUTH2_PROXY_ARCH=arm64 ;; \
-        *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac && \
-    curl -fsSL "https://github.com/oauth2-proxy/oauth2-proxy/releases/download/${OAUTH2_PROXY_VERSION}/oauth2-proxy-${OAUTH2_PROXY_VERSION}.linux-${OAUTH2_PROXY_ARCH}.tar.gz" \
-        -o /tmp/oauth2-proxy.tar.gz && \
-    tar -xzf /tmp/oauth2-proxy.tar.gz -C /tmp && \
-    mv "/tmp/oauth2-proxy-${OAUTH2_PROXY_VERSION}.linux-${OAUTH2_PROXY_ARCH}/oauth2-proxy" /usr/local/bin/oauth2-proxy && \
-    chmod +x /usr/local/bin/oauth2-proxy && \
-    rm -rf /tmp/oauth2-proxy.tar.gz "/tmp/oauth2-proxy-${OAUTH2_PROXY_VERSION}.linux-${OAUTH2_PROXY_ARCH}"
+COPY --from=oauth2-proxy /usr/bin/oauth2-proxy /usr/local/bin/oauth2-proxy
 
 RUN groupadd --gid 1100 opengatellm && \
     useradd --home /playground --gid 1100 --uid 1100 --create-home opengatellm
