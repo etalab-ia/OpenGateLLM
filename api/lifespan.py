@@ -190,7 +190,6 @@ def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[Ro
             name=model.name,
             type=model.type,
             aliases=model.aliases,
-            load_balancing_strategy=model.load_balancing_strategy,
             qos_retries_before_reject=model.qos_retries_before_reject,
             cost_prompt_tokens=model.cost_prompt_tokens,
             cost_completion_tokens=model.cost_completion_tokens,

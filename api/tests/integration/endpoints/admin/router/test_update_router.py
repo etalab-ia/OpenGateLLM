@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import update_router_use_case_factory
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -19,7 +19,6 @@ def _valid_body(**overrides) -> dict:
         "name": "updated-name",
         "type": RouterType.TEXT_GENERATION,
         "aliases": [],
-        "load_balancing_strategy": RouterLoadBalancingStrategy.SHUFFLE,
         "qos_retries_before_reject": 2,
         "cost_prompt_tokens": 0.0,
         "cost_completion_tokens": 0.0,
@@ -56,7 +55,6 @@ class TestUpdateRouter:
         assert data["name"] == "updated-name"
         assert data["aliases"] == ["alias-1"]
         assert data["type"] == RouterType.TEXT_GENERATION
-        assert data["load_balancing_strategy"] == RouterLoadBalancingStrategy.SHUFFLE
         assert data["qos_retries_before_reject"] == 2
         assert data["cost_prompt_tokens"] == 0.5
         assert data["cost_completion_tokens"] == 1.5

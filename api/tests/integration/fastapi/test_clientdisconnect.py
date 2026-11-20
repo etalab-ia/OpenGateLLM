@@ -14,7 +14,7 @@ from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, Prov
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import RouterType
 from api.domain.usage import UsageRepository
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.user.views import AuthenticatedUserView
@@ -52,9 +52,7 @@ def provider():
 
 @pytest.fixture
 def router():
-    return RouterFactory(
-        id=1, name="chat-router", type=RouterType.TEXT_GENERATION, providers=1, load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE
-    )
+    return RouterFactory(id=1, name="chat-router", type=RouterType.TEXT_GENERATION, providers=1)
 
 
 @pytest.fixture

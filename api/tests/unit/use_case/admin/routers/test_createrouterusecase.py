@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.tests.unit.use_case.factories import RouterFactory
 from api.use_cases.admin.routers import CreateRouterCommand, CreateRouterUseCase
@@ -26,7 +26,6 @@ def sample_router_with_aliases():
         type=RouterType.TEXT_GENERATION,
         aliases=["alias1", "alias2"],
         user_id=1,
-        load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
         qos_retries_before_reject=3,
         cost_prompt_tokens=0.01,
         cost_completion_tokens=0.02,
@@ -47,7 +46,6 @@ class TestCreateRouterUseCase:
                 name="test-model",
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=["alias1", "alias2"],
-                load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
                 cost_prompt_tokens=0.01,
                 cost_completion_tokens=0.02,
                 qos_retries_before_reject=3,
@@ -60,7 +58,6 @@ class TestCreateRouterUseCase:
         router_repository.create_router.assert_called_once_with(
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             qos_retries_before_reject=3,
             cost_prompt_tokens=0.01,
             cost_completion_tokens=0.02,
@@ -88,7 +85,6 @@ class TestCreateRouterUseCase:
                 name="model-no-alias",
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=[],
-                load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
                 cost_prompt_tokens=0.0,
                 cost_completion_tokens=0.0,
             )
@@ -99,7 +95,6 @@ class TestCreateRouterUseCase:
         router_repository.create_router.assert_called_once_with(
             name="model-no-alias",
             router_type=RouterType.TEXT_GENERATION,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             qos_retries_before_reject=None,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
@@ -119,7 +114,6 @@ class TestCreateRouterUseCase:
                 name="test-model",
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=["alias1", "alias2"],
-                load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
                 cost_prompt_tokens=0.0,
                 cost_completion_tokens=0.0,
             )
@@ -131,7 +125,6 @@ class TestCreateRouterUseCase:
             aliases=["alias1", "alias2"],
             cost_completion_tokens=0.0,
             cost_prompt_tokens=0.0,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             qos_retries_before_reject=None,
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
@@ -150,7 +143,6 @@ class TestCreateRouterUseCase:
                 name="test-model",
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=["alias1", "alias2"],
-                load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
                 cost_prompt_tokens=0.0,
                 cost_completion_tokens=0.0,
             )
@@ -162,7 +154,6 @@ class TestCreateRouterUseCase:
             user_id=1,
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             qos_retries_before_reject=None,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
