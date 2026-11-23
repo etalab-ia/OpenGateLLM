@@ -21,8 +21,12 @@ def get_configuration(config_file: str | None = None) -> "Configuration":
 
 
 def get_postgres_dependency() -> PostgresDependency:
-    raw_config = read_config_file(path=os.getenv("CONFIG_FILE", DEFAULT_CONFIG_FILE))
+    raw_config = read_configuration_file_without_validating_it()
     return PostgresDependency(**interpolate_variables(raw_config["dependencies"]["postgres"]))
+
+
+def read_configuration_file_without_validating_it() -> dict:
+    return read_config_file(path=os.getenv("CONFIG_FILE", DEFAULT_CONFIG_FILE))
 
 
 @custom_validation_error

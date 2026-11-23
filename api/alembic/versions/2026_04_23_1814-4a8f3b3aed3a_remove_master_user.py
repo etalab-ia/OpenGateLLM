@@ -12,7 +12,7 @@ from alembic import op
 import bcrypt
 import sqlalchemy as sa
 
-from api.infrastructure.configuration import get_configuration
+from api.infrastructure.configuration import interpolate_variables, read_configuration_file_without_validating_it
 
 
 # revision identifiers, used by Alembic.
@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 
 BOOTSTRAP_ADMIN_ROLE_NAME = "bootstrap_admin"
 BOOTSTRAP_ADMIN_USER_NAME = "bootstrap_admin"
+# The defaults of the settings when this revision was written, frozen here like the rest of its code.
+DEFAULT_BOOTSTRAP_ADMIN_USERNAME = "admin"
+DEFAULT_BOOTSTRAP_ADMIN_PASSWORD = "changeme"
 
 
 def _get_null_user_reference_count(bind: sa.Connection) -> int:
@@ -34,9 +37,9 @@ def _get_null_user_reference_count(bind: sa.Connection) -> int:
 
 
 def _ensure_bootstrap_admin(bind: sa.Connection) -> int:
-    configuration = get_configuration()
-    admin_username = configuration.settings.auth_bootsrap_admin_username
-    admin_password = configuration.settings.auth_bootsrap_admin_password
+    settings = read_configuration_file_without_validating_it().get("settings") or {}
+    admin_username = interpolate_variables(settings.get("auth_bootsrap_admin_username", DEFAULT_BOOTSTRAP_ADMIN_USERNAME))
+    admin_password = interpolate_variables(settings.get("auth_bootsrap_admin_password", DEFAULT_BOOTSTRAP_ADMIN_PASSWORD))
     
     # Create the bootstrap admin role
     role_id = bind.execute(
@@ -102,7 +105,7 @@ def upgrade() -> None:
         null_user_reference_count = _get_null_user_reference_count(bind)
         if null_user_reference_count > 0:
             logger.warning(
-                f"Found {null_user_reference_count} provider/router rows with NULL user_id, creating or reusing bootstrap admin user for backfill.",
+                "Found %s provider/router rows with NULL user_id, creating or reusing bootstrap admin user for backfill.",
                 null_user_reference_count,
             )
             
