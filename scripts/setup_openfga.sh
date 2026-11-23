@@ -2,7 +2,14 @@
 set -eo pipefail
 
 read_openfga_config() {
-    yq ".dependencies.openfga.$1 | envsubst(nu,ne)" "$CONFIG_FILE"
+    local key_path=".dependencies.openfga.$1"
+    local key_is_missing
+    key_is_missing=$(yq "$key_path == null" "$CONFIG_FILE") || exit 1
+    if [ "$key_is_missing" = true ]; then
+        echo "${key_path#.} is missing from $CONFIG_FILE (see config.example.yml)." >&2
+        exit 1
+    fi
+    yq "$key_path | envsubst(nu,ne)" "$CONFIG_FILE"
 }
 
 url=$(read_openfga_config url)
