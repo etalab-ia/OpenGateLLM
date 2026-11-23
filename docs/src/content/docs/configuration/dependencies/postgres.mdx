@@ -52,7 +52,7 @@ The connection URL must use the `postgresql+asyncpg://` driver. If you provide a
 
 OpenGateLLM uses [Alembic](https://alembic.sqlalchemy.org/) for database migrations. The API image contains them, but the API does not run them when it starts: a deployment runs them once, with the same image, before starting the API containers. Several API containers starting together would otherwise race on the migration, and a failing migration would keep each of them restarting in a loop.
 
-With Docker Compose, the `db-migrate` service of [`compose.example.yml`](https://github.com/etalab-ia/OpenGateLLM/blob/main/compose.example.yml) does it: the `api` service waits for it, and does not start if it fails.
+With Docker Compose, the `db-migrate` service of [`compose.example.yml`](https://github.com/etalab-ia/OpenGateLLM/blob/main/compose.example.yml) does it: the `api` service waits for it, and does not start if it fails. It also publishes the OpenFGA authorization model and runs the [OpenFGA data migrations](#openfga-data-migrations), so it needs OpenFGA to be up.
 
 To upgrade a running instance, run the migrations as their own step:
 
@@ -65,11 +65,28 @@ A single `docker compose up` replaces the running `api` container before the mig
 Without Docker Compose, run this command before starting the API containers:
 
 ```bash
-docker run --rm --network <network of postgres> -v ./config.yml:/config.yml:ro ghcr.io/etalab-ia/opengatellm/api:<version> python -m alembic -c api/alembic.ini upgrade head
+docker run --rm --network <network of postgres and openfga> -v ./config.yml:/config.yml:ro ghcr.io/etalab-ia/opengatellm/api:<version> \
+  bash -c "python -m alembic -c api/alembic.ini upgrade head && bash scripts/setup_openfga.sh && python -m api.infrastructure.openfga.migrations"
 ```
 
 <Aside type="caution" title="Do not skip this step">
 The API also starts on a schema that is not up to date: its requests then fail on the missing columns or tables.
+</Aside>
+
+### OpenFGA data migrations
+
+OpenFGA stores who can act on which resource. When a release starts reading a new relation, the rows created before it do not hold that relation yet: an OpenFGA data migration reads them from PostgreSQL and writes the missing relations to OpenFGA. The migrations ship in the API image and `db-migrate` runs them after the Alembic upgrade.
+
+They are idempotent and never delete anything: each relation is checked before it is written, so running them again writes nothing (`granted=0`). To see what they would write without writing it:
+
+```bash
+docker compose run --rm db-migrate python -m api.infrastructure.openfga.migrations --dry-run
+```
+
+`--only <migration>` runs a single one, `m001_platform_admins` for instance.
+
+<Aside type="caution" title="Upgrading to v0.9.4">
+v0.9.4 is the first release that authorizes requests with OpenFGA. Without the data migrations, every administrator other than the first one gets a `403` on `/v1/admin/users` and when creating an organization, and organizations created before the upgrade cannot be deleted (`403`). Run `db-migrate` as shown above before starting the new API containers: it writes those relations (`m001_platform_admins`, `m002_organizations_platform`).
 </Aside>
 
 For contributing to the database schema, you can follow the instructions in [SQL contributions guide](/contributing/sql/).
