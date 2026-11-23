@@ -22,6 +22,6 @@ TEST_INTEG_ARG := $(word 2,$(MAKECMDGOALS))
 TEST_INTEG_SUFFIX := $(if $(TEST_INTEG_ARG),/$(TEST_INTEG_ARG),)
 
 semgrep: 
-	@semgrep semgrep ci --config auto --verbose
+	@semgrep ci --config p/default --metrics off --verbose
 
 .PHONY: help quickstart dev lint test-unit create-api-key semgrep
