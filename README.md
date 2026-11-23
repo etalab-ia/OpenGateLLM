@@ -16,7 +16,7 @@
 | api/alembic/versions/2025\_07\_11\_1151-564856827493\_add\_email\_and\_sub\_fields\_in\_user\_table.py          |       18 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_08\_14\_0837-28019ec49533\_change\_permission\_types.py                              |       21 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_08\_14\_1732-c1e54102255e\_add\_organisation\_table.py                               |       17 |        0 |        0 |        0 |    100.00% |           |
-| api/alembic/versions/2025\_08\_22\_1157-788a3b052a11\_move\_user\_auth\_from\_ui\_to\_app.py                    |       59 |       39 |       16 |        1 |     28.00% |     39-88 |
+| api/alembic/versions/2025\_08\_22\_1157-788a3b052a11\_move\_user\_auth\_from\_ui\_to\_app.py                    |       11 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_08\_23\_1934-479aeeae940b\_db\_schema\_for\_model\_router\_client.py                 |       21 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_09\_07\_1246-17be379f45ac\_force\_non\_null\_email.py                                |       27 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_09\_25\_0000-a1b2c3d4e5f6\_add\_celery\_related\_fields.py                           |       19 |        0 |        0 |        0 |    100.00% |           |
@@ -32,7 +32,7 @@
 | api/alembic/versions/2025\_12\_17\_0947-551b2920b23c\_add\_provider\_router\_list\_relationship.py              |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2025\_12\_22\_1507-f02a2525b97c\_remove\_carbon\_footprint\_prefix.py                      |       63 |        2 |        4 |        2 |     94.03% |   66, 128 |
 | api/alembic/versions/2026\_02\_26\_1730-c206a2bfefe9\_remove\_min\_max\_carbon\_impact.py                       |       21 |        0 |        0 |        0 |    100.00% |           |
-| api/alembic/versions/2026\_04\_23\_1814-4a8f3b3aed3a\_remove\_master\_user.py                                   |       49 |       20 |        4 |        1 |     56.60% |37-83, 87-91, 104-118, 122-124 |
+| api/alembic/versions/2026\_04\_23\_1814-4a8f3b3aed3a\_remove\_master\_user.py                                   |       51 |       20 |        4 |        1 |     58.18% |40-86, 90-94, 107-121, 125-127 |
 | api/alembic/versions/2026\_05\_06\_1224-9fd5b6491d48\_add\_constraint\_on\_router\_delete.py                    |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_05\_06\_1658-4cbcc969c660\_add\_constraint\_on\_provinder\_delete.py                 |       13 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_06\_01\_1421-7498a3a48271\_add\_storage\_limits.py                                   |       13 |        0 |        0 |        0 |    100.00% |           |
@@ -106,7 +106,7 @@
 | api/domain/user/errors.py                                                                                       |       34 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                                                        |       21 |        0 |        4 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                                                        |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration/\_configuration.py                                                             |       32 |        2 |        6 |        2 |     89.47% |    48, 52 |
+| api/infrastructure/configuration/\_configuration.py                                                             |       34 |        2 |        6 |        2 |     90.00% |    52, 56 |
 | api/infrastructure/configuration/\_interpolation.py                                                             |       26 |        0 |       12 |        0 |    100.00% |           |
 | api/infrastructure/configuration/\_validationerrors.py                                                          |       43 |        1 |        8 |        2 |     94.12% |25-\>34, 27 |
 | api/infrastructure/configuration/sections/dependencies.py                                                       |       22 |        2 |        2 |        1 |     87.50% |     21-22 |
@@ -275,7 +275,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **8141** |  **602** | **1436** |  **171** | **90.88%** |           |
+| **TOTAL**                                                                                                       | **8097** |  **563** | **1420** |  **170** | **91.39%** |           |
 
 
 ## Setup coverage badge
