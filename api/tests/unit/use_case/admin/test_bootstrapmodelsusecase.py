@@ -2,7 +2,12 @@ from unittest.mock import create_autospec
 
 import pytest
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.model.errors import (
+    InconsistentModelMaxContextLengthError,
+    InconsistentModelQosLimitError,
+    InconsistentModelVectorSizeError,
+    ModelNotFoundError,
+)
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import ProviderCapabilities
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
@@ -238,6 +243,33 @@ class TestBootstrapModelsUseCase:
         assert isinstance(result, ProviderAlreadyExistsError)
         assert result.model_name == "model-a"
         assert result.url == "https://provider.com/"
+        router_repository.create_router.assert_not_awaited()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()
+        provider_repository.create_provider.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_return_inconsistent_qos_limit_error_before_writing_when_a_model_mixes_providers_with_and_without_limit(
+        self,
+        use_case,
+        router_repository,
+        provider_repository,
+        provider_capabilities_probe,
+    ):
+        # Arrange
+        router_to_create = RouterToCreateFactory(
+            name="mixed-model",
+            providers=[
+                ProviderToCreateFactory(url="https://provider-a.com/", qos_limit=5),
+                ProviderToCreateFactory(url="https://provider-b.com/", qos_limit=None),
+            ],
+        )
+        router_repository.get_all_routers.return_value = []
+
+        # Act
+        result = await use_case.execute(BootstrapModelsCommand(routers_to_create=[router_to_create], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID))
+
+        # Assert
+        assert result == InconsistentModelQosLimitError(router_name="mixed-model")
         router_repository.create_router.assert_not_awaited()
         provider_capabilities_probe.get_capabilities.assert_not_awaited()
         provider_repository.create_provider.assert_not_awaited()

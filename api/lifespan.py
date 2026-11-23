@@ -13,7 +13,12 @@ import tiktoken
 from tiktoken.core import Encoding
 
 from api.dependencies import get_postgres_session
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.model.errors import (
+    InconsistentModelMaxContextLengthError,
+    InconsistentModelQosLimitError,
+    InconsistentModelVectorSizeError,
+    ModelNotFoundError,
+)
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
@@ -182,6 +187,10 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
         case InconsistentModelMaxContextLengthError() as error:
             raise RuntimeError(f"Inconsistent model max context length ({error.router_name}).")
+        case InconsistentModelQosLimitError() as error:
+            raise RuntimeError(
+                f"Inconsistent qos_limit ({error.router_name}): the open providers of a model must all have a qos_limit, or none of them."
+            )
 
 
 def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[RouterToCreate]:

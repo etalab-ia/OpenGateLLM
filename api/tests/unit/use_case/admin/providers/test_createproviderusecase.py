@@ -2,7 +2,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.model.errors import (
+    InconsistentModelMaxContextLengthError,
+    InconsistentModelQosLimitError,
+    InconsistentModelVectorSizeError,
+    ModelNotFoundError,
+)
 from api.domain.provider.entities import HostingZone, ProviderCapabilities, ProviderType
 from api.domain.provider.errors import (
     InvalidProviderTypeError,
@@ -74,12 +79,12 @@ def sample_embedding_router_with_providers():
 
 @pytest.fixture
 def existing_provider_of_router():
-    return ProviderFactory(id=2, router_id=1, type=ProviderType.VLLM, max_context_length=4096, vector_size=None)
+    return ProviderFactory(id=2, router_id=1, type=ProviderType.VLLM, max_context_length=4096, vector_size=None, qos_limit=10)
 
 
 @pytest.fixture
 def existing_embedding_provider_of_router():
-    return ProviderFactory(id=2, router_id=1, type=ProviderType.TEI, max_context_length=512, vector_size=768)
+    return ProviderFactory(id=2, router_id=1, type=ProviderType.TEI, max_context_length=512, vector_size=768, qos_limit=10)
 
 
 @pytest.fixture
@@ -477,3 +482,27 @@ class TestCreateProviderUseCase:
         assert result.model_name == "my-model"
         assert result.url == "https://example.com/"
         assert result.router_id == 1
+
+    @pytest.mark.asyncio
+    async def test_should_return_inconsistent_qos_limit_error_when_the_router_has_an_open_provider_without_limit(
+        self,
+        use_case,
+        router_repository,
+        provider_repository,
+        provider_capabilities_probe,
+        sample_router_with_providers,
+        default_command,
+    ):
+        # Arrange
+        router_repository.get_router_by_id.return_value = sample_router_with_providers
+        provider_repository.get_all_providers_of_router.return_value = [
+            ProviderFactory(id=2, router_id=1, type=ProviderType.VLLM, max_context_length=4096, qos_limit=None)
+        ]
+        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert result == InconsistentModelQosLimitError(router_id=1)
+        provider_repository.create_provider.assert_not_called()

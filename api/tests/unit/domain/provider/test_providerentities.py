@@ -3,7 +3,7 @@ from unittest.mock import create_autospec
 
 import pytest
 
-from api.domain.provider.entities import ProviderEndpoint, ProviderLoads, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderLoads, ProviderRequest, ProviderResponse
 from api.domain.rerank.entities import Rerank
 from api.domain.usage.entities import Usage
 from api.tests.unit.use_case.factories import ProviderFactory
@@ -17,6 +17,18 @@ class TestProviderQoSLimit:
 
         assert updated_provider.qos_limit == 4
         assert provider.qos_limit is None
+
+    @pytest.mark.parametrize("qos_limits", [[5, None], [None, 5], [5, 10, None]])
+    def test_should_mix_qos_limits_when_open_providers_have_and_lack_a_limit(self, qos_limits):
+        assert Provider.mixes_qos_limits(qos_limits)
+
+    @pytest.mark.parametrize("qos_limits", [[5, 10], [None, None], [5], [None], []])
+    def test_should_not_mix_qos_limits_when_every_open_provider_is_of_the_same_mode(self, qos_limits):
+        assert not Provider.mixes_qos_limits(qos_limits)
+
+    @pytest.mark.parametrize("qos_limits", [[0, None], [0, 5], [5, 0, 10], [None, 0, None]])
+    def test_should_not_mix_qos_limits_when_only_a_closed_provider_differs(self, qos_limits):
+        assert not Provider.mixes_qos_limits(qos_limits)
 
 
 class TestProviderLoads:

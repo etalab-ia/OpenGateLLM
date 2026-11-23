@@ -9,6 +9,12 @@ class InconsistentModelVectorSizeError:
 
 
 @dataclass
+class InconsistentModelQosLimitError:
+    router_id: int | None = None
+    router_name: str | None = None
+
+
+@dataclass
 class ModelNotFoundError:
     name: str
 

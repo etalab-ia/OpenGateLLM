@@ -54,3 +54,7 @@ The router does not take a strategy: OpenGateLLM infers it from the `qos_limit` 
 - Every eligible provider has a limit: the request goes to the provider with the lowest load rate, its active requests divided by its `qos_limit`. When two providers have the same load rate, the one with the most free slots (`qos_limit` minus its active requests) comes first. When they also have the same number of free slots, one of them is picked at random.
 - At least one eligible provider has no limit: load rates cannot be compared, so the request goes to a provider picked at random, without looking at its load.
 
+The open providers of a router must all have a `qos_limit`, or none of them. Creating or updating a provider that would break this rule is rejected with a 400, and so is a model of the configuration file that breaks it when the routers are created at startup. A closed provider counts on neither side, so closing one is always accepted.
+
+To switch a router from one mode to the other, close (`qos_limit: 0`) or delete its other providers, change the last open one, then reopen the others in the new mode. A router that already mixed both before this rule keeps working, with its providers picked at random. Updating one of its providers is accepted only when the provider ends up closed, or in the same mode as every other open provider: close the providers of the other mode first.
+

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelQosLimitError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import HostingZone, Provider
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
@@ -30,6 +30,7 @@ type UpdateProviderUseCaseResult = (
     | InvalidProviderTypeError
     | InconsistentModelMaxContextLengthError
     | InconsistentModelVectorSizeError
+    | InconsistentModelQosLimitError
     | RouterNotFoundError
     | ProviderAlreadyExistsError
     | ProviderNotFoundError
@@ -50,6 +51,9 @@ class UpdateProviderUseCase:
         if isinstance(existing_provider, ProviderNotFoundError):
             return existing_provider
 
+        router_providers = await self.provider_repository.get_all_providers_of_router(router_id=command.router_id)
+        other_providers = [provider for provider in router_providers if provider.id != existing_provider.id]
+
         if command.router_id != existing_provider.router_id:
             result = await self.router_repository.get_router_by_id(router_id=command.router_id)
 
@@ -61,8 +65,7 @@ class UpdateProviderUseCase:
                     return error
 
             # all providers of a router must expose the same capabilities: compare with one of the providers already attached to the target router
-            new_router_providers = await self.provider_repository.get_all_providers_of_router(router_id=new_router.id)
-            reference_provider = next((provider for provider in new_router_providers if provider.id != existing_provider.id), None)
+            reference_provider = next(iter(other_providers), None)
             if reference_provider is not None:
                 if reference_provider.vector_size != existing_provider.vector_size:
                     return InconsistentModelVectorSizeError(
@@ -88,6 +91,9 @@ class UpdateProviderUseCase:
 
         if existing_provider == provider_to_persist:
             return UpdateProviderUseCaseSuccess(existing_provider)
+
+        if command.qos_limit != 0 and Provider.mixes_qos_limits([*(provider.qos_limit for provider in other_providers), command.qos_limit]):
+            return InconsistentModelQosLimitError(router_id=command.router_id)
 
         result = await self.provider_repository.update_provider(provider_to_persist)
 

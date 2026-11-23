@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.model.errors import (
+    InconsistentModelMaxContextLengthError,
+    InconsistentModelQosLimitError,
+    InconsistentModelVectorSizeError,
+    ModelNotFoundError,
+)
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import HostingZone, Provider, ProviderType
 from api.domain.provider.errors import (
@@ -42,6 +47,7 @@ type CreateProviderUseCaseResult = (
     | ModelNotFoundError
     | InconsistentModelMaxContextLengthError
     | InconsistentModelVectorSizeError
+    | InconsistentModelQosLimitError
     | RouterNotFoundError
     | ProviderAlreadyExistsError
 )
@@ -103,6 +109,9 @@ class CreateProviderUseCase:
                     expected_max_context_length=reference_provider.max_context_length,
                     router_name=router.name,
                 )
+
+        if command.qos_limit != 0 and Provider.mixes_qos_limits([*(provider.qos_limit for provider in existing_providers), command.qos_limit]):
+            return InconsistentModelQosLimitError(router_id=router.id)
 
         result = await self.provider_repository.create_provider(
             router_id=command.router_id,

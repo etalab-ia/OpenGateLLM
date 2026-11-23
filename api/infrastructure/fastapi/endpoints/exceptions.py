@@ -16,6 +16,17 @@ class InconsistentModelMaxContextLengthHTTPException(HTTPException):
         )
 
 
+class InconsistentModelQosLimitHTTPException(HTTPException):
+    status_code = 400
+    detail = "Inconsistent qos_limit for router {router_id}: its open providers must all have a qos_limit, or none of them."
+
+    def __init__(self, router_id: int) -> None:
+        super().__init__(
+            status_code=self.status_code,
+            detail=f"Inconsistent qos_limit for router {router_id}: its open providers must all have a qos_limit, or none of them.",
+        )
+
+
 class InconsistentModelVectorSizeHTTPException(HTTPException):
     status_code = 400
     detail = "Inconsistent vector size for {model_name}. Expected: {expected_size}. Actual: {actual_size}"

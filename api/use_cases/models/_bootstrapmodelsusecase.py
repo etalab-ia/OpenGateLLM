@@ -2,9 +2,14 @@ from collections import Counter
 from dataclasses import dataclass
 import logging
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.model.errors import (
+    InconsistentModelMaxContextLengthError,
+    InconsistentModelQosLimitError,
+    InconsistentModelVectorSizeError,
+    ModelNotFoundError,
+)
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import HostingZone, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
@@ -59,6 +64,7 @@ type BootstrapModelsUseCaseResult = (
     | BootstrapModelsUseCaseSkipped
     | InconsistentModelVectorSizeError
     | InconsistentModelMaxContextLengthError
+    | InconsistentModelQosLimitError
     | ModelNotFoundError
     | ProviderAlreadyExistsError
     | ProviderNotReachableError
@@ -97,6 +103,9 @@ class BootstrapModelsUseCase:
             if duplicates:
                 url, model_name = duplicates[0]
                 return ProviderAlreadyExistsError(url=url, model_name=model_name, router_id=i)
+
+            if Provider.mixes_qos_limits([provider_to_create.qos_limit for provider_to_create in router_to_create.providers]):
+                return InconsistentModelQosLimitError(router_name=router_to_create.name)
 
         duplicates = [val for val, count in Counter(router_to_create_names).items() if count > 1]
         if duplicates:
