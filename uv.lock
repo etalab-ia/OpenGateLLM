@@ -1635,7 +1635,7 @@ wheels = [
 
 [[package]]
 name = "opengatellm"
-version = "0.9.1"
+version = "0.9.4"
 source = { virtual = "." }
 dependencies = [
     { name = "httpx" },
