@@ -120,7 +120,7 @@ The model section of the configuration is ignored if any models are already regi
 <p>Tune provider timeouts according to workload (<code dir="auto">timeout: 120</code> is a common production baseline for long generations).</p>
 </li>
 <li>
-<p>If you run multiple providers for one model, choose a load-balancing strategy that matches your objective (<code dir="auto">shuffle</code> for distribution, <code dir="auto">least_busy</code> for latency under load).</p>
+<p>If you run multiple providers for one model, set a <code dir="auto">qos_limit</code> on every one of them to send each request to the provider with the lowest load rate. Without a limit on all of them, requests are spread at random.</p>
 </li>
 </ul>
 <div class="sl-heading-wrapper level-h2"><h2 id="api-metadata-and-versioning">API metadata and versioning</h2><a class="sl-anchor-link" href="#api-metadata-and-versioning"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 1 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 0 0-1.42-1.42m8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 1 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 0 0 0 1.42 1 1 0 0 0 1.42 0l3.88-3.89a4.49 4.49 0 0 0 0-6.33M8.83 15.17a1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.92-4.92a1 1 0 1 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42"></path></svg></span><span class="sr-only" data-pagefind-ignore>Section titled “API metadata and versioning”</span></a></div>
