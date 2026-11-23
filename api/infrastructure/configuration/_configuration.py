@@ -7,7 +7,7 @@ import yaml
 
 from ._interpolation import interpolate_variables
 from ._validationerrors import HiddenInputSchema, custom_validation_error
-from .sections import Dependencies, Model, PostgresDependency, SettingsLoginOIDC, SettingsLoginPassword
+from .sections import Dependencies, Model, OpenFgaDependency, PostgresDependency, SettingsLoginOIDC, SettingsLoginPassword
 
 DEFAULT_CONFIG_FILE = "config.yml"
 
@@ -23,6 +23,11 @@ def get_configuration(config_file: str | None = None) -> "Configuration":
 def get_postgres_dependency() -> PostgresDependency:
     raw_config = read_configuration_file_without_validating_it()
     return PostgresDependency(**interpolate_variables(raw_config["dependencies"]["postgres"]))
+
+
+def get_openfga_dependency() -> OpenFgaDependency:
+    raw_config = read_configuration_file_without_validating_it()
+    return OpenFgaDependency(**interpolate_variables(raw_config["dependencies"]["openfga"]))
 
 
 def read_configuration_file_without_validating_it() -> dict:
