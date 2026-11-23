@@ -124,6 +124,9 @@ Every constraint has a name, so that `downgrade()` can drop it. The naming conve
 - A type created by `upgrade()` is dropped by `downgrade()`: `drop_table` leaves enum types behind.
 - A `downgrade()` that loses data, or restores a state with a security meaning (revocation, permissions, expiry), says so in its docstring. For example, the downgrade of `b7e4c1a90f23` deletes the revoked keys before dropping `token.revoked`, since the column gone would make them valid again.
 
-### 6. No configuration in a downgrade
+### 6. No validated configuration
 
-A rollback runs `alembic downgrade` with the image being rolled back, but with the configuration file of the target release. A `downgrade()` that calls `get_configuration()` would validate that file against a schema it was not written for: `downgrade()` reads nothing but the database.
+A migration never calls `get_configuration()`. Its code is frozen, but it runs with the configuration file of another release. `upgrade()` would validate the file against the schema of the image running it, so the first required field added later breaks a revision that never reads it. A rollback runs `alembic downgrade` with the configuration file of the target release, a schema it was not written for.
+
+- `downgrade()` reads nothing but the database.
+- An `upgrade()` that needs a value reads that key alone from `read_configuration_file_without_validating_it()`, interpolates it with `interpolate_variables`, and keeps its own default, since the schema's default may change. For example, `4a8f3b3aed3a` reads the bootstrap admin credentials this way.
