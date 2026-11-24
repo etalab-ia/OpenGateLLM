@@ -9,5 +9,6 @@ class TiktokenModelTokenizer(ModelTokenizer):
 
     def compute_tokens(self, texts: list[str]) -> int:
         if texts:
-            return len(self.model.encode(" ".join(texts).strip()))
+            # encode() rejects text matching a special token (<|endoftext|>): user text is counted as ordinary text.
+            return len(self.model.encode_ordinary(" ".join(texts).strip()))
         return 0
