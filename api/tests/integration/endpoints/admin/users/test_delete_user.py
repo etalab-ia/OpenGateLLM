@@ -4,7 +4,8 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import _get_user_authorization, delete_user_use_case_factory
+from api.dependencies import _get_organization_authorization, _get_user_authorization, delete_user_use_case_factory
+from api.domain.organization import OrganizationAuthorization
 from api.domain.user import UserAuthorization
 from api.domain.user.errors import UserCannotDeleteUserError, UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
@@ -23,6 +24,8 @@ class TestDeleteUser:
         self.mock_user_authorization = create_autospec(UserAuthorization, instance=True, spec_set=True)
         self.mock_user_authorization.can_delete_user.return_value = True
         app.dependency_overrides[_get_user_authorization] = lambda: self.mock_user_authorization
+        self.mock_organization_authorization = create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+        app.dependency_overrides[_get_organization_authorization] = lambda: self.mock_organization_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         user = UserSQLFactory()

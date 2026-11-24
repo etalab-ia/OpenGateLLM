@@ -2,6 +2,7 @@ from unittest.mock import create_autospec
 
 import pytest
 
+from api.domain.organization import OrganizationAuthorization
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role import RoleRepository
 from api.domain.role.entities import PermissionType
@@ -39,12 +40,18 @@ def mock_user_authorization():
 
 
 @pytest.fixture
-def use_case(mock_user_repository, mock_role_repository, mock_user_password_encoder, mock_user_authorization):
+def mock_organization_authorization():
+    return create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def use_case(mock_user_repository, mock_role_repository, mock_user_password_encoder, mock_user_authorization, mock_organization_authorization):
     return CreateUserUseCase(
         user_repository=mock_user_repository,
         role_repository=mock_role_repository,
         user_password_encoder=mock_user_password_encoder,
         user_authorization=mock_user_authorization,
+        organization_authorization=mock_organization_authorization,
     )
 
 
@@ -62,7 +69,13 @@ def default_command():
 class TestCreateUserUseCase:
     @pytest.mark.asyncio
     async def test_should_create_user_with_default_values(
-        self, use_case, mock_user_repository, mock_role_repository, mock_user_password_encoder, mock_user_authorization
+        self,
+        use_case,
+        mock_user_repository,
+        mock_role_repository,
+        mock_user_password_encoder,
+        mock_user_authorization,
+        mock_organization_authorization,
     ):
         # Arrange
         command = CreateUserCommand(
@@ -104,11 +117,12 @@ class TestCreateUserUseCase:
             password="encoded:s3cr3t",
             priority=2,
         )
+        mock_organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=5, user_id=42)
         mock_user_authorization.grant_platform_admin.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_user_cannot_create_user_error_without_reading_or_writing_when_the_user_is_not_allowed(
-        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, default_command
+        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, mock_organization_authorization, default_command
     ):
         # Arrange
         mock_user_authorization.can_create_user.return_value = False
@@ -122,11 +136,12 @@ class TestCreateUserUseCase:
         mock_user_authorization.can_create_user.assert_awaited_once_with(user_id=1, organization_id=5)
         mock_role_repository.get_role_with_permissions_and_limits_by_id.assert_not_awaited()
         mock_user_repository.create_user.assert_not_awaited()
+        mock_organization_authorization.add_organization_user.assert_not_awaited()
         mock_user_authorization.grant_platform_admin.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_grant_the_platform_admin_to_the_user_when_the_role_is_admin(
-        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, default_command
+        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, mock_organization_authorization, default_command
     ):
         # Arrange
         mock_role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleFactory(id=10, permissions=[PermissionType.ADMIN])
@@ -137,11 +152,12 @@ class TestCreateUserUseCase:
 
         # Assert
         assert isinstance(result, CreateUserUseCaseSuccess)
+        mock_organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=5, user_id=42)
         mock_user_authorization.grant_platform_admin.assert_awaited_once_with(user_id=42)
 
     @pytest.mark.asyncio
     async def test_should_return_role_not_found_error_without_creating_the_user_when_the_role_id_does_not_exist(
-        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, default_command
+        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, mock_organization_authorization, default_command
     ):
         # Arrange
         mock_role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleNotFoundError(id=10)
@@ -153,11 +169,12 @@ class TestCreateUserUseCase:
         assert isinstance(result, RoleNotFoundError)
         assert result.id == 10
         mock_user_repository.create_user.assert_not_awaited()
+        mock_organization_authorization.add_organization_user.assert_not_awaited()
         mock_user_authorization.grant_platform_admin.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_user_already_exists_error_without_granting_the_platform_admin_when_a_user_has_the_same_email(
-        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, default_command
+        self, use_case, mock_user_repository, mock_role_repository, mock_user_authorization, mock_organization_authorization, default_command
     ):
         # Arrange
         mock_role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleFactory(id=10, permissions=[PermissionType.ADMIN])
@@ -169,11 +186,12 @@ class TestCreateUserUseCase:
         # Assert
         assert isinstance(result, UserAlreadyExistsError)
         assert result.email == "newuser@test.com"
+        mock_organization_authorization.add_organization_user.assert_not_awaited()
         mock_user_authorization.grant_platform_admin.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_organization_not_found_error_when_the_organisation_does_not_exist(
-        self, use_case, mock_user_repository, default_command
+        self, use_case, mock_user_repository, mock_organization_authorization, default_command
     ):
         # Arrange
         mock_user_repository.create_user.return_value = OrganizationNotFoundError(id=5)
@@ -184,3 +202,4 @@ class TestCreateUserUseCase:
         # Assert
         assert isinstance(result, OrganizationNotFoundError)
         assert result.id == 5
+        mock_organization_authorization.add_organization_user.assert_not_awaited()
