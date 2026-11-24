@@ -8,7 +8,7 @@ from api.dependencies import create_audio_transcriptions_use_case_factory
 from api.domain.audio.entities import CreateAudioTranscriptionsFile
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.key.entities import Key
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import StatusCodeModelError, TextNotTokenizableError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -27,6 +27,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
+    TextNotTokenizableHTTPException,
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
 )
@@ -51,6 +52,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
             ModelIsTooBusyExceptionHTTPException,
             ModelNotFoundHTTPException,
             RateLimitExceededHTTPException,
+            TextNotTokenizableHTTPException,
             WrongModelTypeHTTPException,
             FileSizeLimitExceededHTTPException,
         ]
@@ -108,6 +110,8 @@ async def create_audio_transcription(
             raise ModelNotFoundHTTPException(name=data.model)
         case TooBusyModelError(detail=detail):
             raise ModelIsTooBusyExceptionHTTPException()
+        case TextNotTokenizableError():
+            raise TextNotTokenizableHTTPException()
         case StatusCodeModelError(status_code=status_code, detail=detail):
             raise HTTPException(status_code=status_code, detail=detail)
         case UnknownModelError(detail=detail):

@@ -7,7 +7,7 @@ import respx
 
 from api.dependencies import create_audio_transcriptions_use_case_factory
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import StatusCodeModelError, TextNotTokenizableError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import HostingZone, ProviderEndpoint, ProviderType
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -19,6 +19,7 @@ from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasNoAccessToRouterError
+from api.infrastructure.fastapi.endpoints.exceptions import TextNotTokenizableHTTPException
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_audio_transcriptions_responses
@@ -178,6 +179,7 @@ class TestCreateAudioTranscriptions:
                 500,
                 "upstream failure",
             ),
+            (TextNotTokenizableError(), 422, TextNotTokenizableHTTPException.detail),
             (
                 UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.AUDIO_TRANSCRIPTIONS, provider_type=ProviderType.VLLM),
                 500,

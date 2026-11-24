@@ -7,7 +7,7 @@ import pytest_asyncio
 import respx
 
 from api.dependencies import create_chat_completions_use_case_factory
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import StatusCodeModelError, TextNotTokenizableError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
@@ -15,6 +15,7 @@ from api.domain.router import RouterRateLimiter
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasNoAccessToRouterError
+from api.infrastructure.fastapi.endpoints.exceptions import TextNotTokenizableHTTPException
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_chat_completions_responses, mock_chat_completions_stream
@@ -230,6 +231,7 @@ class TestCreateChatCompletions:
             (RouterRateLimitExceededError(id=1, limit_type=LimitType.RPM, headers={}), 429, "Request limit per minute exceeded."),
             (StatusCodeModelError(status_code=400, detail="bad request"), 400, "bad request"),
             (UnknownModelError(status_code=500, detail="upstream failure"), 500, "upstream failure"),
+            (TextNotTokenizableError(), 422, TextNotTokenizableHTTPException.detail),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):

@@ -7,7 +7,7 @@ import pytest
 
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.errors import TooBusyModelError
+from api.domain.model.errors import TextNotTokenizableError, TooBusyModelError
 from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
@@ -606,6 +606,35 @@ class TestForwardRequestToProvider:
         )
 
     @pytest.mark.asyncio
+    async def test_should_bill_no_completion_tokens_and_record_the_error_when_the_completion_cannot_be_tokenized(
+        self, use_case, router, payload, model_tokenizer, user_with_router_access
+    ):
+        # Arrange
+        model_tokenizer.compute_tokens.side_effect = None
+        model_tokenizer.compute_tokens.return_value = TextNotTokenizableError()
+        use_case.usage_context.elapsed_ms.return_value = 12000
+
+        # Act
+        result = await use_case._forward_request_to_provider(
+            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+        )
+
+        # Assert
+        assert isinstance(result, ProviderResponse)
+        assert result.data.usage.prompt_tokens == 1
+        assert result.data.usage.completion_tokens == 0
+        use_case.usage_context.record_error.assert_called_once_with(error="TextNotTokenizableError")
+        use_case.usage_repository.save_record.assert_called_once_with(record=use_case.usage_context.get_record.return_value)
+        use_case.router_rate_limiter.update_rate_limit_state.assert_called_once_with(
+            user_id=user_with_router_access.id,
+            router_limits=[Limit(router_id=router.id, type=LimitType.RPM, value=100)],
+            router_id=router.id,
+            prompt_tokens=1,
+            completion_tokens=0,
+            cached_tokens=0,
+        )
+
+    @pytest.mark.asyncio
     async def test_should_not_charge_rate_limits_when_user_is_admin(self, use_case, router, payload, admin_user):
         # Act
         result = await use_case._forward_request_to_provider(
@@ -801,6 +830,24 @@ class TestExecute:
         assert result is error
         use_case._get_usable_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="test-router")
         use_case.model_tokenizer.compute_tokens.assert_not_called()
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_return_the_tokenizer_error_without_checking_rate_limits_or_forwarding_when_the_prompt_cannot_be_tokenized(
+        self, use_case, command
+    ):
+        # Arrange
+        error = TextNotTokenizableError()
+        use_case.model_tokenizer.compute_tokens.side_effect = None
+        use_case.model_tokenizer.compute_tokens.return_value = error
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert result is error
+        use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello"])
         use_case._get_remaining_rate_limits.assert_not_awaited()
         use_case._forward_request_to_provider.assert_not_awaited()
 
