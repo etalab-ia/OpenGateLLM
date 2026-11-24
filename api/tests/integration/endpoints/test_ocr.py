@@ -55,7 +55,7 @@ class TestCreateOCR:
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
 
         mock_tokenizer = MagicMock()
-        mock_tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []  # OCR requests carry no textual prompt
+        mock_tokenizer.encode.side_effect = lambda text, disallowed_special: [0] * 10 if text else []  # OCR requests carry no textual prompt
         with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
             yield
 

@@ -243,7 +243,7 @@ class TestModelForwardReleasesConnection:
     @pytest.fixture(autouse=True)
     def _stub_global_context(self, probe_engine, test_redis_pool):
         tokenizer = MagicMock()
-        tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []
+        tokenizer.encode.side_effect = lambda text, disallowed_special: [0] * 10 if text else []
         with override_global_context(
             redis_pool=test_redis_pool,
             postgres_session_factory=async_sessionmaker(probe_engine, class_=AsyncSession, expire_on_commit=False),
