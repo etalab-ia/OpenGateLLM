@@ -60,3 +60,15 @@ class TestTiktokenModelTokenizer:
 
         # Assert
         assert result == len(encoding.encode(" ".join(texts).strip()))
+
+    def test_should_count_a_special_token_as_ordinary_text_when_a_text_contains_one(self, tokenizer):
+        # Arrange
+        text = "a <|endoftext|> b"
+        encoding = tiktoken.get_encoding("gpt2")
+
+        # Act
+        result = tokenizer.compute_tokens(texts=[text])
+
+        # Assert
+        assert result == len(encoding.encode(text, disallowed_special=()))
+        assert result > len(encoding.encode(text, allowed_special="all"))
