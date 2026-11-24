@@ -143,6 +143,19 @@ class Provider(BaseModel):
     def is_closed(self) -> bool:
         return self.qos_limit == 0
 
+    @staticmethod
+    def mixes_qos_limits(qos_limits: list[int | None]) -> bool:
+        has_undefined_limit = False
+        has_defined_limit = False
+        for qos_limit in qos_limits:
+            if qos_limit is None:
+                has_undefined_limit = True
+            elif qos_limit != 0:
+                has_defined_limit = True
+            if has_undefined_limit and has_defined_limit:
+                return True
+        return False
+
 
 class ProviderLoads(BaseModel):
     load_by_provider_id: dict[int, int]

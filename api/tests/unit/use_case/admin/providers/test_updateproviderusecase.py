@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelQosLimitError, InconsistentModelVectorSizeError
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.entities import RouterType
@@ -353,3 +353,54 @@ class TestUpdateProviderUseCase:
         assert result.provider == updated_provider
         provider_repository.update_provider.assert_called_once_with(updated_provider)
         router_repository.get_router_by_id.assert_called_once_with(router_id=new_router.id)
+
+    @pytest.mark.asyncio
+    async def test_should_return_inconsistent_qos_limit_error_when_the_update_removes_the_limit_of_one_of_several_open_providers(
+        self, use_case, provider_repository
+    ):
+        # Arrange
+        provider = ProviderFactory(id=10, router_id=1, qos_limit=5)
+        provider_repository.get_one_provider.return_value = provider
+        provider_repository.get_all_providers_of_router.return_value = [provider, ProviderFactory(id=20, router_id=1, qos_limit=5)]
+
+        # Act
+        result = await use_case.execute(command=full_command(provider, qos_limit=None))
+
+        # Assert
+        assert result == InconsistentModelQosLimitError(router_id=1)
+        provider_repository.update_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_accept_an_unchanged_provider_when_its_router_already_mixes_qos_limits(self, use_case, provider_repository):
+        # Arrange
+        provider = ProviderFactory(id=10, router_id=1, qos_limit=5)
+        provider_repository.get_one_provider.return_value = provider
+        provider_repository.get_all_providers_of_router.return_value = [provider, ProviderFactory(id=20, router_id=1, qos_limit=None)]
+
+        # Act
+        result = await use_case.execute(command=full_command(provider))
+
+        # Assert
+        assert result == UpdateProviderUseCaseSuccess(provider)
+        provider_repository.update_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_accept_closing_a_provider_when_its_router_already_mixes_qos_limits(self, use_case, provider_repository):
+        # Arrange
+        provider = ProviderFactory(id=10, router_id=1, qos_limit=5)
+        command = full_command(provider, qos_limit=0)
+        closed_provider = provider_after_command(provider, command)
+        provider_repository.get_one_provider.return_value = provider
+        provider_repository.get_all_providers_of_router.return_value = [
+            provider,
+            ProviderFactory(id=20, router_id=1, qos_limit=5),
+            ProviderFactory(id=30, router_id=1, qos_limit=None),
+        ]
+        provider_repository.update_provider.return_value = closed_provider
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert result == UpdateProviderUseCaseSuccess(provider=closed_provider)
+        provider_repository.update_provider.assert_called_once_with(closed_provider)

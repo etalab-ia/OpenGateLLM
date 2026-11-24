@@ -8,7 +8,12 @@ from api.dependencies import (
     update_provider_use_case_factory,
 )
 from api.domain import SortOrder
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.model.errors import (
+    InconsistentModelMaxContextLengthError,
+    InconsistentModelQosLimitError,
+    InconsistentModelVectorSizeError,
+    ModelNotFoundError,
+)
 from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import (
     InvalidProviderTypeError,
@@ -25,6 +30,7 @@ from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InconsistentModelMaxContextLengthHTTPException,
+    InconsistentModelQosLimitHTTPException,
     InconsistentModelVectorSizeHTTPException,
     InvalidProviderTypeHTTPException,
     ModelNotFoundHTTPException,
@@ -69,6 +75,7 @@ from api.use_cases.admin.providers import (
     responses=get_documentation_responses(
         exceptions=[
             InconsistentModelMaxContextLengthHTTPException,
+            InconsistentModelQosLimitHTTPException,
             InconsistentModelVectorSizeHTTPException,
             InvalidProviderTypeHTTPException,
             ProviderNotReachableHTTPException,
@@ -109,6 +116,9 @@ async def create_provider(
 
         case InconsistentModelVectorSizeError(expected_vector_size=expected_vector_size, actual_vector_size=actual_vector_size, router_name=router_name):  # fmt: off
             raise InconsistentModelVectorSizeHTTPException(input_vector_size=actual_vector_size, model_vector_size=expected_vector_size, model_name=router_name)  # fmt: off
+
+        case InconsistentModelQosLimitError(router_id=router_id):
+            raise InconsistentModelQosLimitHTTPException(router_id=router_id)
 
         case InvalidProviderTypeError(provider_type=provider_type, router_type=router_type):
             raise InvalidProviderTypeHTTPException(incorrect_provider_type=provider_type, router_type=router_type)
@@ -157,6 +167,7 @@ async def delete_provider(
     responses=get_documentation_responses(
         [
             InconsistentModelMaxContextLengthHTTPException,
+            InconsistentModelQosLimitHTTPException,
             InconsistentModelVectorSizeHTTPException,
             InvalidProviderTypeHTTPException,
             ProviderAlreadyExistsHTTPException,
@@ -191,6 +202,9 @@ async def update_provider(
 
         case InconsistentModelVectorSizeError(expected_vector_size=expected_vector_size, actual_vector_size=actual_vector_size, router_name=router_name):  # fmt: off
             raise InconsistentModelVectorSizeHTTPException(input_vector_size=actual_vector_size, model_vector_size=expected_vector_size, model_name=router_name)  # fmt: off
+
+        case InconsistentModelQosLimitError(router_id=router_id):
+            raise InconsistentModelQosLimitHTTPException(router_id=router_id)
 
         case InvalidProviderTypeError(provider_type=provider_type, router_type=router_type):
             raise InvalidProviderTypeHTTPException(incorrect_provider_type=provider_type, router_type=router_type)
