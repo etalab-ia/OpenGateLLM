@@ -106,7 +106,7 @@
 | api/domain/user/errors.py                                                                                       |       34 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/user/views.py                                                                                        |       21 |        0 |        4 |        0 |    100.00% |           |
 | api/infrastructure/bcrypt/\_bcryptuserpasswordencoder.py                                                        |        7 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/configuration/\_configuration.py                                                             |       34 |        2 |        6 |        2 |     90.00% |    52, 56 |
+| api/infrastructure/configuration/\_configuration.py                                                             |       37 |        4 |        6 |        2 |     86.05% |29-30, 57, 61 |
 | api/infrastructure/configuration/\_interpolation.py                                                             |       26 |        0 |       12 |        0 |    100.00% |           |
 | api/infrastructure/configuration/\_validationerrors.py                                                          |       43 |        1 |        8 |        2 |     94.12% |25-\>34, 27 |
 | api/infrastructure/configuration/sections/dependencies.py                                                       |       22 |        2 |        2 |        1 |     87.50% |     21-22 |
@@ -275,7 +275,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **8172** |  **568** | **1458** |  **173** | **91.39%** |           |
+| **TOTAL**                                                                                                       | **8175** |  **570** | **1458** |  **173** | **91.37%** |           |
 
 
 ## Setup coverage badge
