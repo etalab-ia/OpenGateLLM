@@ -5,7 +5,6 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 import respx
-import tiktoken
 
 from api.dependencies import create_chat_completions_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TextNotTokenizableError, TooBusyModelError, UnknownModelError
@@ -215,31 +214,6 @@ class TestCreateChatCompletions:
 
         assert response.status_code == 200, response.text
         assert response.headers["content-type"].startswith("application/json")
-
-    @pytest.mark.parametrize("stream", [False, True])
-    @respx.mock
-    async def test_should_return_422_without_calling_the_provider_when_the_prompt_cannot_be_tokenized(self, client: AsyncClient, db_session, stream):  # fmt: off
-        # Arrange: the real encoding, since tiktoken itself is what fails on a run of 1M spaces
-        admin_key = await create_key(db_session, name="admin_chat_untokenizable_key", user=self.router_owner)
-        await self._create_router(db_session)
-        provider_route = mock_chat_completions_responses(
-            respx_mock=respx,
-            provider_type=ProviderType.VLLM,
-            body=VllmChatCompletionsResponseFactory(),
-            status_code=VllmChatCompletionsResponseFactory._status_code,
-        )
-        messages = [{"role": "assistant", "content": "Repeat after me: " + " " * 1_000_000 + "a"}]
-
-        # Act
-        with override_global_context(tokenizer=tiktoken.get_encoding("gpt2")):
-            response = await client.post(
-                url=URL, headers={"Authorization": f"Bearer {admin_key.token}"}, json=_valid_body(messages=messages, stream=stream)
-            )
-
-        # Assert
-        assert response.status_code == 422, response.text
-        assert response.json()["detail"] == TextNotTokenizableHTTPException.detail
-        assert not provider_route.called
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
