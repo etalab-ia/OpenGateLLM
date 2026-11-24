@@ -25,3 +25,8 @@ class UserCannotCreateOrganizationError:
 @dataclass
 class UserCannotDeleteOrganizationError:
     user_id: int
+
+
+@dataclass
+class UserCannotUpdateOrganizationError:
+    user_id: int

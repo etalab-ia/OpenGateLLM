@@ -486,8 +486,13 @@ def get_one_organization_use_case_factory(postgres_session: AsyncSession = Depen
     return GetOneOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
 
 
-def update_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateOrganizationUseCase:
-    return UpdateOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
+def update_organization_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
+) -> UpdateOrganizationUseCase:
+    return UpdateOrganizationUseCase(
+        organization_repository=_organization_repository(session=postgres_session), organization_authorization=organization_authorization
+    )
 
 
 # user use cases
