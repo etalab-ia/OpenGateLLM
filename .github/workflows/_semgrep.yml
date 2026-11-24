@@ -14,18 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep:1.178.0@sha256:32e459968daabe7ab86968184a29109b9564aa00392401156f9788452b42786b
+    env:
+      SEMGREP_SEND_METRICS: "off"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Semgrep (diff only)
         if: inputs.scan == 'diff'
-        run: semgrep ci --config auto --verbose
+        run: semgrep ci --config p/default --verbose
 
       - name: Run Semgrep (WARNING severity)
         if: inputs.scan == 'full'
         run: |
           semgrep scan \
-            --config auto \
             --config p/default \
             --config p/secrets \
             --config p/security-audit \
@@ -38,7 +39,6 @@ jobs:
         if: inputs.scan == 'full'
         run: |
           semgrep scan \
-            --config auto \
             --config p/default \
             --config p/secrets \
             --config p/security-audit \
