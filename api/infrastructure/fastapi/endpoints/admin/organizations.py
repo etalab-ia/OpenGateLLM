@@ -15,6 +15,8 @@ from api.domain.organization.errors import (
     OrganizationNotFoundError,
     UserCannotCreateOrganizationError,
     UserCannotDeleteOrganizationError,
+    UserCannotReadOrganizationError,
+    UserCannotReadOrganizationsError,
     UserCannotUpdateOrganizationError,
 )
 from api.domain.user.views import AuthenticatedUserView
@@ -23,7 +25,6 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    NotAdminUserHTTPException,
     OrganizationAlreadyExistsHTTPException,
     OrganizationHasUsersHTTPException,
     OrganizationNotFoundHTTPException,
@@ -80,9 +81,9 @@ async def create_organization(
 
 @router.get(
     path=EndpointRoute.ADMIN_ORGANIZATIONS,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException]),
 )
 async def get_organizations(
     name: str | None = Query(default=None, description="Name substring to filter the organizations by (case-insensitive)."),
@@ -91,8 +92,11 @@ async def get_organizations(
     sort_by: OrganizationSortField = Query(default=OrganizationSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_organizations_use_case: GetOrganizationsUseCase = Depends(get_organizations_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationsResponse:
-    command = GetOrganizationsCommand(name=name, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
+    command = GetOrganizationsCommand(
+        authenticated_user_id=authenticated_user.id, name=name, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order
+    )
     result = await get_organizations_use_case.execute(command)
 
     match result:
@@ -103,19 +107,22 @@ async def get_organizations(
                 limit=limit,
                 data=[OrganizationResponse.model_validate(organization, from_attributes=True) for organization in organization_page.data],
             )
+        case UserCannotReadOrganizationsError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, OrganizationNotFoundHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException, OrganizationNotFoundHTTPException]),
 )
 async def get_organization(
     organization_id: int = Path(description="The ID of the organization to get."),
     get_one_organization_use_case: GetOneOrganizationUseCase = Depends(get_one_organization_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
-    command = GetOneOrganizationCommand(organization_id=organization_id)
+    command = GetOneOrganizationCommand(authenticated_user_id=authenticated_user.id, organization_id=organization_id)
     result = await get_one_organization_use_case.execute(command)
 
     match result:
@@ -123,6 +130,8 @@ async def get_organization(
             return OrganizationResponse.model_validate(organization, from_attributes=True)
         case OrganizationNotFoundError(id=not_found_organization_id):
             raise OrganizationNotFoundHTTPException(not_found_organization_id)
+        case UserCannotReadOrganizationError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.delete(

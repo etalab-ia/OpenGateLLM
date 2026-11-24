@@ -7,6 +7,14 @@ class OpenFgaOrganizationAuthorization(OrganizationAuthorization):
     def __init__(self, openfga_client: OpenFgaAuthorizationClient):
         self.openfga_client = openfga_client
 
+    async def can_read_organization(self, user_id: int) -> bool:
+        user_subject = AuthorizationObject.user(user_id)
+        platform_object = AuthorizationObject.platform()
+
+        res = await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.CAN_READ_ORGANIZATION, object=platform_object)
+
+        return res
+
     async def can_create_organization(self, user_id: int) -> bool:
         user_subject = AuthorizationObject.user(user_id)
         platform_object = AuthorizationObject.platform()
