@@ -318,6 +318,14 @@ class FileSizeLimitExceededHTTPException(HTTPException):
 
 
 # 422
+class TextNotTokenizableHTTPException(HTTPException):
+    status_code = 422
+    detail = "The prompt cannot be tokenized: it may contain a run of whitespace too long to process."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 class WrongModelTypeHTTPException(HTTPException):
     status_code = 422
     detail = "Model has wrong type. Expected: {expected_type}. Actual: {actual_type}."

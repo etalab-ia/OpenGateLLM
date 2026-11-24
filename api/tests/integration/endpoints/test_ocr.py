@@ -7,7 +7,7 @@ import respx
 from sqlalchemy import select
 
 from api.dependencies import create_ocr_use_case_factory
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import StatusCodeModelError, TextNotTokenizableError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import HostingZone, ProviderEndpoint, ProviderType
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -20,6 +20,7 @@ from api.domain.router import RouterRateLimiter
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasNoAccessToRouterError
+from api.infrastructure.fastapi.endpoints.exceptions import TextNotTokenizableHTTPException
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.postgres import PostgresUsageRepository
 from api.infrastructure.postgres.models import Usage as UsageTable
@@ -249,6 +250,7 @@ class TestCreateOCR:
                 500,
                 "upstream failure",
             ),
+            (TextNotTokenizableError(), 422, TextNotTokenizableHTTPException.detail),
             (
                 UnsupportedProviderEndpointError(endpoint=ProviderEndpoint.OCR, provider_type=ProviderType.MISTRAL),
                 500,

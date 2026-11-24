@@ -8,7 +8,7 @@ import pytest
 
 from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.errors import TooBusyModelError
+from api.domain.model.errors import TextNotTokenizableError, TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderLoads, ProviderResponse, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
@@ -229,6 +229,25 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert result == RouterNotFoundError(name=MODEL_NAME)
         use_case._get_remaining_rate_limits.assert_not_awaited()
+
+    @pytest.mark.parametrize("stream", [False, True])
+    @pytest.mark.asyncio
+    async def test_should_return_the_tokenizer_error_without_reaching_the_provider_when_the_prompt_cannot_be_tokenized(
+        self, use_case, make_command, stream
+    ):
+        # Arrange
+        error = TextNotTokenizableError()
+        use_case.model_tokenizer.compute_tokens.side_effect = None
+        use_case.model_tokenizer.compute_tokens.return_value = error
+
+        # Act
+        result = await use_case.execute(command=make_command(stream=stream))
+
+        # Assert
+        assert result is error
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
+        use_case.provider_client.forward_stream.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_rate_limit_is_exceeded(self, use_case, make_command):
@@ -570,6 +589,25 @@ class TestCreateChatCompletionsUseCaseFormatStream:
         recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
         assert recorded.prompt_tokens == 3
         assert recorded.completion_tokens == 2, "a cut stream is billed the same whether or not the client asked for running counts"
+
+    @pytest.mark.asyncio
+    async def test_should_end_the_stream_with_no_completion_tokens_billed_when_the_completion_cannot_be_tokenized(self, use_case, router, provider, mock_usage_recorder):  # fmt: off
+        # Arrange: the provider reports no usage, so the delivered deltas go through the tokenizer
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
+        use_case.model_tokenizer.compute_tokens.side_effect = None
+        use_case.model_tokenizer.compute_tokens.return_value = TextNotTokenizableError()
+        chunks = _chunk_stream('data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}', "data: [DONE]")
+        stream = _forward_stream_to_client(use_case, router=router, provider=provider, provider_chunks=chunks, estimated_prompt_tokens=3)
+
+        # Act
+        result = await self._collect(stream)
+
+        # Assert
+        assert result[-1].content == "data: [DONE]"
+        recorded = mock_usage_recorder.record_usage.call_args.kwargs["usage"]
+        assert recorded.prompt_tokens == 3
+        assert recorded.completion_tokens == 0
+        mock_usage_recorder.record_error.assert_called_once_with(error="TextNotTokenizableError")
 
     @pytest.mark.asyncio
     async def test_should_not_record_usage_when_the_consumer_abandons_before_any_chunk(self, use_case, router, provider, mock_usage_recorder, mock_usage_repository):  # fmt: off

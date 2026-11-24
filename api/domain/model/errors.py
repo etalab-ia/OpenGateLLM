@@ -42,3 +42,8 @@ class UnknownModelError:
 class StatusCodeModelError:
     status_code: int
     detail: str
+
+
+@dataclass
+class TextNotTokenizableError:
+    pass

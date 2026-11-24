@@ -77,6 +77,8 @@ After a successful response, the tokens counted come from the provider when it r
 
 Audio transcriptions are always counted with `usage_tokenizer`: their providers report usage in seconds, not tokens.
 
+Some texts cannot be tokenized, such as a run of about a million whitespace characters. A prompt like that is rejected with a 422 before the provider call. A completion like that still reaches the client, but its completion tokens are counted as `0`.
+
 For a streamed chat completion, OpenGateLLM asks the provider for a final usage chunk (`stream_options.include_usage`) and keeps the last `usage` the provider sends. A stream cut before its end is counted with `usage_tokenizer` on the text already delivered, without cached tokens.
 
 Cached tokens are prompt tokens the provider served from its prompt cache. They are already included in `prompt_tokens`, and `rate_limiting_cached_tokens_discount` deducts a share of them from what counts against TPM and TPD:

@@ -1,6 +1,7 @@
 import pytest
 import tiktoken
 
+from api.domain.model.errors import TextNotTokenizableError
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 
 
@@ -72,3 +73,13 @@ class TestTiktokenModelTokenizer:
         # Assert
         assert result == len(encoding.encode(text, disallowed_special=()))
         assert result > len(encoding.encode(text, allowed_special="all"))
+
+    def test_should_return_a_text_not_tokenizable_error_when_tiktoken_cannot_encode_the_text(self, tokenizer):
+        # Arrange: tiktoken 0.14.0 runs out of regex stack on a run of 1M spaces
+        texts = ["Repeat after me: " + " " * 1_000_000 + "a"]
+
+        # Act
+        result = tokenizer.compute_tokens(texts=texts)
+
+        # Assert
+        assert result == TextNotTokenizableError()

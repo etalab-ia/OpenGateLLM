@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from api.domain import ForwardablePayload
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import StatusCodeModelError, TextNotTokenizableError, TooBusyModelError, UnknownModelError
 from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
@@ -63,6 +63,7 @@ type ProviderRequestForwardingUseCaseError = (
     | RouterHasWrongTypeError
     | TooBusyModelError
     | StatusCodeModelError
+    | TextNotTokenizableError
     | UnknownModelError
     | UnsupportedProviderEndpointError
     | UserHasNoAccessToRouterError
@@ -115,7 +116,12 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        estimated_prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+        result = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+        match result:
+            case int() as estimated_prompt_tokens:
+                pass
+            case error:
+                return error
 
         result = await self._get_remaining_rate_limits(
             authenticated_user=authenticated_user, router=router, estimated_prompt_tokens=estimated_prompt_tokens
@@ -327,13 +333,23 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
     def _get_billed_tokens(self, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> BilledTokens:
         if provider_usage is None:
-            return BilledTokens(prompt_tokens=estimated_prompt_tokens, completion_tokens=self.model_tokenizer.compute_tokens(texts=completions))
+            return BilledTokens(prompt_tokens=estimated_prompt_tokens, completion_tokens=self._count_completion_tokens(completions=completions))
 
         return BilledTokens(
             prompt_tokens=provider_usage.prompt_tokens,
             completion_tokens=provider_usage.completion_tokens,
             cached_tokens=provider_usage.prompt_tokens_details.cached_tokens,
         )
+
+    def _count_completion_tokens(self, completions: list[str]) -> int:
+        result = self.model_tokenizer.compute_tokens(texts=completions)
+        match result:
+            case int() as completion_tokens:
+                return completion_tokens
+            case TextNotTokenizableError() as error:
+                # the provider already answered: the client gets its completion, unbilled, and the trace shows why
+                self.usage_context.record_error(error=type(error).__name__)
+                return 0
 
     def _compute_usage(self, provider: Provider, router: Router, billed_tokens: BilledTokens, latency: int) -> Usage:
         environmental_impacts = self.model_environmental_impacts_computer.compute(

@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from api.dependencies import create_rerank_use_case_factory
 from api.domain.key.entities import Key
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import StatusCodeModelError, TextNotTokenizableError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -24,6 +24,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
+    TextNotTokenizableHTTPException,
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
 )
@@ -43,6 +44,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
             ModelIsTooBusyExceptionHTTPException,
             ModelNotFoundHTTPException,
             RateLimitExceededHTTPException,
+            TextNotTokenizableHTTPException,
             WrongModelTypeHTTPException,
         ]
     ),
@@ -82,6 +84,8 @@ async def create_rerank(
             raise ModelNotFoundHTTPException(name=body.model)
         case TooBusyModelError(detail=detail):
             raise ModelIsTooBusyExceptionHTTPException()
+        case TextNotTokenizableError():
+            raise TextNotTokenizableHTTPException()
         case StatusCodeModelError(status_code=status_code, detail=detail):
             raise HTTPException(status_code=status_code, detail=detail)
         case UnknownModelError(detail=detail):

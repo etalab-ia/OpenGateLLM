@@ -51,7 +51,12 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             case error:
                 return error
 
-        estimated_prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+        result = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+        match result:
+            case int() as estimated_prompt_tokens:
+                pass
+            case error:
+                return error
 
         result = await self._get_remaining_rate_limits(
             authenticated_user=authenticated_user, router=router, estimated_prompt_tokens=estimated_prompt_tokens
