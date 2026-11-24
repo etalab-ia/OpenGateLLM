@@ -497,8 +497,13 @@ def get_one_organization_use_case_factory(
     )
 
 
-def get_my_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetMyOrganizationUseCase:
-    return GetMyOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
+def get_my_organization_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
+) -> GetMyOrganizationUseCase:
+    return GetMyOrganizationUseCase(
+        organization_repository=_organization_repository(session=postgres_session), organization_authorization=organization_authorization
+    )
 
 
 def update_organization_use_case_factory(
@@ -514,12 +519,14 @@ def update_organization_use_case_factory(
 def create_user_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     user_authorization: UserAuthorization = Depends(_get_user_authorization),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
 ) -> CreateUserUseCase:
     return CreateUserUseCase(
         user_repository=_user_repository(postgres_session),
         role_repository=_role_repository(postgres_session),
         user_password_encoder=_user_password_encoder(),
         user_authorization=user_authorization,
+        organization_authorization=organization_authorization,
     )
 
 
@@ -540,19 +547,26 @@ def get_users_use_case_factory(
 def delete_user_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     user_authorization: UserAuthorization = Depends(_get_user_authorization),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
 ) -> DeleteUserUseCase:
-    return DeleteUserUseCase(user_repository=_user_repository(postgres_session), user_authorization=user_authorization)
+    return DeleteUserUseCase(
+        user_repository=_user_repository(postgres_session),
+        user_authorization=user_authorization,
+        organization_authorization=organization_authorization,
+    )
 
 
 def update_user_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     user_authorization: UserAuthorization = Depends(_get_user_authorization),
+    organization_authorization: OrganizationAuthorization = Depends(_get_organization_authorization),
 ) -> UpdateUserUseCase:
     return UpdateUserUseCase(
         user_repository=_user_repository(postgres_session),
         role_repository=_role_repository(postgres_session),
         user_password_encoder=_user_password_encoder(),
         user_authorization=user_authorization,
+        organization_authorization=organization_authorization,
     )
 
 
