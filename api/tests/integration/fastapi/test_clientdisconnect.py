@@ -10,7 +10,7 @@ import pytest
 from api.domain.chat.entities import CreateChatCompletionsBody
 from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderReservation
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -51,8 +51,8 @@ def provider():
 
 
 @pytest.fixture
-def router():
-    return RouterFactory(id=1, name="chat-router", type=RouterType.TEXT_GENERATION, providers=1)
+def router(provider):
+    return RouterFactory(id=1, name="chat-router", type=RouterType.TEXT_GENERATION, providers=[provider])
 
 
 @pytest.fixture
@@ -95,7 +95,6 @@ def use_case(usage_recorder, mock_usage_repository) -> CreateChatCompletionsUseC
         model_tokenizer=tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
         provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
-        provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
         usage_context=usage_recorder,
@@ -235,7 +234,6 @@ class TestClientDisconnectDuringModelForward:
         # Arrange: the provider never answers, the client leaves while waiting for it
         reservation = ProviderReservation(provider=provider, request_id=REQUEST_ID)
         use_case.router_repository.get_router_by_name_or_alias.return_value = router
-        use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
         use_case.provider_concurrency_limiter.reserve.return_value = reservation
         provider_called = asyncio.Event()
 

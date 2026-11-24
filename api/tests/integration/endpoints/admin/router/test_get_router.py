@@ -21,19 +21,23 @@ class TestGetRouter:
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
-    async def test_happy_path(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=RouterType.TEXT_GENERATION)
+    async def test_should_return_the_router_with_its_number_of_providers_when_it_exists(self, client: AsyncClient, db_session):
+        # Arrange
+        router = RouterSQLFactory(user=self.admin_user, type=RouterType.TEXT_GENERATION, providers=2)
         await db_session.flush()
 
+        # Act
         response = await client.get(
             url=f"{URL}/{router.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
+        # Assert
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["id"] == router.id
         assert data["object"] == "router"
+        assert data["providers"] == 2
         assert data["created"] == int(router.created.timestamp())
         assert data["updated"] == int(router.updated.timestamp())
 

@@ -29,7 +29,7 @@ def sample_router_with_aliases():
         qos_retries_before_reject=3,
         cost_prompt_tokens=0.01,
         cost_completion_tokens=0.02,
-        providers=0,
+        providers=[],
     )
 
 

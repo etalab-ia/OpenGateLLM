@@ -2,9 +2,8 @@ from typing import Annotated
 
 from pydantic import ConfigDict, Field
 
-from api.domain import BaseModel, UtcDatetime
+from api.domain import BaseModel, RouterType, UtcDatetime
 from api.domain.model.entities import ModelCosts
-from api.domain.router.entities import RouterType
 
 
 class ModelView(BaseModel):

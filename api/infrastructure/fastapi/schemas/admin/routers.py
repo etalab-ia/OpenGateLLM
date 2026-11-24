@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints
+from pydantic import BeforeValidator, Field, StringConstraints
 
 from api.domain import BaseModel
 from api.domain.router.entities import RouterType
@@ -25,6 +25,10 @@ class UpdateRouterBody(BaseModel):
     qos_retries_before_reject: Annotated[int | None, Field(..., ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
 
 
+def _count_providers(value: object) -> object:
+    return len(value) if isinstance(value, list) else value
+
+
 class RouterResponse(BaseModel):
     object: Annotated[Literal["router"], Field(default="router", description="Type of the object.")]
     id: Annotated[int, Field(description="ID of the router.")]
@@ -35,7 +39,7 @@ class RouterResponse(BaseModel):
     cost_prompt_tokens: Annotated[float, Field(description="Cost of a million prompt tokens")]
     cost_completion_tokens: Annotated[float, Field(description="Cost of a million completion tokens")]
     qos_retries_before_reject: Annotated[int | None, Field(default=None, ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
-    providers: Annotated[int, Field(default=0, description="Number of providers in the router.")]
+    providers: Annotated[int, BeforeValidator(_count_providers), Field(default=0, description="Number of providers in the router.")]
     created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
     updated: Annotated[UnixTimestamp, Field(description="Time of last update, as Unix timestamp.")]
 

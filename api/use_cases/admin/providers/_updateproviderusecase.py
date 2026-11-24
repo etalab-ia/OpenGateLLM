@@ -59,7 +59,7 @@ class UpdateProviderUseCase:
 
             match result:
                 case Router() as new_router:
-                    if not existing_provider.is_compatible_with(new_router):
+                    if not existing_provider.is_compatible_with_router_type(new_router.type):
                         return InvalidProviderTypeError(provider_type=existing_provider.type.value, router_type=new_router.type.value)
                 case RouterNotFoundError() as error:
                     return error

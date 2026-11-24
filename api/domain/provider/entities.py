@@ -6,8 +6,7 @@ from uuid import uuid4
 import pycountry
 from pydantic import Field, model_validator
 
-from api.domain import BaseModel, EntitiesPage, ForwardablePayload, UtcDatetime
-from api.domain.router.entities import Router, RouterType
+from api.domain import BaseModel, EntitiesPage, ForwardablePayload, RouterType, UtcDatetime
 from api.domain.usage.entities import Usage
 
 
@@ -100,7 +99,7 @@ class Provider(BaseModel):
     user_id: int
     type: ProviderType
     url: str
-    key: str | None = None
+    key: Annotated[str | None, Field(default=None, repr=False)]
     timeout: int
     model_name: str
     model_hosting_zone: HostingZone = HostingZone.WOR
@@ -136,8 +135,8 @@ class Provider(BaseModel):
     def with_qos_limit(self, qos_limit: int | None) -> "Provider":
         return self.model_copy(update={"qos_limit": qos_limit})
 
-    def is_compatible_with(self, router: Router) -> bool:
-        return self.type.is_compatible_with(router.type)
+    def is_compatible_with_router_type(self, router_type: RouterType) -> bool:
+        return self.type.is_compatible_with(router_type)
 
     @property
     def is_closed(self) -> bool:

@@ -180,8 +180,12 @@ class Router(Base):
     updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
 
     user: Mapped["User"] = relationship(back_populates="router")
-    alias: Mapped[list["RouterAlias"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
-    provider: Mapped[list["Provider"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
+    alias: Mapped[list["RouterAlias"]] = relationship(
+        back_populates="router", cascade="all, delete-orphan", passive_deletes=True, order_by="RouterAlias.id"
+    )
+    provider: Mapped[list["Provider"]] = relationship(
+        back_populates="router", cascade="all, delete-orphan", passive_deletes=True, order_by="Provider.id"
+    )
     limit: Mapped[list["Limit"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
     usage: Mapped[list["Usage"]] = relationship(back_populates="router", passive_deletes=True)
 

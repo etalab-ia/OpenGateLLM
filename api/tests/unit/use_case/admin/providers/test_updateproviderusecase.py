@@ -120,7 +120,7 @@ class TestUpdateProviderUseCase:
     ):
         # Arrange
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.OPENAI, timeout=30)
-        new_router = RouterFactory(id=2, type=RouterType.TEXT_CLASSIFICATION, providers=0)
+        new_router = RouterFactory(id=2, type=RouterType.TEXT_CLASSIFICATION, providers=[])
         provider_repository.get_one_provider.return_value = provider
         router_repository.get_router_by_id.return_value = new_router
 
@@ -140,7 +140,7 @@ class TestUpdateProviderUseCase:
         # Arrange
 
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.TEI, vector_size=768)
-        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=1)
+        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=[ProviderFactory()])
         provider_repository.get_one_provider.return_value = provider
         provider_repository.get_all_providers_of_router.return_value = [ProviderFactory(id=20, router_id=2, type=ProviderType.TEI, vector_size=384)]
         router_repository.get_router_by_id.return_value = new_router
@@ -162,7 +162,7 @@ class TestUpdateProviderUseCase:
         # Arrange
 
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, max_context_length=4096)
-        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_GENERATION, providers=1)
+        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_GENERATION, providers=[ProviderFactory()])
         provider_repository.get_one_provider.return_value = provider
         provider_repository.get_all_providers_of_router.return_value = [
             ProviderFactory(id=20, router_id=2, type=ProviderType.VLLM, max_context_length=8192)
@@ -226,7 +226,7 @@ class TestUpdateProviderUseCase:
         self, use_case, provider_repository, router_repository, sample_provider
     ):
         # Arrange
-        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=1)
+        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=[ProviderFactory()])
         command = full_command(sample_provider, router_id=new_router.id)
         updated_provider = provider_after_command(sample_provider, command)
 
@@ -256,7 +256,7 @@ class TestUpdateProviderUseCase:
         self, use_case, provider_repository, router_repository, sample_provider
     ):
         # Arrange
-        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=0)
+        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=[])
         command = full_command(sample_provider, router_id=new_router.id)
         updated_provider = provider_after_command(sample_provider, command)
 
@@ -337,7 +337,7 @@ class TestUpdateProviderUseCase:
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed(self, use_case, provider_repository, router_repository, sample_provider):
         # Arrange
-        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=1)
+        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=[ProviderFactory()])
         command = full_command(sample_provider, router_id=new_router.id)
         updated_provider = provider_after_command(sample_provider, command)
 

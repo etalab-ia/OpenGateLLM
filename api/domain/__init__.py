@@ -28,6 +28,15 @@ class ForwardablePayload(BaseModel, ABC):
         return []
 
 
+# Shared by Router and Provider: Router holds its providers, so Provider cannot import it from the router package.
+class RouterType(StrEnum):
+    AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
+    IMAGE_TO_TEXT = "image-to-text"
+    TEXT_CLASSIFICATION = "text-classification"
+    TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"
+    TEXT_GENERATION = "text-generation"
+
+
 class SortField(StrEnum):
     ID = "id"
     NAME = "name"

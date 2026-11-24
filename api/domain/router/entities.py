@@ -1,21 +1,13 @@
 from datetime import UTC, datetime
-from enum import StrEnum
 from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, Field
 
-from api.domain import EntitiesPage, UtcDatetime
+from api.domain import EntitiesPage, RouterType, UtcDatetime
+from api.domain.provider.entities import Provider
 from api.domain.role.entities import LimitType
 
 RouterPage = EntitiesPage["Router"]
-
-
-class RouterType(StrEnum):
-    AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
-    IMAGE_TO_TEXT = "image-to-text"
-    TEXT_CLASSIFICATION = "text-classification"
-    TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"
-    TEXT_GENERATION = "text-generation"
 
 
 class Router(BaseModel):
@@ -26,7 +18,7 @@ class Router(BaseModel):
     aliases: list[str]
     cost_prompt_tokens: float
     cost_completion_tokens: float
-    providers: int
+    providers: list[Provider]
     created: UtcDatetime
     updated: UtcDatetime
     qos_retries_before_reject: int | None = None
@@ -51,7 +43,19 @@ class Router(BaseModel):
 
     @property
     def has_providers(self) -> bool:
-        return self.providers > 0
+        return len(self.providers) > 0
+
+    @property
+    def open_providers(self) -> list[Provider]:
+        return [provider for provider in self.providers if not provider.is_closed]
+
+    @property
+    def enforces_limits(self) -> bool:
+        return self.qos_retries_before_reject is not None
+
+    @property
+    def is_ranked_by_load_rate(self) -> bool:
+        return all(provider.qos_limit is not None for provider in self.open_providers)
 
 
 class TpmRateLimitState(BaseModel):

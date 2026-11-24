@@ -1,25 +1,60 @@
 from datetime import UTC, datetime
 import re
 
+import pytest
+
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterRateLimitState, RpdRateLimitState, RpmRateLimitState, TpdRateLimitState, TpmRateLimitState
-from api.tests.unit.use_case.factories import RouterFactory
+from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
 
 
 class TestRouterHasProviders:
     def test_should_be_true_when_the_router_has_one_provider(self):
         # Arrange
-        router = RouterFactory(providers=1)
+        router = RouterFactory(providers=[ProviderFactory()])
 
         # Act & Assert
         assert router.has_providers is True
 
     def test_should_be_false_when_the_router_has_no_provider(self):
         # Arrange
-        router = RouterFactory(providers=0)
+        router = RouterFactory(providers=[])
 
         # Act & Assert
         assert router.has_providers is False
+
+
+class TestRouterOpenProviders:
+    def test_should_leave_out_a_provider_when_it_is_closed(self):
+        # Arrange
+        open_provider = ProviderFactory(qos_limit=10)
+        router = RouterFactory(providers=[ProviderFactory(qos_limit=0), open_provider])
+
+        # Act & Assert
+        assert router.open_providers == [open_provider]
+
+
+class TestRouterIsRankedByLoadRate:
+    @pytest.mark.parametrize(
+        ("qos_limits", "expected"),
+        [([10, 20], True), ([None, None], False), ([10, None], False), ([10, 0], True), ([None, 0], False)],
+    )
+    def test_should_be_true_only_when_every_open_provider_has_a_limit(self, qos_limits, expected):
+        # Arrange
+        router = RouterFactory(providers=[ProviderFactory(qos_limit=qos_limit) for qos_limit in qos_limits])
+
+        # Act & Assert
+        assert router.is_ranked_by_load_rate is expected
+
+
+class TestRouterEnforcesLimits:
+    @pytest.mark.parametrize(("qos_retries_before_reject", "expected"), [(None, False), (0, True), (3, True)])
+    def test_should_be_true_only_when_a_number_of_retries_is_set(self, qos_retries_before_reject, expected):
+        # Arrange
+        router = RouterFactory(qos_retries_before_reject=qos_retries_before_reject)
+
+        # Act & Assert
+        assert router.enforces_limits is expected
 
 
 class TestRouterRateLimitStateExceededLimits:

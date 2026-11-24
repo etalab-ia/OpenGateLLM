@@ -9,7 +9,7 @@ import pytest
 from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TextNotTokenizableError, TooBusyModelError
-from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation, ProviderReservationRefused
+from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderLoads, ProviderResponse, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
@@ -50,8 +50,8 @@ def mock_usage_repository():
 
 
 @pytest.fixture
-def router():
-    return RouterFactory(id=1, name=MODEL_NAME, type=RouterType.TEXT_GENERATION, providers=1)
+def router(provider):
+    return RouterFactory(id=1, name=MODEL_NAME, type=RouterType.TEXT_GENERATION, providers=[provider])
 
 
 @pytest.fixture
@@ -99,7 +99,6 @@ def use_case(mock_model_tokenizer, mock_usage_recorder, mock_usage_repository) -
         model_tokenizer=mock_model_tokenizer,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
         provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
-        provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
         usage_context=mock_usage_recorder,
@@ -138,7 +137,6 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case._get_usable_router = AsyncMock(return_value=router)
         use_case._get_remaining_rate_limits = AsyncMock(return_value=RouterRateLimitState.unlimited())
         use_case._forward_request_to_provider = AsyncMock(return_value=ProviderResponse(data=sample_completion))
-        use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
         use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={provider.id: 0})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider, request_id=REQUEST_ID)
         use_case.provider_client.forward_stream = AsyncMock(return_value=_chunk_stream())

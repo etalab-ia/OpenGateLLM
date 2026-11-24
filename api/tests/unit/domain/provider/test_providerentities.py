@@ -9,6 +9,15 @@ from api.domain.usage.entities import Usage
 from api.tests.unit.use_case.factories import ProviderFactory
 
 
+class TestProviderKey:
+    def test_should_not_appear_in_the_representation(self):
+        # Arrange
+        provider = ProviderFactory(key="secret-key")
+
+        # Act & Assert
+        assert "secret-key" not in repr(provider)
+
+
 class TestProviderQoSLimit:
     def test_should_replace_qos_limit(self):
         provider = ProviderFactory(qos_limit=None)
