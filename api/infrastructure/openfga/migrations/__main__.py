@@ -61,6 +61,7 @@ async def _run_migrations(migration_names: list[str], postgres_url: str, openfga
     try:
         for migration in migration_names:
             print(migration)
+            # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- the name comes from the modules of this package (_get_migrations), never from raw input
             module = importlib.import_module(f"{__package__}.{migration}")
             print(f"  description: {module.DESCRIPTION}")
             try:
