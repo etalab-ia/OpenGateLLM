@@ -23,6 +23,14 @@ class OpenFgaOrganizationAuthorization(OrganizationAuthorization):
 
         return res
 
+    async def can_update_organization(self, user_id: int, organization_id: int) -> bool:
+        user_subject = AuthorizationObject.user(user_id)
+        organization_object = AuthorizationObject.organization(organization_id)
+
+        res = await self.openfga_client.check(subject=user_subject, relation=OrganizationRelation.CAN_UPDATE, object=organization_object)
+
+        return res
+
     async def register_organization(self, organization_id: int) -> None:
         platform_subject = AuthorizationObject.platform()
         organization_object = AuthorizationObject.organization(organization_id)
