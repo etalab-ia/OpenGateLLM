@@ -2,11 +2,13 @@ from collections import Counter
 from dataclasses import dataclass
 import logging
 
+from api.domain.model import ModelTokenizerLoader
 from api.domain.model.errors import (
     InconsistentModelMaxContextLengthError,
     InconsistentModelQosLimitError,
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
+    ModelTokenizerNotLoadableError,
 )
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import HostingZone, Provider, ProviderType
@@ -41,6 +43,7 @@ class RouterToCreate:
     cost_prompt_tokens: float
     cost_completion_tokens: float
     providers: list[ProviderToCreate]
+    tokenizer: str | None = None
 
 
 @dataclass
@@ -70,6 +73,7 @@ type BootstrapModelsUseCaseResult = (
     | ProviderNotReachableError
     | ProviderInvalidResponseError
     | RouterNameAlreadyExistsError
+    | ModelTokenizerNotLoadableError
 )
 
 
@@ -79,10 +83,12 @@ class BootstrapModelsUseCase:
         router_repository: RouterRepository,
         provider_repository: ProviderRepository,
         provider_capabilities_probe: ProviderCapabilitiesProbe,
+        model_tokenizer_loader: ModelTokenizerLoader,
     ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
         self.provider_capabilities_probe = provider_capabilities_probe
+        self.model_tokenizer_loader = model_tokenizer_loader
 
     async def execute(self, command: BootstrapModelsCommand) -> BootstrapModelsUseCaseResult:
         routers = await self.router_repository.get_all_routers()
@@ -104,6 +110,11 @@ class BootstrapModelsUseCase:
                 url, model_name = duplicates[0]
                 return ProviderAlreadyExistsError(url=url, model_name=model_name, router_id=i)
 
+            if router_to_create.tokenizer is not None:
+                tokenizer_result = await self.model_tokenizer_loader.load(router_to_create.tokenizer)
+                if isinstance(tokenizer_result, ModelTokenizerNotLoadableError):
+                    return tokenizer_result
+
             if Provider.mixes_qos_limits([provider_to_create.qos_limit for provider_to_create in router_to_create.providers]):
                 return InconsistentModelQosLimitError(router_name=router_to_create.name)
 
@@ -116,6 +127,7 @@ class BootstrapModelsUseCase:
                 name=router_to_create.name,
                 router_type=router_to_create.type,
                 qos_retries_before_reject=router_to_create.qos_retries_before_reject,
+                tokenizer=router_to_create.tokenizer,
                 cost_prompt_tokens=router_to_create.cost_prompt_tokens,
                 cost_completion_tokens=router_to_create.cost_completion_tokens,
                 user_id=command.bootstrap_admin_user_id,

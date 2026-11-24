@@ -10,6 +10,8 @@ from api.domain.audio.entities import (
     CreateAudioTranscriptionsForm,
 )
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
+from api.domain.model import ModelTokenizer, ModelTokenizerLoader
+from api.domain.model.errors import ModelTokenizerNotLoadableError
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.usage import UsageContext, UsageRepository
@@ -26,9 +28,16 @@ REQUEST_ID = "a" * 32
 
 @pytest.fixture
 def model_tokenizer():
-    tokenizer = MagicMock()
+    tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     return tokenizer
+
+
+@pytest.fixture
+def model_tokenizer_loader(model_tokenizer):
+    loader = create_autospec(ModelTokenizerLoader, instance=True, spec_set=True)
+    loader.load.return_value = model_tokenizer
+    return loader
 
 
 @pytest.fixture
@@ -93,10 +102,10 @@ def make_command():
 
 
 @pytest.fixture
-def use_case(model_tokenizer, mock_usage_context, mock_usage_repository) -> CreateAudioTranscriptionsUseCase:
+def use_case(model_tokenizer_loader, mock_usage_context, mock_usage_repository) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=MagicMock(),
-        model_tokenizer=model_tokenizer,
+        model_tokenizer_loader=model_tokenizer_loader,
         provider_client=AsyncMock(),
         provider_concurrency_limiter=AsyncMock(),
         provider_repository=AsyncMock(),
@@ -137,7 +146,23 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
         # Assert
         assert result == AudioFileSizeLimitExceededError(size=10, expected_size=5)
         use_case._get_usable_router.assert_not_awaited()
-        use_case.model_tokenizer.compute_tokens.assert_not_called()
+        use_case.model_tokenizer_loader.load.return_value.compute_tokens.assert_not_called()
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_return_the_tokenizer_error_without_checking_rate_limits_or_forwarding(
+        self, use_case, make_command, admin_user, model_tokenizer_loader
+    ):
+        # Arrange
+        error = ModelTokenizerNotLoadableError(tokenizer="unknown/model", detail="not found")
+        model_tokenizer_loader.load.return_value = error
+
+        # Act
+        result = await use_case.execute(command=make_command(admin_user))
+
+        # Assert
+        assert result is error
         use_case._get_remaining_rate_limits.assert_not_awaited()
         use_case._forward_request_to_provider.assert_not_awaited()
 
@@ -155,10 +180,15 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
 
         # Assert
         use_case._get_usable_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="audio-router")
-        use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["transcribe this"])
+        use_case.model_tokenizer_loader.load.return_value.compute_tokens.assert_called_once_with(texts=["transcribe this"])
         use_case._get_remaining_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, estimated_prompt_tokens=1)
         use_case._forward_request_to_provider.assert_awaited_once_with(
-            authenticated_user=admin_user, router=router, estimated_prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID
+            authenticated_user=admin_user,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=command.payload,
+            request_id=REQUEST_ID,
         )
         assert isinstance(result, CreateAudioTranscriptionsJsonUseCaseSuccess)
         assert result.data is sample_transcriptions

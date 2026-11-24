@@ -10,6 +10,7 @@ class Router(Entity):
     type: str | None = None
     aliases: str | None = None
     qos_retries_before_reject: int | None = None
+    tokenizer: str | None = None
     cost_prompt_tokens: float | None = None
     cost_completion_tokens: float | None = None
     providers: int | None = None

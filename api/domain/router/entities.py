@@ -30,6 +30,7 @@ class Router(BaseModel):
     created: UtcDatetime
     updated: UtcDatetime
     qos_retries_before_reject: int | None = None
+    tokenizer: str | None = None
 
     def with_name(self, name: str) -> "Router":
         return self.model_copy(update={"name": name})
@@ -48,6 +49,9 @@ class Router(BaseModel):
 
     def with_qos_retries_before_reject(self, qos_retries_before_reject: int | None) -> "Router":
         return self.model_copy(update={"qos_retries_before_reject": qos_retries_before_reject})
+
+    def with_tokenizer(self, tokenizer: str | None) -> "Router":
+        return self.model_copy(update={"tokenizer": tokenizer})
 
     @property
     def has_providers(self) -> bool:

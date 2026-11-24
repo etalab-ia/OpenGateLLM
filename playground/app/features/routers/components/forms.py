@@ -42,6 +42,14 @@ def router_settings_form_fields() -> rx.Component:
             disable=RoutersState.edit_entity_loading,
         ),
         entity_form_input_field(
+            label="Tokenizer",
+            value=RoutersState.entity.tokenizer,
+            on_change=lambda value: RoutersState.set_edit_entity_attribut("tokenizer", value),
+            tooltip="Tokenizer used to estimate tokens: a tiktoken_* name (e.g., tiktoken_o200k_base) or a Hugging Face id. Leave empty to use the deprecated usage_tokenizer setting.",
+            placeholder="Default tokenizer",
+            disable=RoutersState.edit_entity_loading,
+        ),
+        entity_form_input_field(
             label="Prompt tokens cost",
             value=RoutersState.entity.cost_prompt_tokens,
             on_change=lambda value: RoutersState.set_edit_entity_attribut("cost_prompt_tokens", value),
@@ -100,6 +108,13 @@ def router_create_form_fields() -> rx.Component:
             placeholder="Unlimited admission",
             type="number",
             min=0,
+        ),
+        entity_form_input_field(
+            label="Tokenizer",
+            value=RoutersState.entity_to_create.tokenizer,
+            on_change=lambda value: RoutersState.set_new_entity_attribut("tokenizer", value),
+            tooltip="Tokenizer used to estimate tokens: a tiktoken_* name (e.g., tiktoken_o200k_base) or a Hugging Face id. Leave empty to use the deprecated usage_tokenizer setting.",
+            placeholder="Default tokenizer",
         ),
         entity_form_input_field(
             label="Prompt tokens cost",

@@ -40,6 +40,7 @@ class RoutersState(EntityState):
             type=router["type"],
             aliases=",".join(router["aliases"]) if router["aliases"] else "",
             qos_retries_before_reject=router["qos_retries_before_reject"],
+            tokenizer=router.get("tokenizer"),
             cost_prompt_tokens=router["cost_prompt_tokens"],
             cost_completion_tokens=router["cost_completion_tokens"],
             providers=router["providers"],
@@ -188,6 +189,7 @@ class RoutersState(EntityState):
             "qos_retries_before_reject": (
                 self.entity_to_create.qos_retries_before_reject if self.entity_to_create.qos_retries_before_reject != "" else None
             ),
+            "tokenizer": self.entity_to_create.tokenizer or None,
             "cost_prompt_tokens": self.entity_to_create.cost_prompt_tokens,
             "cost_completion_tokens": self.entity_to_create.cost_completion_tokens,
         }
@@ -260,6 +262,7 @@ class RoutersState(EntityState):
             "type": self.entity.type,
             "aliases": router_aliases,
             "qos_retries_before_reject": self.entity.qos_retries_before_reject if self.entity.qos_retries_before_reject != "" else None,
+            "tokenizer": self.entity.tokenizer or None,
             "cost_prompt_tokens": self.entity.cost_prompt_tokens,
             "cost_completion_tokens": self.entity.cost_completion_tokens,
         }

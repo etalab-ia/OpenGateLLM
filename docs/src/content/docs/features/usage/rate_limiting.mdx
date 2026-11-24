@@ -66,18 +66,18 @@ Failed requests are never counted. A streamed chat completion is counted when th
 
 ### Token counts
 
-Before the provider call, the provider has not answered yet: the prompt tokens checked against TPM and TPD are always estimated with the tokenizer set by `usage_tokenizer` (default `tiktoken_gpt2`). It is a generic tiktoken encoding, not the tokenizer of the model.
+Before the provider call, the provider has not answered yet: the prompt tokens checked against TPM and TPD are always estimated with the tokenizer of the router (the `tokenizer` of the model). A router without `tokenizer` falls back to the deprecated `settings.usage_tokenizer` (default `tiktoken_gpt2`), a generic tiktoken encoding, not the tokenizer of the model.
 
 After a successful response, the tokens counted come from the provider when it reports them:
 
 | Provider response | `prompt_tokens` and `completion_tokens` | `cached_tokens` |
 |-------------------|-----------------------------------------|-----------------|
 | Has a `usage` field | Read from the provider's `usage` | Read from `usage.prompt_tokens_details.cached_tokens`, `0` when absent |
-| Has no `usage` field | Counted with `usage_tokenizer` on the prompt and the completion | `0` |
+| Has no `usage` field | Counted with the router tokenizer on the prompt and the completion | `0` |
 
-Audio transcriptions are always counted with `usage_tokenizer`: their providers report usage in seconds, not tokens.
+Audio transcriptions are always counted with the router tokenizer: their providers report usage in seconds, not tokens.
 
-For a streamed chat completion, OpenGateLLM asks the provider for a final usage chunk (`stream_options.include_usage`) and keeps the last `usage` the provider sends. A stream cut before its end is counted with `usage_tokenizer` on the text already delivered, without cached tokens.
+For a streamed chat completion, OpenGateLLM asks the provider for a final usage chunk (`stream_options.include_usage`) and keeps the last `usage` the provider sends. A stream cut before its end is counted with the router tokenizer on the text already delivered, without cached tokens.
 
 Cached tokens are prompt tokens the provider served from its prompt cache. They are already included in `prompt_tokens`, and `rate_limiting_cached_tokens_discount` deducts a share of them from what counts against TPM and TPD:
 
@@ -132,7 +132,7 @@ settings:
 
   For more information about how strategies are computed, see [Limits package documentation](https://limits.readthedocs.io/en/stable/strategies.html).
 - **`rate_limiting_cached_tokens_discount`** (default `0.8`, between `0` and `1`): share of the cached prompt tokens deducted from TPM and TPD, see [Token counts](#token-counts). `0` counts cached tokens in full, `1` does not count them at all.
-- **`usage_tokenizer`** (default `tiktoken_gpt2`): tokenizer used to estimate the prompt before the provider call, and to count the tokens when the provider does not report them.
+- **`usage_tokenizer`** (default `tiktoken_gpt2`, deprecated): fallback of the routers without a `tokenizer`. Set `tokenizer` on each model instead. It is the tokenizer used to estimate the prompt before the provider call, and to count the tokens when the provider does not report them.
 
 <LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
 

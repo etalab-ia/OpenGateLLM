@@ -8,6 +8,7 @@ from api.dependencies import (
     update_router_use_case_factory,
 )
 from api.domain import SortField, SortOrder
+from api.domain.model.errors import ModelTokenizerNotLoadableError
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -19,6 +20,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAliasAlreadyExistsHTTPException,
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
+    RouterTokenizerNotLoadableHTTPException,
 )
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.routers import CreateRouterBody, RouterResponse, RoutersResponse, UpdateRouterBody
@@ -45,7 +47,9 @@ from api.use_cases.admin.routers import (
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=201,
-    responses=get_documentation_responses([RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses(
+        [RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException, RouterTokenizerNotLoadableHTTPException]
+    ),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -58,6 +62,7 @@ async def create_router(
         router_type=body.router_type,
         aliases=body.aliases,
         qos_retries_before_reject=body.qos_retries_before_reject,
+        tokenizer=body.tokenizer,
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
     )
@@ -70,6 +75,8 @@ async def create_router(
             raise RouterAliasAlreadyExistsHTTPException(name)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
+        case ModelTokenizerNotLoadableError(tokenizer=tokenizer, detail=detail):
+            raise RouterTokenizerNotLoadableHTTPException(tokenizer=tokenizer, detail=detail)
 
 
 @router.get(
@@ -150,6 +157,7 @@ async def delete_router(
             RouterNotFoundHTTPException,
             RouterAliasAlreadyExistsHTTPException,
             RouterAlreadyExistsHTTPException,
+            RouterTokenizerNotLoadableHTTPException,
         ]
     ),
     status_code=200,
@@ -165,6 +173,7 @@ async def update_router(
         router_type=body.router_type,
         aliases=body.aliases,
         qos_retries_before_reject=body.qos_retries_before_reject,
+        tokenizer=body.tokenizer,
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
     )
@@ -178,3 +187,5 @@ async def update_router(
             raise RouterAliasAlreadyExistsHTTPException(aliases)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
+        case ModelTokenizerNotLoadableError(tokenizer=tokenizer, detail=detail):
+            raise RouterTokenizerNotLoadableHTTPException(tokenizer=tokenizer, detail=detail)

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain.auth import AuthSsoSessionValidator
 from api.domain.authorization import AuthorizationClient
 from api.domain.key import KeyEncoder, KeyRepository
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, ModelTokenizer
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, ModelTokenizerLoader
 from api.domain.organization import OrganizationAuthorization, OrganizationRepository
 from api.domain.provider import (
     ProviderClient,
@@ -47,7 +47,6 @@ from api.infrastructure.postgres import (
     PostgresUserRepository,
 )
 from api.infrastructure.redis import RedisProviderConcurrencyLimiter, RedisRouterRateLimiter
-from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.use_cases.admin.keys import CreateKeyUseCase, DeleteKeyUseCase, GetKeysUseCase, GetOneKeyUseCase, UpdateKeyUseCase
 from api.use_cases.admin.organizations import (
     CreateOrganizationUseCase,
@@ -128,8 +127,8 @@ def _key_encoder(configuration: Configuration = Depends(get_app_configuration)) 
     return JwtKeyEncoder(secret_key=configuration.settings.auth_secret_key)
 
 
-def _model_tokenizer() -> ModelTokenizer:
-    return TiktokenModelTokenizer(model=global_context.tokenizer)
+def _model_tokenizer_loader() -> ModelTokenizerLoader:
+    return global_context.model_tokenizer_loader
 
 
 def _model_environmental_impacts_computer() -> ModelEnvironmentalImpactsComputer:
@@ -247,7 +246,7 @@ def create_audio_transcriptions_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
-    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    model_tokenizer_loader: ModelTokenizerLoader = Depends(_model_tokenizer_loader),
     provider_client: ProviderClient = Depends(_provider_client),
     usage_context: UsageContext = Depends(_usage_recorder),
     usage_repository: UsageRepository = Depends(_usage_repository),
@@ -255,7 +254,7 @@ def create_audio_transcriptions_use_case_factory(
 ) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
+        model_tokenizer_loader=model_tokenizer_loader,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
@@ -274,14 +273,14 @@ def create_chat_completions_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
-    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    model_tokenizer_loader: ModelTokenizerLoader = Depends(_model_tokenizer_loader),
     provider_client: ProviderClient = Depends(_provider_client),
     usage_context: UsageContext = Depends(_usage_recorder),
     usage_repository: UsageRepository = Depends(_usage_repository),
 ) -> CreateChatCompletionsUseCase:
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
+        model_tokenizer_loader=model_tokenizer_loader,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
@@ -347,14 +346,14 @@ def create_embeddings_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
-    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    model_tokenizer_loader: ModelTokenizerLoader = Depends(_model_tokenizer_loader),
     provider_client: ProviderClient = Depends(_provider_client),
     usage_context: UsageContext = Depends(_usage_recorder),
     usage_repository: UsageRepository = Depends(_usage_repository),
 ) -> CreateEmbeddingsUseCase:
     return CreateEmbeddingsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
+        model_tokenizer_loader=model_tokenizer_loader,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
@@ -440,14 +439,14 @@ def create_ocr_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
-    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    model_tokenizer_loader: ModelTokenizerLoader = Depends(_model_tokenizer_loader),
     provider_client: ProviderClient = Depends(_provider_client),
     usage_context: UsageContext = Depends(_usage_recorder),
     usage_repository: UsageRepository = Depends(_usage_repository),
 ) -> CreateOCRUseCase:
     return CreateOCRUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
+        model_tokenizer_loader=model_tokenizer_loader,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
@@ -542,14 +541,14 @@ def create_rerank_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     router_rate_limiter: RouterRateLimiter = Depends(_router_rate_limiter),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
-    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    model_tokenizer_loader: ModelTokenizerLoader = Depends(_model_tokenizer_loader),
     provider_client: ProviderClient = Depends(_provider_client),
     usage_context: UsageContext = Depends(_usage_recorder),
     usage_repository: UsageRepository = Depends(_usage_repository),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
+        model_tokenizer_loader=model_tokenizer_loader,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         provider_repository=_provider_repository(postgres_session),
@@ -611,9 +610,13 @@ def get_routers_use_case_factory(postgres_session: AsyncSession = Depends(get_po
     )
 
 
-def create_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRouterUseCase:
+def create_router_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    model_tokenizer_loader: ModelTokenizerLoader = Depends(_model_tokenizer_loader),
+) -> CreateRouterUseCase:
     return CreateRouterUseCase(
         router_repository=_router_repository(postgres_session),
+        model_tokenizer_loader=model_tokenizer_loader,
     )
 
 
@@ -623,9 +626,13 @@ def delete_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
     )
 
 
-def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateRouterUseCase:
+def update_router_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    model_tokenizer_loader: ModelTokenizerLoader = Depends(_model_tokenizer_loader),
+) -> UpdateRouterUseCase:
     return UpdateRouterUseCase(
         router_repository=_router_repository(postgres_session),
+        model_tokenizer_loader=model_tokenizer_loader,
     )
 
 

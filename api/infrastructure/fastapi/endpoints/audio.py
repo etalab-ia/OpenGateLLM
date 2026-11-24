@@ -8,7 +8,7 @@ from api.dependencies import create_audio_transcriptions_use_case_factory
 from api.domain.audio.entities import CreateAudioTranscriptionsFile
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.key.entities import Key
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import ModelTokenizerNotLoadableError, StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -26,6 +26,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     FileSizeLimitExceededHTTPException,
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
+    ModelTokenizerNotLoadableHTTPException,
     RateLimitExceededHTTPException,
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
@@ -50,6 +51,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
         [
             ModelIsTooBusyExceptionHTTPException,
             ModelNotFoundHTTPException,
+            ModelTokenizerNotLoadableHTTPException,
             RateLimitExceededHTTPException,
             WrongModelTypeHTTPException,
             FileSizeLimitExceededHTTPException,
@@ -110,6 +112,8 @@ async def create_audio_transcription(
             raise ModelIsTooBusyExceptionHTTPException()
         case StatusCodeModelError(status_code=status_code, detail=detail):
             raise HTTPException(status_code=status_code, detail=detail)
+        case ModelTokenizerNotLoadableError(tokenizer=tokenizer):
+            raise ModelTokenizerNotLoadableHTTPException(tokenizer=tokenizer)
         case UnknownModelError(detail=detail):
             raise HTTPException(status_code=500, detail=detail)
         case _ as unreachable:

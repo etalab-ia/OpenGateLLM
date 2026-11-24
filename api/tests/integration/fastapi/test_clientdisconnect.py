@@ -9,7 +9,7 @@ import pytest
 
 from api.domain.chat.entities import CreateChatCompletionsBody
 from api.domain.key.entities import Key
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer, ModelTokenizerLoader
 from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.role.entities import PermissionType
@@ -87,12 +87,14 @@ def request_context_with_usage_recorder(usage_recorder):
 def use_case(usage_recorder, mock_usage_repository) -> CreateChatCompletionsUseCase:
     tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
+    tokenizer_loader = create_autospec(ModelTokenizerLoader, instance=True, spec_set=True)
+    tokenizer_loader.load.return_value = tokenizer
     impacts = create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True)
     impacts.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
 
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=impacts,
-        model_tokenizer=tokenizer,
+        model_tokenizer_loader=tokenizer_loader,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
         provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
@@ -132,6 +134,7 @@ def _streaming_app(use_case, router, provider):
                     router=router,
                     reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID),
                     provider_chunks=_provider_stream(),
+                    model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
                     estimated_prompt_tokens=1,
                     request_id=REQUEST_ID,
                 )

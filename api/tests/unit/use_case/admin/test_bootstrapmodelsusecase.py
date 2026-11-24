@@ -2,11 +2,13 @@ from unittest.mock import create_autospec
 
 import pytest
 
+from api.domain.model import ModelTokenizer, ModelTokenizerLoader
 from api.domain.model.errors import (
     InconsistentModelMaxContextLengthError,
     InconsistentModelQosLimitError,
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
+    ModelTokenizerNotLoadableError,
 )
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import ProviderCapabilities
@@ -37,11 +39,19 @@ def provider_capabilities_probe():
 
 
 @pytest.fixture
-def use_case(router_repository, provider_repository, provider_capabilities_probe):
+def mock_model_tokenizer_loader():
+    loader = create_autospec(ModelTokenizerLoader, instance=True, spec_set=True)
+    loader.load.return_value = create_autospec(ModelTokenizer, instance=True, spec_set=True)
+    return loader
+
+
+@pytest.fixture
+def use_case(router_repository, provider_repository, provider_capabilities_probe, mock_model_tokenizer_loader):
     return BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
         provider_capabilities_probe=provider_capabilities_probe,
+        model_tokenizer_loader=mock_model_tokenizer_loader,
     )
 
 
@@ -92,6 +102,7 @@ class TestBootstrapModelsUseCase:
             cost_completion_tokens=router_to_create.cost_completion_tokens,
             user_id=BOOTSTRAP_ADMIN_USER_ID,
             aliases=router_to_create.aliases,
+            tokenizer=router_to_create.tokenizer,
         )
         provider_capabilities_probe.get_capabilities.assert_awaited_once_with(
             router_type=router.type,
@@ -417,3 +428,25 @@ class TestBootstrapModelsUseCase:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+    @pytest.mark.asyncio
+    async def test_should_return_the_error_before_writing_when_the_router_tokenizer_cannot_be_loaded(
+        self, use_case, router_repository, provider_capabilities_probe, mock_model_tokenizer_loader
+    ):
+        # Arrange
+        error = ModelTokenizerNotLoadableError(tokenizer="unknown/model", detail="not found")
+        mock_model_tokenizer_loader.load.return_value = error
+        router_repository.get_all_routers.return_value = []
+
+        # Act
+        result = await use_case.execute(
+            BootstrapModelsCommand(
+                routers_to_create=[RouterToCreateFactory(tokenizer="unknown/model")], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID
+            )
+        )
+
+        # Assert
+        assert result is error
+        mock_model_tokenizer_loader.load.assert_awaited_once_with("unknown/model")
+        router_repository.create_router.assert_not_awaited()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()

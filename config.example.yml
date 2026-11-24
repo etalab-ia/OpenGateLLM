@@ -36,7 +36,7 @@ dependencies:
 settings:
   # disabled_routers: ["admin", "audio"]
   # hidden_routers: ["auth"]
-  # usage_tokenizer: tiktoken_gpt2
+  # usage_tokenizer: tiktoken_gpt2 # deprecated: set `tokenizer` on each model instead
   # app_title: My OpenGateLLM API
 
   # log_level: INFO
@@ -96,6 +96,7 @@ settings:
 #     # owned_by: Me
 #     # cost_prompt_tokens: 0.10
 #     # cost_completion_tokens: 0.10
+#     # tokenizer: tiktoken_o200k_base # or a Hugging Face id / path to a tokenizer.json
 #     providers:
 #       - type: vllm
 #         url: http://albert-testbed.etalab.gouv.fr:8000

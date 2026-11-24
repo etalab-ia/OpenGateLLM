@@ -5,11 +5,14 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import update_router_use_case_factory
+from api.domain.model.errors import ModelTokenizerNotLoadableError
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
+from api.infrastructure.modeltokenizer import CachedModelTokenizerLoader
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
+from api.tests.integration.globalcontext import override_global_context
 
 URL = f"/v1{EndpointRoute.ADMIN_ROUTERS}"
 
@@ -20,6 +23,7 @@ def _valid_body(**overrides) -> dict:
         "type": RouterType.TEXT_GENERATION,
         "aliases": [],
         "qos_retries_before_reject": 2,
+        "tokenizer": None,
         "cost_prompt_tokens": 0.0,
         "cost_completion_tokens": 0.0,
     }
@@ -33,6 +37,11 @@ class TestUpdateRouter:
     async def setup(self, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+
+    @pytest.fixture(autouse=True)
+    def _real_model_tokenizer_loader(self):
+        with override_global_context(model_tokenizer_loader=CachedModelTokenizerLoader(default_tokenizer="tiktoken_gpt2")):
+            yield
 
     @pytest_asyncio.fixture(autouse=True)
     async def cleanup_overrides(self, app):
@@ -59,6 +68,46 @@ class TestUpdateRouter:
         assert data["cost_prompt_tokens"] == 0.5
         assert data["cost_completion_tokens"] == 1.5
         assert data["object"] == "router"
+
+    async def test_should_set_the_tokenizer_when_it_can_be_loaded(self, client: AsyncClient, db_session):
+        router = RouterSQLFactory(user=self.admin_user)
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{router.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json=_valid_body(tokenizer="tiktoken_o200k_base"),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["tokenizer"] == "tiktoken_o200k_base"
+
+    async def test_should_clear_the_tokenizer_when_null_is_sent(self, client: AsyncClient, db_session):
+        router = RouterSQLFactory(user=self.admin_user, tokenizer="tiktoken_o200k_base")
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{router.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json=_valid_body(tokenizer=None),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["tokenizer"] is None
+
+    async def test_should_return_422_when_the_tokenizer_cannot_be_loaded(self, client: AsyncClient, db_session, monkeypatch):
+        monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+        router = RouterSQLFactory(user=self.admin_user)
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{router.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json=_valid_body(tokenizer="unknown-org/unknown-model"),
+        )
+
+        assert response.status_code == 422, response.text
+        assert "unknown-org/unknown-model" in response.json()["detail"]
 
     async def test_clears_aliases_sent_as_an_empty_list(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user, alias=["alias-1"])
@@ -102,6 +151,11 @@ class TestUpdateRouter:
                 RouterAliasAlreadyExistsError(aliases=["alias1"]),
                 409,
                 "Following aliases already exist: '['alias1']'",
+            ),
+            (
+                ModelTokenizerNotLoadableError(tokenizer="unknown/model", detail="not found"),
+                422,
+                "Tokenizer unknown/model cannot be loaded: not found",
             ),
         ],
     )

@@ -28,7 +28,7 @@ User can see their usage in the *Usage* page of the Playground.
 
 ### Token counts
 
-The token counts come from the provider when its response has a `usage` field. Otherwise, OpenGateLLM counts the prompt and the completion with the tokenizer set by `usage_tokenizer` in the `settings` section of the configuration (default `tiktoken_gpt2`, a generic tiktoken encoding, not the tokenizer of the model). Audio transcriptions are always counted with this tokenizer.
+The token counts come from the provider when its response has a `usage` field. Otherwise, OpenGateLLM counts the prompt and the completion with the tokenizer of the router: the `tokenizer` of the model (a `tiktoken_*` encoding, a Hugging Face id or the path of a `tokenizer.json`). A router without `tokenizer` uses the deprecated `usage_tokenizer` of the `settings` section (default `tiktoken_gpt2`, a generic tiktoken encoding). Audio transcriptions are always counted with this tokenizer.
 
 For a streamed chat completion, OpenGateLLM asks the provider for a final usage chunk and keeps the last `usage` it sends. A stream cut before its end is counted with the tokenizer on the text already delivered.
 
