@@ -56,7 +56,7 @@ Reference implementations of these patterns:
 
 Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`, `UpdateKeyUseCase`, `DeleteKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key. `PATCH /v1/keys/{id}` updates the name; `DELETE` revokes the key (it stays in the database and cannot be reactivated).
 
-Self-service `/v1/organizations/me` has its own `GetMyOrganizationUseCase` (`api/use_cases/organizations/`), called with `organization_id=authenticated_user.organization_id` and no permission check: unlike the admin `GetOneOrganizationUseCase`, it does not ask OpenFGA. Later org routes land in the same module (`api/infrastructure/fastapi/endpoints/organizations.py`).
+Self-service `/v1/organizations/me` has its own `GetMyOrganizationUseCase` (`api/use_cases/organizations/`), called with `authenticated_user_id=authenticated_user.id` and `organization_id=authenticated_user.organization_id`; it asks OpenFGA for `organization:<id>#can_read` (member or platform admin) before the existence lookup. Later org routes land in the same module (`api/infrastructure/fastapi/endpoints/organizations.py`).
 
 
 ---
@@ -704,12 +704,12 @@ inconsistency is a bug.
 `AccessController` (`api/infrastructure/fastapi/accesscontroller.py`) takes `only_admin` and `allow_expired`, both
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
-Today **only `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/organizations`, and `GET` (list and get-one), `POST`, `PATCH` and `DELETE`
-on `/v1/admin/users`, ask OpenFGA**. They are the admin routes guarded by a bare `AccessController()`. Never put both on one route: two
+Today **only `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/organizations`, `GET` (list and get-one), `POST`, `PATCH` and `DELETE`
+on `/v1/admin/users`, and `GET /v1/organizations/me`, ask OpenFGA**. They are the routes guarded by a bare `AccessController()`. Never put both on one route: two
 sources of truth for the same decision drift, and `only_admin` short-circuits any rule that would let a non-admin
 through (an organization member reading their own organization, for one).
 
-**What is actually wired.** Ten relations the model declares are reached by code:
+**What is actually wired.** Eleven relations the model declares are reached by code:
 
 | Relation                                  | Written by                                                                                                       | Checked by                                             |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
@@ -723,9 +723,10 @@ through (an organization member reading their own organization, for one).
 | `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`                                  | — (only via the rule below)                            |
 | `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                                               | `DeleteOrganizationUseCase`                            |
 | `organization:<id>#can_update`            | computed from `admin from platform`, never written                                                               | `UpdateOrganizationUseCase`                            |
+| `organization:<id>#member@user:<id>`      | `CreateUserUseCase` on creation, moved by `UpdateUserUseCase`, deleted by `DeleteUserUseCase`; backfilled by `m003_users_organization_member` | — (only via the rule below) |
+| `organization:<id>#can_read`              | computed from `member or admin from platform`, never written                                                     | `GetMyOrganizationUseCase`                             |
 
-`can_read` exists in `model.fga` **and** in `OrganizationRelation`, and nothing reads it yet. The schema is ahead of the code on purpose: adding the
-route that needs one is the work, not the modelling.
+`can_read` was long ahead of the code on purpose: adding the route that needs it was the work, not the modelling.
 
 **Three layers, narrowest first.**
 
@@ -745,7 +746,7 @@ A method that writes a relation is named after the business act, in pairs, never
 |------------------------------------------------|---------------------------------------------------------------------|-------------------------|
 | `register_<object>` / `unregister_<object>`    | declare an object to its parent (the relation points to the parent) | `register_organization` / `unregister_organization` |
 | `grant_<scope>_admin` / `revoke_<scope>_admin` | give or take back a privilege                                       | `grant_platform_admin` (`BootstrapAuthorization`, `UserAuthorization`) / `revoke_platform_admin` |
-| `add_<scope>_user` / `remove_<scope>_user`     | membership (the relation points into the scope)                     | —                       |
+| `add_<scope>_user` / `remove_<scope>_user`     | membership (the relation points into the scope)                     | `add_organization_user` / `remove_organization_user` |
 
 Add the second method of a pair only when a route needs it.
 
