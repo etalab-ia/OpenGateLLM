@@ -26,11 +26,19 @@ services:
 
   db-migrate:
     image: ghcr.io/etalab-ia/opengatellm/api:latest
-    command: ["python", "-m", "alembic", "-c", "api/alembic.ini", "upgrade", "head"]
+    command:
+      - "/bin/bash"
+      - "-c"
+      - >-
+        python -m alembic -c api/alembic.ini upgrade head &&
+        bash scripts/setup_openfga.sh &&
+        python -m api.infrastructure.openfga.migrations
     volumes:
       - "${CONFIG_FILE:-./config.yml}:/config.yml:ro"
     depends_on:
       postgres:
+        condition: service_healthy
+      openfga:
         condition: service_healthy
 
   playground:

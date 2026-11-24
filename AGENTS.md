@@ -777,7 +777,8 @@ renamed relation turns every check into a silent `false`. The deployment repo ow
 **Publishing the model is a start-up step, but it happens once, before the workers fork.** `scripts/startup_api.sh`
 runs `scripts/setup_openfga.sh` before starting gunicorn; it can also be run on its own. Unlike the Alembic migrations,
 which a deployment runs once before starting the API containers (`db-migrate` in `compose.example.yml`), it still runs
-in every API container, where the diff below keeps a restart from appending a version. It uses the `fga`
+in every API container, where the diff below keeps a restart from appending a version. `db-migrate` runs it too, before
+the OpenFGA data migrations, which need the published model. It uses the `fga`
 CLI alone: it looks the store up by name (creating it if missing), then compares the published model with `model.fga` and writes a new version **only when they differ**.
 
 The configuration file is the only source of the connection. The script reads `dependencies.openfga` from
@@ -824,8 +825,8 @@ Postgres transaction back, so it cannot leave an organization no one can reach.
 **Unregistering the organization is part of deleting it, mirrored.** `DeleteOrganizationUseCase` checks
 `organization:<id>#can_delete` first, then `unregister_organization` removes `organization:<id>#platform@platform:api` *after* the row and *before*
 returning success, so a failed delete rolls the row back. The check runs before the existence lookup: an organization
-that was never registered — an unknown id, or one created before OpenFGA and not yet backfilled by the deployment repo's
-`m002_organizations_platform.py` — answers 403, not 404.
+that was never registered — an unknown id, or one created before OpenFGA and not yet backfilled by
+`m002_organizations_platform` (see [OpenFGA data migrations](#openfga-data-migrations)) — answers 403, not 404.
 
 **Never fail open.** The port returns a plain `bool`. An OpenFGA outage raises out of the adapter and surfaces as a 500:
 deliberately unhandled for now, but never swallowed into a `False`, which would read as a denial and hide the outage.
@@ -863,13 +864,43 @@ registration it removes is guaranteed by the `can_delete` check, so a missing on
 
 Those are the only paths. A user created with an admin role by SSO login, or promoted or demoted through
 `PATCH /users` or `PATCH /roles`, writes or removes no tuple, so OpenFGA drifts from the Postgres role until
-something projects one onto the other — still missing. The deployment repo's `openfga_migrations` role backfills the
-admins present when it runs (`m001_platform_admins.py`): a photograph, not a projection.
+something projects one onto the other — still missing. `m001_platform_admins` backfills the admins present when it
+runs (see [OpenFGA data migrations](#openfga-data-migrations)): a photograph, not a projection.
 
 **Nothing above is covered by tests, with three exceptions.** `api/tests/store.fga.yaml` does not exist yet, so
 `fga model test --tests api/tests/store.fga.yaml` fails for the moment; CI does not validate `model.fga` either (issue #1209). The exceptions are the
 unit tests of `BootstrapAdminUseCase`, `CreateUserUseCase` and `DeleteUserUseCase`, which do cover the grant and the
 revoke: which branches write or remove it, and which must not.
+
+### OpenFGA data migrations
+
+A PR adding a relation that rows already in Postgres must hold ships, in the same PR, the data migration that writes
+it for them — as it would an Alembic revision for a new column. Decision and rationale: `adr/2026-11-20-openfga-data-migrations.md`.
+
+| What | Where |
+|------|-------|
+| Migrations | `api/infrastructure/openfga/migrations/m<NNN>_<slug>.py`, next to `model.fga` |
+| Runner | `python -m api.infrastructure.openfga.migrations [--dry-run] [--only m<NNN>_<slug>]` (`__main__.py`) |
+| OpenFGA client | `OpenFgaMigrationClient` (`_openfgamigrationclient.py`): store and latest model resolved by name, `check`, `write` |
+| Deployment | `db-migrate` in `compose.example.yml`: Alembic upgrade, then `scripts/setup_openfga.sh`, then the runner |
+| Tests | none: a migration ships without tests, check it with `--dry-run` instead |
+
+A migration is a module exposing `DESCRIPTION: str` and `async def run(connection: asyncpg.Connection, openfga:
+OpenFgaMigrationClient, dry_run: bool) -> dict[str, int]`. The runner reads only `dependencies.postgres` and
+`dependencies.openfga` from `CONFIG_FILE` (`get_postgres_dependency`, `get_openfga_dependency`), like Alembic, so a
+deployment does not hand it the other secrets the file interpolates. It runs every `mNNN_*` module in name order and
+exits non-zero if any of them failed, which keeps the API from starting.
+
+- **Raw SQL reads, SDK writes.** The rows come from Postgres through `asyncpg` and plain SQL, the tuples go through the
+  OpenFGA API — never into OpenFGA's own tables, whose schema is internal to it.
+- **Idempotent and additive.** No ledger: every deployment re-runs every migration, so each one `check`s a tuple before
+  writing it, and never deletes one. A second run reports `granted=0`. `--dry-run` checks without writing.
+- **Frozen, like an Alembic revision.** Object types and relations are string constants of the module, not
+  `AuthorizationObject` or the relation enums: a later rename must not change what an old migration wrote.
+- **Never drop what a migration reads.** The source rows stay in Postgres; an Alembic contract that removes a table or
+  column a migration still reads waits until that migration is deleted.
+- **Temporary.** A migration is deleted once every supported release has run it; the window is not defined yet.
+- How a renamed or removed relation gets its old tuples deleted is not settled: until it is, a migration only adds.
 
 ---
 

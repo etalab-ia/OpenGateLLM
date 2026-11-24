@@ -1,4 +1,10 @@
-from ._configuration import Configuration, get_configuration, get_postgres_dependency, read_configuration_file_without_validating_it
+from ._configuration import (
+    Configuration,
+    get_configuration,
+    get_openfga_dependency,
+    get_postgres_dependency,
+    read_configuration_file_without_validating_it,
+)
 from ._interpolation import ConfigurationVariableError, interpolate_variables
 from ._validationerrors import ConfigurationValidationError
 from .sections import (
@@ -23,6 +29,7 @@ __all__ = [
     "Settings",
     "Tokenizer",
     "get_configuration",
+    "get_openfga_dependency",
     "get_postgres_dependency",
     "interpolate_variables",
     "read_configuration_file_without_validating_it",

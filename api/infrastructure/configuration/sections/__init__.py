@@ -1,4 +1,4 @@
-from .dependencies import Dependencies, LangfuseDependency, PostgresDependency, RedisDependency, SentryDependency
+from .dependencies import Dependencies, LangfuseDependency, OpenFgaDependency, PostgresDependency, RedisDependency, SentryDependency
 from .models import DEFAULT_TIMEOUT, Model, ModelProvider
 from .settings import LimitingStrategy, Settings, SettingsLoginOIDC, SettingsLoginPassword, Tokenizer
 
@@ -9,6 +9,7 @@ __all__ = [
     "LimitingStrategy",
     "Model",
     "ModelProvider",
+    "OpenFgaDependency",
     "PostgresDependency",
     "RedisDependency",
     "SentryDependency",
