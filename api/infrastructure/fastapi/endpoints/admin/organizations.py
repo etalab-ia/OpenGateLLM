@@ -15,6 +15,7 @@ from api.domain.organization.errors import (
     OrganizationNotFoundError,
     UserCannotCreateOrganizationError,
     UserCannotDeleteOrganizationError,
+    UserCannotUpdateOrganizationError,
 )
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -151,16 +152,19 @@ async def delete_organization(
 
 @router.patch(
     path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, OrganizationNotFoundHTTPException, OrganizationAlreadyExistsHTTPException]),
+    responses=get_documentation_responses(
+        [UnauthorizedActionHTTPException, OrganizationNotFoundHTTPException, OrganizationAlreadyExistsHTTPException]
+    ),
 )
 async def update_organization(
     organization_id: int = Path(description="The ID of the organization to update."),
     body: UpdateOrganizationBody = Body(description="The organization update request."),
     update_organization_use_case: UpdateOrganizationUseCase = Depends(update_organization_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> OrganizationResponse:
-    command = UpdateOrganizationCommand(organization_id=organization_id, name=body.name)
+    command = UpdateOrganizationCommand(authenticated_user_id=authenticated_user.id, organization_id=organization_id, name=body.name)
     result = await update_organization_use_case.execute(command)
 
     match result:
@@ -170,3 +174,5 @@ async def update_organization(
             raise OrganizationNotFoundHTTPException(not_found_organization_id)
         case OrganizationAlreadyExistsError(name=name):
             raise OrganizationAlreadyExistsHTTPException(name)
+        case UserCannotUpdateOrganizationError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
