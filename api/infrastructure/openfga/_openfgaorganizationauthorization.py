@@ -7,11 +7,19 @@ class OpenFgaOrganizationAuthorization(OrganizationAuthorization):
     def __init__(self, openfga_client: OpenFgaAuthorizationClient):
         self.openfga_client = openfga_client
 
-    async def can_read_organization(self, user_id: int) -> bool:
+    async def can_read_organizations(self, user_id: int) -> bool:
         user_subject = AuthorizationObject.user(user_id)
         platform_object = AuthorizationObject.platform()
 
         res = await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.CAN_READ_ORGANIZATION, object=platform_object)
+
+        return res
+
+    async def can_read_organization(self, user_id: int, organization_id: int) -> bool:
+        user_subject = AuthorizationObject.user(user_id)
+        organization_object = AuthorizationObject.organization(organization_id)
+
+        res = await self.openfga_client.check(subject=user_subject, relation=OrganizationRelation.CAN_READ, object=organization_object)
 
         return res
 
@@ -54,3 +62,19 @@ class OpenFgaOrganizationAuthorization(OrganizationAuthorization):
         relation_tuple = RelationTuple(subject=platform_subject, relation=OrganizationRelation.PLATFORM, object=organization_object)
 
         await self.openfga_client.delete_relation(relation_tuple)
+
+    async def add_organization_user(self, organization_id: int, user_id: int) -> None:
+        user_subject = AuthorizationObject.user(user_id)
+        organization_object = AuthorizationObject.organization(organization_id)
+
+        relation_tuple = RelationTuple(subject=user_subject, relation=OrganizationRelation.MEMBER, object=organization_object)
+
+        await self.openfga_client.write_relation(relation_tuple)
+
+    async def remove_organization_user(self, organization_id: int, user_id: int) -> None:
+        user_subject = AuthorizationObject.user(user_id)
+        organization_object = AuthorizationObject.organization(organization_id)
+
+        relation_tuple = RelationTuple(subject=user_subject, relation=OrganizationRelation.MEMBER, object=organization_object)
+
+        await self.openfga_client.delete_relation_if_exists(relation_tuple)
