@@ -63,6 +63,7 @@ class RouterFactory(factory.Factory):
     type = factory.Faker("random_element", elements=list(RouterType))
     aliases = factory.LazyFunction(list)
     qos_retries_before_reject = None
+    tokenizer = None
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     providers = 0
@@ -197,6 +198,7 @@ class RouterToCreateFactory(factory.Factory):
     type = RouterType.TEXT_GENERATION
     aliases = factory.LazyFunction(list)
     qos_retries_before_reject = None
+    tokenizer = None
     cost_prompt_tokens = 0.0
     cost_completion_tokens = 0.0
     providers = factory.LazyFunction(lambda: [ProviderToCreateFactory()])

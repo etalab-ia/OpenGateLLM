@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from httpx import AsyncClient
 import pytest
@@ -24,7 +24,7 @@ from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
-from api.tests.integration.globalcontext import override_global_context
+from api.tests.integration.globalcontext import create_mock_model_tokenizer_loader, override_global_context
 
 URL = f"/v1{EndpointRoute.EMBEDDINGS}"
 
@@ -50,9 +50,7 @@ class TestCreateEmbeddings:
         self.key = await create_key(db_session, name="user_key", user=self.user)
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
 
-        mock_tokenizer = MagicMock()
-        mock_tokenizer.encode.return_value = [0] * 10
-        with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
+        with override_global_context(redis_pool=test_redis_pool, model_tokenizer_loader=create_mock_model_tokenizer_loader()):
             yield
 
     @respx.mock

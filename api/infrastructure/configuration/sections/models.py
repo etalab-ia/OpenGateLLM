@@ -2,6 +2,7 @@ from typing import Annotated
 
 from pydantic import Field, StringConstraints, field_validator, model_validator
 
+from api.domain.model import TiktokenTokenizerName
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.router.entities import RouterType
 from api.infrastructure.configuration._validationerrors import HiddenInputSchema, custom_validation_error
@@ -54,6 +55,7 @@ class Model(HiddenInputSchema):
     cost_prompt_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Model costs prompt tokens for usage tracking. The cost is by 1M tokens.", examples=[0.1])]  # fmt: off
     cost_completion_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Model costs completion tokens for usage tracking. The cost is by 1M tokens. Set to `0.0` to disable cost computation for this model.", examples=[0.1])]  # fmt: off
     qos_retries_before_reject: Annotated[int | None, Field(default=None, ge=0, description="Number of admission retries before rejecting a saturated request. If omitted, admission is unlimited.")]  # fmt: off
+    tokenizer: Annotated[TiktokenTokenizerName | str | None, Field(default=None, min_length=1, description="Tokenizer used to estimate the tokens of a request. A `tiktoken_*` value selects the matching tiktoken encoding, any other value is a Hugging Face tokenizer (Hub id or path to a `tokenizer.json`). If omitted, the `usage_tokenizer` setting is used.", examples=["tiktoken_o200k_base", "mistralai/Mistral-7B-Instruct-v0.3"])]  # fmt: off
     providers: Annotated[list[ModelProvider], Field(description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")]  # fmt: off
 
     @model_validator(mode="after")

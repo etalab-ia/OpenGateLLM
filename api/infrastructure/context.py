@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
-from tiktoken import Encoding
 
 if TYPE_CHECKING:
     from langfuse import Langfuse
     from openfga_sdk.client import OpenFgaClient
     from redis.asyncio import ConnectionPool
     from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+
+    from api.domain.model import ModelTokenizerLoader
 
 
 class GlobalContext(BaseModel):
@@ -21,7 +22,7 @@ class GlobalContext(BaseModel):
     postgres_engine: AsyncEngine | None = None
     langfuse: Langfuse | None = None
     openfga_client: OpenFgaClient | None = None
-    tokenizer: Encoding | None = None
+    model_tokenizer_loader: ModelTokenizerLoader | None = None
 
 
 global_context: GlobalContext = GlobalContext.model_construct()

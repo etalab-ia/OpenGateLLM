@@ -9,23 +9,24 @@ from openfga_sdk.credentials import CredentialConfiguration, Credentials
 from openfga_sdk.models import Store
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-import tiktoken
-from tiktoken.core import Encoding
 
 from api.dependencies import get_postgres_session
+from api.domain.model import ModelTokenizerLoader
 from api.domain.model.errors import (
     InconsistentModelMaxContextLengthError,
     InconsistentModelQosLimitError,
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
+    ModelTokenizerNotLoadableError,
 )
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
-from api.infrastructure.configuration import Configuration, Tokenizer
+from api.infrastructure.configuration import Configuration
 from api.infrastructure.configuration import Model as ModelConfiguration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.modeltokenizer import CachedModelTokenizerLoader
 from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaBootstrapAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
@@ -69,13 +70,17 @@ async def lifespan(app: FastAPI):
     global_context.postgres_session_factory = create_postgres_session_factory(engine=global_context.postgres_engine)
     global_context.autocommit_postgres_session_factory = create_autocommit_postgres_session_factory(engine=global_context.postgres_engine)
 
+    global_context.model_tokenizer_loader = await create_model_tokenizer_loader(configuration=configuration)
+
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
         if bootstrap_admin_user_id is not None:
             await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
+    async for postgres_session in get_postgres_session():
+        await preload_router_tokenizers(model_tokenizer_loader=global_context.model_tokenizer_loader, postgres_session=postgres_session)
+
     global_context.langfuse = create_langfuse(configuration=configuration)
-    global_context.tokenizer = initialize_tokenizer(configuration=configuration)
 
     yield
 
@@ -164,6 +169,7 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
         router_repository=router_repository,
         provider_repository=provider_repository,
         provider_capabilities_probe=provider_capabilities_probe,
+        model_tokenizer_loader=global_context.model_tokenizer_loader,
     ).execute(command)
 
     match result:
@@ -187,6 +193,8 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
         case InconsistentModelMaxContextLengthError() as error:
             raise RuntimeError(f"Inconsistent model max context length ({error.router_name}).")
+        case ModelTokenizerNotLoadableError() as error:
+            raise RuntimeError(f"Tokenizer {error.tokenizer} cannot be loaded: {error.detail}")
         case InconsistentModelQosLimitError() as error:
             raise RuntimeError(
                 f"Inconsistent qos_limit ({error.router_name}): the open providers of a model must all have a qos_limit, or none of them."
@@ -200,6 +208,7 @@ def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[Ro
             type=model.type,
             aliases=model.aliases,
             qos_retries_before_reject=model.qos_retries_before_reject,
+            tokenizer=model.tokenizer,
             cost_prompt_tokens=model.cost_prompt_tokens,
             cost_completion_tokens=model.cost_completion_tokens,
             providers=[
@@ -221,20 +230,23 @@ def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[Ro
     ]
 
 
-def initialize_tokenizer(configuration: Configuration) -> Encoding:
-    match configuration.settings.usage_tokenizer:
-        case Tokenizer.TIKTOKEN_O200K_BASE:
-            return tiktoken.get_encoding("o200k_base")
-        case Tokenizer.TIKTOKEN_P50K_BASE:
-            return tiktoken.get_encoding("p50k_base")
-        case Tokenizer.TIKTOKEN_R50K_BASE:
-            return tiktoken.get_encoding("r50k_base")
-        case Tokenizer.TIKTOKEN_P50K_EDIT:
-            return tiktoken.get_encoding("p50k_edit")
-        case Tokenizer.TIKTOKEN_CL100K_BASE:
-            return tiktoken.get_encoding("cl100k_base")
-        case Tokenizer.TIKTOKEN_GPT2:
-            return tiktoken.get_encoding("gpt2")
+async def create_model_tokenizer_loader(configuration: Configuration) -> CachedModelTokenizerLoader:
+    loader = CachedModelTokenizerLoader(default_tokenizer=configuration.settings.usage_tokenizer.value)
+
+    result = await loader.load(None)
+    if isinstance(result, ModelTokenizerNotLoadableError):
+        raise RuntimeError(f"Default tokenizer (settings.usage_tokenizer) cannot be loaded ({result.tokenizer}): {result.detail}")
+
+    return loader
+
+
+async def preload_router_tokenizers(model_tokenizer_loader: ModelTokenizerLoader, postgres_session: AsyncSession) -> None:
+    # every worker has its own cache: loading now keeps a Hugging Face download out of the first request of a router
+    routers = await PostgresRouterRepository(postgres_session=postgres_session).get_all_routers()
+    for tokenizer in sorted({router.tokenizer for router in routers if router.tokenizer is not None}):
+        result = await model_tokenizer_loader.load(tokenizer)
+        if isinstance(result, ModelTokenizerNotLoadableError):
+            logger.warning(f"Tokenizer {result.tokenizer} of a router cannot be loaded: {result.detail}")
 
 
 def create_langfuse(configuration: Configuration) -> Langfuse | None:

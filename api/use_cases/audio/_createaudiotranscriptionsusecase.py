@@ -3,7 +3,7 @@ import random
 
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsForm
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizerLoader
 from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -50,7 +50,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
     def __init__(
         self,
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
-        model_tokenizer: ModelTokenizer,
+        model_tokenizer_loader: ModelTokenizerLoader,
         provider_client: ProviderClient,
         provider_concurrency_limiter: ProviderConcurrencyLimiter,
         provider_repository: ProviderRepository,
@@ -63,7 +63,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
     ) -> None:
         super().__init__(
             model_environmental_impacts_computer=model_environmental_impacts_computer,
-            model_tokenizer=model_tokenizer,
+            model_tokenizer_loader=model_tokenizer_loader,
             provider_client=provider_client,
             provider_concurrency_limiter=provider_concurrency_limiter,
             provider_repository=provider_repository,

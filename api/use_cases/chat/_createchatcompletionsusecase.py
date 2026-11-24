@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionStreamReader, CreateChatCompletionsBody
+from api.domain.model import ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError
 from api.domain.provider import ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderEndpoint, ProviderRequest, ProviderResponse
@@ -51,7 +52,14 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             case error:
                 return error
 
-        estimated_prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+        result = await self.model_tokenizer_loader.load(router.tokenizer)
+        match result:
+            case ModelTokenizer() as model_tokenizer:
+                pass
+            case error:
+                return error
+
+        estimated_prompt_tokens = model_tokenizer.compute_tokens(texts=command.get_prompts())
 
         result = await self._get_remaining_rate_limits(
             authenticated_user=authenticated_user, router=router, estimated_prompt_tokens=estimated_prompt_tokens
@@ -103,6 +111,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     router=router,
                     reservation=reservation,
                     provider_chunks=provider_chunks,
+                    model_tokenizer=model_tokenizer,
                     estimated_prompt_tokens=estimated_prompt_tokens,
                     request_id=request_id,
                 ),
@@ -112,6 +121,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         result = await self._forward_request_to_provider(
             authenticated_user=authenticated_user,
             router=router,
+            model_tokenizer=model_tokenizer,
             estimated_prompt_tokens=estimated_prompt_tokens,
             payload=command.payload,
             request_id=request_id,
@@ -132,6 +142,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         router: Router,
         reservation: ProviderReservation,
         provider_chunks: AsyncGenerator[ProviderChunkResponse],
+        model_tokenizer: ModelTokenizer,
         estimated_prompt_tokens: int,
         request_id: str,
     ) -> AsyncGenerator[ProviderChunkResponse]:
@@ -160,6 +171,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     stream_was_cut_after_delivery = not stream_was_fully_read and stream_reader.has_delivered_chunks
                     if stream_was_cut_after_delivery:
                         billed_tokens_from_tokenizer = self._get_billed_tokens(
+                            model_tokenizer=model_tokenizer,
                             estimated_prompt_tokens=estimated_prompt_tokens,
                             completions=stream_reader.delivered_completions,
                             provider_usage=None,
@@ -174,6 +186,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
 
                 if stream_was_fully_read:
                     billed_tokens = self._get_billed_tokens(
+                        model_tokenizer=model_tokenizer,
                         estimated_prompt_tokens=estimated_prompt_tokens,
                         completions=stream_reader.delivered_completions,
                         provider_usage=stream_reader.provider_usage,

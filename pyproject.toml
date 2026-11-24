@@ -42,6 +42,7 @@ api = [
     "sqlalchemy-utils==0.43.0",
     "sqlalchemy[asyncio]==2.1.8",
     "tiktoken==0.14.0",
+    "tokenizers==0.22.2",
     "uvicorn==0.54.0"
 ]
 dev = [

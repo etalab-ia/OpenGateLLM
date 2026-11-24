@@ -22,6 +22,26 @@ class TestRouterHasProviders:
         assert router.has_providers is False
 
 
+class TestRouterWithTokenizer:
+    def test_should_return_a_copy_with_the_new_tokenizer(self):
+        # Arrange
+        router = RouterFactory(tokenizer=None)
+
+        # Act
+        result = router.with_tokenizer("tiktoken_o200k_base")
+
+        # Assert
+        assert result.tokenizer == "tiktoken_o200k_base"
+        assert router.tokenizer is None
+
+    def test_should_clear_the_tokenizer_when_none_is_given(self):
+        # Arrange
+        router = RouterFactory(tokenizer="tiktoken_o200k_base")
+
+        # Act & Assert
+        assert router.with_tokenizer(None).tokenizer is None
+
+
 class TestRouterRateLimitStateExceededLimits:
     @staticmethod
     def _state_with_tpm(remaining: int) -> RouterRateLimitState:

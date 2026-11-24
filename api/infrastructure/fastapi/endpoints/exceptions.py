@@ -327,6 +327,14 @@ class WrongModelTypeHTTPException(HTTPException):
 
 
 # 424
+class RouterTokenizerNotLoadableHTTPException(HTTPException):
+    status_code = 422
+    detail = "Tokenizer {tokenizer} cannot be loaded: {detail}"
+
+    def __init__(self, tokenizer: str, detail: str) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Tokenizer {tokenizer} cannot be loaded: {detail}")
+
+
 class ProviderNotReachableHTTPException(HTTPException):
     status_code = 424
     detail = "Model provider {name} not reachable ({status_code}): {detail}"
@@ -392,6 +400,14 @@ class ModelIsTooBusyExceptionHTTPException(HTTPException):
             detail="Model is too busy, please try again later.",
             headers={"Retry-After": str(retry_after)},
         )
+
+
+class ModelTokenizerNotLoadableHTTPException(HTTPException):
+    status_code = 503
+    detail = "Tokenizer {tokenizer} of the model cannot be loaded."
+
+    def __init__(self, tokenizer: str) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Tokenizer {tokenizer} of the model cannot be loaded.")
 
 
 class SsoProviderNotAvailableHTTPException(HTTPException):

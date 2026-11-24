@@ -38,7 +38,7 @@ class Settings(HiddenInputSchema):
     app_title: Annotated[str, Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).", examples=["My API"])]  # fmt: off
 
     # usage tokenizer
-    usage_tokenizer: Annotated[Tokenizer, Field(default=Tokenizer.TIKTOKEN_GPT2, description="Tokenizer used to compute usage of the API.")]  # fmt: off
+    usage_tokenizer: Annotated[Tokenizer, Field(default=Tokenizer.TIKTOKEN_GPT2, description="Deprecated: set `tokenizer` on each model (router) instead. Tokenizer used to compute usage of the API for the models without a `tokenizer`.", json_schema_extra={"deprecated": True})]  # fmt: off
 
     # logging
     log_level: Annotated[Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], Field(default="INFO", description="Logging level of the API.")]  # fmt: off

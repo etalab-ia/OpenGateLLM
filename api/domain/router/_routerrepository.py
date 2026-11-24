@@ -38,6 +38,7 @@ class RouterRepository(ABC):
         user_id: int,
         aliases: list[str] | None = None,
         qos_retries_before_reject: int | None = None,
+        tokenizer: str | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
         pass
 

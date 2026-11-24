@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, create_autospec, patch
 import pytest
 
 from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.errors import TooBusyModelError
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer, ModelTokenizerLoader
+from api.domain.model.errors import ModelTokenizerNotLoadableError, TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderConcurrencyLimiter, ProviderRepository, ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import ProviderChunkResponse, ProviderEndpoint, ProviderLoads, ProviderResponse, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
@@ -35,6 +35,13 @@ def mock_model_tokenizer():
     tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     return tokenizer
+
+
+@pytest.fixture
+def mock_model_tokenizer_loader(mock_model_tokenizer):
+    loader = create_autospec(ModelTokenizerLoader, instance=True, spec_set=True)
+    loader.load.return_value = mock_model_tokenizer
+    return loader
 
 
 @pytest.fixture
@@ -93,10 +100,10 @@ def sample_completion():
 
 
 @pytest.fixture
-def use_case(mock_model_tokenizer, mock_usage_recorder, mock_usage_repository) -> CreateChatCompletionsUseCase:
+def use_case(mock_model_tokenizer_loader, mock_usage_recorder, mock_usage_repository) -> CreateChatCompletionsUseCase:
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True),
-        model_tokenizer=mock_model_tokenizer,
+        model_tokenizer_loader=mock_model_tokenizer_loader,
         provider_client=create_autospec(ProviderClient, instance=True, spec_set=True),
         provider_concurrency_limiter=create_autospec(ProviderConcurrencyLimiter, instance=True, spec_set=True),
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
@@ -119,6 +126,7 @@ def _forward_stream_to_client(use_case, router, provider, provider_chunks, estim
         router=router,
         reservation=ProviderReservation(provider=provider, request_id=REQUEST_ID),
         provider_chunks=provider_chunks,
+        model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
         estimated_prompt_tokens=estimated_prompt_tokens,
         request_id=REQUEST_ID,
     )
@@ -155,7 +163,7 @@ class TestCreateChatCompletionsUseCaseExecute:
 
         # Assert
         use_case._get_usable_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias=MODEL_NAME)
-        use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello"])
+        use_case.model_tokenizer_loader.load.return_value.compute_tokens.assert_called_once_with(texts=["hello"])
         use_case._get_remaining_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, estimated_prompt_tokens=1)
         assert isinstance(result, CreateChatCompletionsUseCaseSuccess)
         assert result.data is sample_completion
@@ -229,6 +237,33 @@ class TestCreateChatCompletionsUseCaseExecute:
         # Assert
         assert result == RouterNotFoundError(name=MODEL_NAME)
         use_case._get_remaining_rate_limits.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_load_the_tokenizer_of_the_router(self, use_case, make_command, router, mock_model_tokenizer_loader):
+        # Arrange
+        use_case._get_usable_router.return_value = router.with_tokenizer("tiktoken_o200k_base")
+
+        # Act
+        await use_case.execute(command=make_command())
+
+        # Assert
+        mock_model_tokenizer_loader.load.assert_awaited_once_with("tiktoken_o200k_base")
+
+    @pytest.mark.asyncio
+    async def test_should_return_the_tokenizer_error_without_checking_rate_limits_or_forwarding(
+        self, use_case, make_command, mock_model_tokenizer_loader
+    ):
+        # Arrange
+        error = ModelTokenizerNotLoadableError(tokenizer="unknown/model", detail="not found")
+        mock_model_tokenizer_loader.load.return_value = error
+
+        # Act
+        result = await use_case.execute(command=make_command())
+
+        # Assert
+        assert result is error
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_rate_limit_is_exceeded(self, use_case, make_command):

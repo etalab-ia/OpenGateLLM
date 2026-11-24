@@ -28,6 +28,10 @@ def create_app(
         configuration = get_configuration()
 
     configure_logging(configuration.settings)
+    if "usage_tokenizer" in configuration.settings.model_fields_set:
+        logger.warning(
+            "settings.usage_tokenizer is deprecated: set a tokenizer on each router instead. It remains the tokenizer of the routers without one."
+        )
     _setup_sentry(configuration)
 
     app = FastAPI(

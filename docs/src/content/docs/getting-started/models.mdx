@@ -109,6 +109,7 @@ For example, Mistral's audio models are served by the `/v1/chat/completions` end
           <li><code>name</code>: model name shown to users.</li>
           <li><code>type</code>: model type (for example <code>text-generation</code>).</li>
           <li><code>qos_retries_before_reject</code> (optional): <code>null</code>, <code>0</code>, or a positive retry count.</li>
+          <li><code>tokenizer</code> (optional): tokenizer used to count tokens for this router: a <code>tiktoken_*</code> encoding (for example <code>tiktoken_o200k_base</code>), a Hugging Face id or the path of a <code>tokenizer.json</code>. Without it, the deprecated <code>usage_tokenizer</code> setting applies.</li>
           <li><code>aliases</code> (optional): additional names for the same router.</li>
         </ul>
       </li>

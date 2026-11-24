@@ -6,8 +6,8 @@ from uuid import uuid4
 import pytest
 
 from api.domain import ForwardablePayload
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.errors import TooBusyModelError
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer, ModelTokenizerLoader
+from api.domain.model.errors import ModelTokenizerNotLoadableError, TooBusyModelError
 from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
@@ -69,6 +69,13 @@ def model_tokenizer():
     tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     return tokenizer
+
+
+@pytest.fixture
+def model_tokenizer_loader(model_tokenizer):
+    loader = create_autospec(ModelTokenizerLoader, instance=True, spec_set=True)
+    loader.load.return_value = model_tokenizer
+    return loader
 
 
 @pytest.fixture
@@ -172,7 +179,7 @@ def user_with_router_access():
 @pytest.fixture
 def use_case(
     model_environmental_impacts_computer,
-    model_tokenizer,
+    model_tokenizer_loader,
     provider_client,
     provider_concurrency_limiter,
     provider_repository,
@@ -184,7 +191,7 @@ def use_case(
 ) -> ForwardingTestUseCase:
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
+        model_tokenizer_loader=model_tokenizer_loader,
         provider_client=provider_client,
         provider_concurrency_limiter=provider_concurrency_limiter,
         provider_repository=provider_repository,
@@ -354,7 +361,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -377,7 +389,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -393,7 +410,12 @@ class TestForwardRequestToProvider:
         # Act
         with pytest.raises(TypeError):
             await use_case._forward_request_to_provider(
-                authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+                authenticated_user=user_with_router_access,
+                router=router,
+                model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+                estimated_prompt_tokens=1,
+                payload=payload,
+                request_id=REQUEST_ID,
             )
 
         # Assert
@@ -409,7 +431,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -433,7 +460,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -455,7 +487,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert: 4 retries spaced by 0.5 s, so the client waits between 2 and 4 s
@@ -473,7 +510,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -543,7 +585,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -570,7 +617,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -587,7 +639,12 @@ class TestForwardRequestToProvider:
 
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=user_with_router_access, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=user_with_router_access,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -609,7 +666,12 @@ class TestForwardRequestToProvider:
     async def test_should_not_charge_rate_limits_when_user_is_admin(self, use_case, router, payload, admin_user):
         # Act
         result = await use_case._forward_request_to_provider(
-            authenticated_user=admin_user, router=router, estimated_prompt_tokens=1, payload=payload, request_id=REQUEST_ID
+            authenticated_user=admin_user,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=payload,
+            request_id=REQUEST_ID,
         )
 
         # Assert
@@ -784,7 +846,33 @@ class TestExecute:
         assert result is error
         use_case._check_command.assert_called_once_with(command=command)
         use_case._get_usable_router.assert_not_awaited()
-        use_case.model_tokenizer.compute_tokens.assert_not_called()
+        use_case.model_tokenizer_loader.load.return_value.compute_tokens.assert_not_called()
+        use_case._get_remaining_rate_limits.assert_not_awaited()
+        use_case._forward_request_to_provider.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_load_the_tokenizer_of_the_router(self, use_case, command, router):
+        # Arrange
+        router_with_tokenizer = router.with_tokenizer("tiktoken_o200k_base")
+        use_case._get_usable_router.return_value = router_with_tokenizer
+
+        # Act
+        await use_case.execute(command=command)
+
+        # Assert
+        use_case.model_tokenizer_loader.load.assert_awaited_once_with("tiktoken_o200k_base")
+
+    @pytest.mark.asyncio
+    async def test_should_return_the_tokenizer_error_without_checking_rate_limits_or_forwarding(self, use_case, command):
+        # Arrange
+        error = ModelTokenizerNotLoadableError(tokenizer="unknown/model", detail="not found")
+        use_case.model_tokenizer_loader.load.return_value = error
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert result is error
         use_case._get_remaining_rate_limits.assert_not_awaited()
         use_case._forward_request_to_provider.assert_not_awaited()
 
@@ -800,7 +888,7 @@ class TestExecute:
         # Assert
         assert result is error
         use_case._get_usable_router.assert_awaited_once_with(authenticated_user=admin_user, model_name_or_alias="test-router")
-        use_case.model_tokenizer.compute_tokens.assert_not_called()
+        use_case.model_tokenizer_loader.load.return_value.compute_tokens.assert_not_called()
         use_case._get_remaining_rate_limits.assert_not_awaited()
         use_case._forward_request_to_provider.assert_not_awaited()
 
@@ -815,7 +903,7 @@ class TestExecute:
 
         # Assert
         assert result is error
-        use_case.model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello"])
+        use_case.model_tokenizer_loader.load.return_value.compute_tokens.assert_called_once_with(texts=["hello"])
         use_case._get_remaining_rate_limits.assert_awaited_once_with(authenticated_user=admin_user, router=router, estimated_prompt_tokens=1)
         use_case._forward_request_to_provider.assert_not_awaited()
 
@@ -831,7 +919,12 @@ class TestExecute:
         # Assert
         assert result is error
         use_case._forward_request_to_provider.assert_awaited_once_with(
-            authenticated_user=command.authenticated_user, router=router, estimated_prompt_tokens=1, payload=command.payload, request_id=REQUEST_ID
+            authenticated_user=command.authenticated_user,
+            router=router,
+            model_tokenizer=use_case.model_tokenizer_loader.load.return_value,
+            estimated_prompt_tokens=1,
+            payload=command.payload,
+            request_id=REQUEST_ID,
         )
 
     @pytest.mark.asyncio

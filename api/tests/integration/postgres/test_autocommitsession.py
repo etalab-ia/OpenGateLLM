@@ -1,7 +1,6 @@
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from unittest.mock import MagicMock
 from urllib.parse import urljoin
 
 import asyncpg
@@ -28,7 +27,7 @@ from api.tests.integration.factories import sql as sql_factories
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiRerankResponseFactory
 from api.tests.integration.factories.vllm import VllmAudioTranscriptionsResponseFactory, VllmChatCompletionsResponseFactory
-from api.tests.integration.globalcontext import override_global_context
+from api.tests.integration.globalcontext import create_mock_model_tokenizer_loader, override_global_context
 from api.tests.integration.postgresfixtures import TEST_POSTGRES_URL, bind_sql_factories
 
 APP_NAME = "ogllm_idle_in_transaction_probe"
@@ -242,12 +241,10 @@ class TestModelForwardReleasesConnection:
 
     @pytest.fixture(autouse=True)
     def _stub_global_context(self, probe_engine, test_redis_pool):
-        tokenizer = MagicMock()
-        tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []
         with override_global_context(
             redis_pool=test_redis_pool,
             postgres_session_factory=async_sessionmaker(probe_engine, class_=AsyncSession, expire_on_commit=False),
-            tokenizer=tokenizer,
+            model_tokenizer_loader=create_mock_model_tokenizer_loader(),
         ):
             yield
 

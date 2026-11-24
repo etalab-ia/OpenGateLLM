@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from api.dependencies import create_chat_completions_use_case_factory
 from api.domain.key.entities import Key
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model.errors import ModelTokenizerNotLoadableError, StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -26,6 +26,7 @@ from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
+    ModelTokenizerNotLoadableHTTPException,
     RateLimitExceededHTTPException,
     UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
@@ -66,6 +67,7 @@ async def _as_stream_chunks(chunks: AsyncGenerator[ProviderChunkResponse]) -> As
         [
             ModelIsTooBusyExceptionHTTPException,
             ModelNotFoundHTTPException,
+            ModelTokenizerNotLoadableHTTPException,
             RateLimitExceededHTTPException,
             WrongModelTypeHTTPException,
         ]
@@ -115,5 +117,7 @@ async def create_chat_completions(
             raise ModelIsTooBusyExceptionHTTPException()
         case StatusCodeModelError(status_code=status_code, detail=detail):
             raise HTTPException(status_code=status_code, detail=detail)
+        case ModelTokenizerNotLoadableError(tokenizer=tokenizer):
+            raise ModelTokenizerNotLoadableHTTPException(tokenizer=tokenizer)
         case UnknownModelError(detail=detail):
             raise HTTPException(status_code=500, detail=detail)

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from httpx import AsyncClient
 import pytest
@@ -24,7 +24,7 @@ from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_audio_transcriptions_responses
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.vllm import VllmAudioTranscriptionsResponseFactory
-from api.tests.integration.globalcontext import override_global_context
+from api.tests.integration.globalcontext import create_mock_model_tokenizer_loader, override_global_context
 from api.use_cases.audio import CreateAudioTranscriptionsTextUseCaseSuccess
 
 URL = f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}"
@@ -52,9 +52,7 @@ class TestCreateAudioTranscriptions:
         self.key = await create_key(db_session, name="user_key", user=self.user)
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
 
-        mock_tokenizer = MagicMock()
-        mock_tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []  # default prompt is empty
-        with override_global_context(redis_pool=test_redis_pool, tokenizer=mock_tokenizer):
+        with override_global_context(redis_pool=test_redis_pool, model_tokenizer_loader=create_mock_model_tokenizer_loader()):
             yield
 
     @respx.mock

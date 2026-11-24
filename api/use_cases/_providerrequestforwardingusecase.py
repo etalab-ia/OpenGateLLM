@@ -7,8 +7,8 @@ from pydantic import BaseModel
 
 from api.domain import ForwardablePayload
 from api.domain.key.entities import Key
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer, ModelTokenizerLoader
+from api.domain.model.errors import ModelTokenizerNotLoadableError, StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
@@ -66,6 +66,7 @@ type ProviderRequestForwardingUseCaseError = (
     | UnknownModelError
     | UnsupportedProviderEndpointError
     | UserHasNoAccessToRouterError
+    | ModelTokenizerNotLoadableError
 )
 type ProviderRequestForwardingUseCaseResult[TData] = ProviderRequestForwardingUseCaseSuccess[TData] | ProviderRequestForwardingUseCaseError
 
@@ -78,7 +79,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     def __init__(
         self,
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
-        model_tokenizer: ModelTokenizer,
+        model_tokenizer_loader: ModelTokenizerLoader,
         provider_client: ProviderClient,
         provider_concurrency_limiter: ProviderConcurrencyLimiter,
         provider_repository: ProviderRepository,
@@ -89,7 +90,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         random_generator: random.Random,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
-        self.model_tokenizer = model_tokenizer
+        self.model_tokenizer_loader = model_tokenizer_loader
         self.provider_client = provider_client
         self.provider_concurrency_limiter = provider_concurrency_limiter
         self.provider_repository = provider_repository
@@ -115,7 +116,14 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        estimated_prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+        result = await self.model_tokenizer_loader.load(router.tokenizer)
+        match result:
+            case ModelTokenizer() as model_tokenizer:
+                pass
+            case error:
+                return error
+
+        estimated_prompt_tokens = model_tokenizer.compute_tokens(texts=command.get_prompts())
 
         result = await self._get_remaining_rate_limits(
             authenticated_user=authenticated_user, router=router, estimated_prompt_tokens=estimated_prompt_tokens
@@ -129,6 +137,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         result = await self._forward_request_to_provider(
             authenticated_user=authenticated_user,
             router=router,
+            model_tokenizer=model_tokenizer,
             estimated_prompt_tokens=estimated_prompt_tokens,
             payload=command.payload,
             request_id=self.usage_context.get_request_id(),
@@ -197,6 +206,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self,
         authenticated_user: AuthenticatedUserView,
         router: Router,
+        model_tokenizer: ModelTokenizer,
         estimated_prompt_tokens: int,
         payload: ForwardablePayload,
         request_id: str,
@@ -237,6 +247,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         match result:
             case ProviderResponse() as provider_response:
                 billed_tokens = self._get_billed_tokens(
+                    model_tokenizer=model_tokenizer,
                     estimated_prompt_tokens=estimated_prompt_tokens,
                     completions=provider_response.get_completions(),
                     provider_usage=provider_response.get_usage(),
@@ -325,9 +336,12 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         retry_window = max(1, math.ceil((retries_before_reject or 0) * self.RESERVATION_RETRY_DELAY_SECONDS))
         return self.random_generator.randint(retry_window, 2 * retry_window)
 
-    def _get_billed_tokens(self, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None) -> BilledTokens:
+    @staticmethod
+    def _get_billed_tokens(
+        model_tokenizer: ModelTokenizer, estimated_prompt_tokens: int, completions: list[str], provider_usage: Usage | None
+    ) -> BilledTokens:
         if provider_usage is None:
-            return BilledTokens(prompt_tokens=estimated_prompt_tokens, completion_tokens=self.model_tokenizer.compute_tokens(texts=completions))
+            return BilledTokens(prompt_tokens=estimated_prompt_tokens, completion_tokens=model_tokenizer.compute_tokens(texts=completions))
 
         return BilledTokens(
             prompt_tokens=provider_usage.prompt_tokens,

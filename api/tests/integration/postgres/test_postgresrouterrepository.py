@@ -21,6 +21,7 @@ def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
         type=RouterType(router_sql.type),
         aliases=aliases or [],
         qos_retries_before_reject=router_sql.qos_retries_before_reject,
+        tokenizer=router_sql.tokenizer,
         cost_prompt_tokens=router_sql.cost_prompt_tokens or 0.0,
         cost_completion_tokens=router_sql.cost_completion_tokens or 0.0,
         providers=0,
@@ -101,6 +102,7 @@ class TestCreateRouter:
             name="test-router",
             router_type=RouterType.TEXT_GENERATION,
             qos_retries_before_reject=4,
+            tokenizer="tiktoken_o200k_base",
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
             user_id=user.id,
@@ -109,6 +111,7 @@ class TestCreateRouter:
         # Assert
         assert isinstance(result, Router)
         assert result.name == "test-router"
+        assert result.tokenizer == "tiktoken_o200k_base"
         assert result.type == RouterType.TEXT_GENERATION
         assert result.qos_retries_before_reject == 4
         assert result.cost_prompt_tokens == 0.001
@@ -557,7 +560,11 @@ class TestUpdateRouter:
 
         # Act
         result = await repository.update_router(
-            to_router_domain(router).with_cost_prompt_tokens(0.010).with_cost_completion_tokens(0.020).with_qos_retries_before_reject(3)
+            to_router_domain(router)
+            .with_cost_prompt_tokens(0.010)
+            .with_cost_completion_tokens(0.020)
+            .with_qos_retries_before_reject(3)
+            .with_tokenizer("mistralai/Mistral-7B-Instruct-v0.3")
         )
 
         # Assert
@@ -565,6 +572,7 @@ class TestUpdateRouter:
         assert result.cost_prompt_tokens == 0.010
         assert result.cost_completion_tokens == 0.020
         assert result.qos_retries_before_reject == 3
+        assert result.tokenizer == "mistralai/Mistral-7B-Instruct-v0.3"
 
     async def test_update_router_should_replace_aliases_in_database(self, repository, db_session):
         # Arrange

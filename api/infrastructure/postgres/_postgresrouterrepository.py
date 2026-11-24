@@ -45,6 +45,7 @@ class PostgresRouterRepository(RouterRepository):
             RouterTable.user_id,
             RouterTable.type,
             RouterTable.qos_retries_before_reject,
+            RouterTable.tokenizer,
             RouterTable.cost_prompt_tokens,
             RouterTable.cost_completion_tokens,
             PostgresRouterRepository._select_providers_statement(),
@@ -62,6 +63,7 @@ class PostgresRouterRepository(RouterRepository):
             type=RouterType(row.type),
             aliases=row.aliases if aliases is None else aliases,
             qos_retries_before_reject=row.qos_retries_before_reject,
+            tokenizer=row.tokenizer,
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,
             providers=row.providers,
@@ -127,6 +129,7 @@ class PostgresRouterRepository(RouterRepository):
         user_id: int,
         aliases: list[str] | None = None,
         qos_retries_before_reject: int | None = None,
+        tokenizer: str | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
         aliases = aliases or []
 
@@ -138,6 +141,7 @@ class PostgresRouterRepository(RouterRepository):
                     name=name,
                     type=router_type.value,
                     qos_retries_before_reject=qos_retries_before_reject,
+                    tokenizer=tokenizer,
                     cost_prompt_tokens=cost_prompt_tokens,
                     cost_completion_tokens=cost_completion_tokens,
                 )
@@ -147,6 +151,7 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.user_id,
                     RouterTable.type,
                     RouterTable.qos_retries_before_reject,
+                    RouterTable.tokenizer,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
                     cast(literal(0), Integer).label("providers"),
@@ -210,6 +215,7 @@ class PostgresRouterRepository(RouterRepository):
                     name=router.name,
                     type=router.type.value,
                     qos_retries_before_reject=router.qos_retries_before_reject,
+                    tokenizer=router.tokenizer,
                     cost_prompt_tokens=router.cost_prompt_tokens,
                     cost_completion_tokens=router.cost_completion_tokens,
                 )
@@ -219,6 +225,7 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.user_id,
                     RouterTable.type,
                     RouterTable.qos_retries_before_reject,
+                    RouterTable.tokenizer,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
                     RouterTable.created,
@@ -246,6 +253,7 @@ class PostgresRouterRepository(RouterRepository):
             type=RouterType(row.type),
             aliases=router.aliases,
             qos_retries_before_reject=row.qos_retries_before_reject,
+            tokenizer=row.tokenizer,
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,
             providers=router.providers,

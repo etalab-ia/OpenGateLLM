@@ -3,8 +3,16 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints
 
 from api.domain import BaseModel
+from api.domain.model import TiktokenTokenizerName
 from api.domain.router.entities import RouterType
 from api.infrastructure.fastapi.schemas import UnixTimestamp
+
+TOKENIZER_DESCRIPTION = (
+    "Tokenizer used to estimate the tokens of a request. A `tiktoken_*` value selects the matching tiktoken encoding, "
+    "any other value is a Hugging Face tokenizer (Hub id or path to a `tokenizer.json`). "
+    "Null uses the `usage_tokenizer` setting."
+)
+TOKENIZER_EXAMPLES = ["tiktoken_o200k_base", "mistralai/Mistral-7B-Instruct-v0.3"]
 
 
 class CreateRouterBody(BaseModel):
@@ -14,6 +22,7 @@ class CreateRouterBody(BaseModel):
     cost_prompt_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Cost of a million prompt tokens")]
     cost_completion_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Cost of a million completion tokens")]
     qos_retries_before_reject: Annotated[int | None, Field(default=None, ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
+    tokenizer: Annotated[TiktokenTokenizerName | str | None, Field(default=None, min_length=1, description=TOKENIZER_DESCRIPTION, examples=TOKENIZER_EXAMPLES)]  # fmt: off
 
 
 class UpdateRouterBody(BaseModel):
@@ -23,6 +32,7 @@ class UpdateRouterBody(BaseModel):
     cost_prompt_tokens: Annotated[float, Field(..., ge=0.0, description="Cost of a million prompt tokens")]
     cost_completion_tokens: Annotated[float, Field(..., ge=0.0, description="Cost of a million completion tokens")]  # fmt: off
     qos_retries_before_reject: Annotated[int | None, Field(..., ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
+    tokenizer: Annotated[TiktokenTokenizerName | str | None, Field(..., min_length=1, description=TOKENIZER_DESCRIPTION, examples=TOKENIZER_EXAMPLES)]  # fmt: off
 
 
 class RouterResponse(BaseModel):
@@ -35,6 +45,7 @@ class RouterResponse(BaseModel):
     cost_prompt_tokens: Annotated[float, Field(description="Cost of a million prompt tokens")]
     cost_completion_tokens: Annotated[float, Field(description="Cost of a million completion tokens")]
     qos_retries_before_reject: Annotated[int | None, Field(default=None, ge=0, description="Number of admission retries before rejecting a saturated request. Null disables the admission limit.")]  # fmt: off
+    tokenizer: Annotated[TiktokenTokenizerName | str | None, Field(default=None, description=TOKENIZER_DESCRIPTION, examples=TOKENIZER_EXAMPLES)]  # fmt: off
     providers: Annotated[int, Field(default=0, description="Number of providers in the router.")]
     created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
     updated: Annotated[UnixTimestamp, Field(description="Time of last update, as Unix timestamp.")]

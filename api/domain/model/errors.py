@@ -42,3 +42,9 @@ class UnknownModelError:
 class StatusCodeModelError:
     status_code: int
     detail: str
+
+
+@dataclass
+class ModelTokenizerNotLoadableError:
+    tokenizer: str
+    detail: str

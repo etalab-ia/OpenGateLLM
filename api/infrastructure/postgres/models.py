@@ -174,6 +174,7 @@ class Router(Base):
     # release still running during a rolling deployment, which reads it on every router; dropped in a later release.
     load_balancing_strategy: Mapped[str] = mapped_column(Enum("SHUFFLE", "LEAST_BUSY", name="routerloadbalancingstrategy"), server_default="SHUFFLE")
     qos_retries_before_reject: Mapped[int | None]
+    tokenizer: Mapped[str | None]
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())

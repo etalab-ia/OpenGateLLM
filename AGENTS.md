@@ -485,6 +485,14 @@ A model-forward request leaves two records, owned by two layers:
 - Uvicorn waits for in-flight requests only, so the lifespan awaits `PostgresUsageRepository.wait_for_pending_saves` before closing Postgres and Redis. The wait is bounded (`USAGE_SAVES_SHUTDOWN_TIMEOUT_SECONDS`, `api/lifespan.py`): a save still running at the deadline is logged as lost rather than holding the shutdown.
 - A trace or a save that fails is logged, never raised: neither may fail a request the client already received. Each adapter catches and logs its own failures (`LangfuseRequestTracer`, `PostgresUsageRepository._insert`), so their callers call them without a `try`; the `RequestTracer` interface states that contract.
 
+### Router tokenizer
+
+Each router names its own tokenizer (`Router.tokenizer`, nullable): a `tiktoken_*` literal, a Hugging Face id, or the path of a local `tokenizer.json`. A `None` router tokenizer falls back to `settings.usage_tokenizer`, which is deprecated (flagged in the schema, warned about in `create_app` when the file sets it).
+
+- Use cases never build a tokenizer: they call the `ModelTokenizerLoader` port (`api/domain/model/_modeltokenizerloader.py`) with `router.tokenizer`. The adapter `CachedModelTokenizerLoader` (`api/infrastructure/modeltokenizer/`) caches successes per key, never failures, and is built once in the lifespan, which exposes it as `GlobalContext.model_tokenizer_loader` and preloads the existing routers' tokenizers.
+- `load` returns `ModelTokenizer | ModelTokenizerNotLoadableError`, never raises. **At write time** (router create/update, config bootstrap) the use case validates the tokenizer and returns the error, mapped to `RouterTokenizerNotLoadableHTTPException` (422); update only validates a changed, non-null tokenizer. **At request time** the forwarding use cases return the error before charging any rate limit, mapped to `ModelTokenizerNotLoadableHTTPException` (503).
+- Integration tests that use `skip_lifespan=True` leave `model_tokenizer_loader` at `None`: override it with `create_mock_model_tokenizer_loader()` (`api/tests/integration/globalcontext.py`), or a real `CachedModelTokenizerLoader` when the test exercises the validation.
+
 ### Rate-limit charging
 
 Model-forward use cases charge the router limits in `_charge_rate_limits`, right after `_record_and_save_usage`: in `_forward_request_to_provider`, and in chat's `_bill_stream` for streams — after the loop when the stream was fully read, in its `finally` when it was cut. Only successful requests are charged (never a 429); admins are skipped.

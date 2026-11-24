@@ -1,7 +1,9 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 import pytest
 
+from api.domain.model import ModelTokenizer, ModelTokenizerLoader
+from api.domain.model.errors import ModelTokenizerNotLoadableError
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.tests.unit.use_case.factories import RouterFactory
@@ -14,8 +16,15 @@ def router_repository():
 
 
 @pytest.fixture
-def use_case(router_repository):
-    return UpdateRouterUseCase(router_repository=router_repository)
+def mock_model_tokenizer_loader():
+    loader = create_autospec(ModelTokenizerLoader, instance=True, spec_set=True)
+    loader.load.return_value = create_autospec(ModelTokenizer, instance=True, spec_set=True)
+    return loader
+
+
+@pytest.fixture
+def use_case(router_repository, mock_model_tokenizer_loader):
+    return UpdateRouterUseCase(router_repository=router_repository, model_tokenizer_loader=mock_model_tokenizer_loader)
 
 
 @pytest.fixture
@@ -33,6 +42,7 @@ def full_command(router, **overrides) -> UpdateRouterCommand:
         cost_prompt_tokens=router.cost_prompt_tokens,
         cost_completion_tokens=router.cost_completion_tokens,
         qos_retries_before_reject=router.qos_retries_before_reject,
+        tokenizer=router.tokenizer,
     )
     for field, value in overrides.items():
         setattr(command, field, value)
@@ -182,4 +192,68 @@ class TestUpdateRouterUseCase:
 
         # Assert
         assert isinstance(result, UpdateRouterUseCaseSuccess)
+        router_repository.update_router.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_load_and_persist_the_tokenizer_when_it_changes(
+        self, use_case, router_repository, mock_model_tokenizer_loader, sample_router
+    ):
+        # Arrange
+        updated_router = sample_router.with_tokenizer("tiktoken_o200k_base")
+        router_repository.get_router_by_id.return_value = sample_router
+        router_repository.update_router.return_value = updated_router
+
+        # Act
+        result = await use_case.execute(command=full_command(sample_router, tokenizer="tiktoken_o200k_base"))
+
+        # Assert
+        assert isinstance(result, UpdateRouterUseCaseSuccess)
+        mock_model_tokenizer_loader.load.assert_awaited_once_with("tiktoken_o200k_base")
+        router_repository.update_router.assert_called_once_with(router=updated_router)
+
+    @pytest.mark.asyncio
+    async def test_should_not_load_the_tokenizer_when_it_is_unchanged(self, use_case, router_repository, mock_model_tokenizer_loader):
+        # Arrange
+        router = RouterFactory(id=42, user_id=1, aliases=[], tokenizer="mistralai/Mistral-7B-Instruct-v0.3")
+        router_repository.get_router_by_id.return_value = router
+
+        # Act
+        result = await use_case.execute(command=full_command(router))
+
+        # Assert
+        assert isinstance(result, UpdateRouterUseCaseSuccess)
+        mock_model_tokenizer_loader.load.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_clear_the_tokenizer_without_loading_when_the_command_tokenizer_is_none(
+        self, use_case, router_repository, mock_model_tokenizer_loader
+    ):
+        # Arrange
+        router = RouterFactory(id=42, user_id=1, aliases=[], tokenizer="tiktoken_o200k_base")
+        cleared_router = router.with_tokenizer(None)
+        router_repository.get_router_by_id.return_value = router
+        router_repository.update_router.return_value = cleared_router
+
+        # Act
+        result = await use_case.execute(command=full_command(router, tokenizer=None))
+
+        # Assert
+        assert isinstance(result, UpdateRouterUseCaseSuccess)
+        mock_model_tokenizer_loader.load.assert_not_awaited()
+        router_repository.update_router.assert_called_once_with(router=cleared_router)
+
+    @pytest.mark.asyncio
+    async def test_should_return_the_error_without_updating_when_the_new_tokenizer_cannot_be_loaded(
+        self, use_case, router_repository, mock_model_tokenizer_loader, sample_router
+    ):
+        # Arrange
+        error = ModelTokenizerNotLoadableError(tokenizer="unknown/model", detail="not found")
+        router_repository.get_router_by_id.return_value = sample_router
+        mock_model_tokenizer_loader.load.return_value = error
+
+        # Act
+        result = await use_case.execute(command=full_command(sample_router, tokenizer="unknown/model"))
+
+        # Assert
+        assert result is error
         router_repository.update_router.assert_not_called()

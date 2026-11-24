@@ -1,11 +1,12 @@
 from collections.abc import AsyncGenerator
+import logging
 
 from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
 
 from api.app import create_app
-from api.infrastructure.configuration import Configuration, Dependencies, Settings
+from api.infrastructure.configuration import Configuration, Dependencies, Settings, Tokenizer
 from api.infrastructure.fastapi.routes import EndpointRoute, RouterName
 from api.tests.helpers import TEST_AUTH_SECRET_KEY, create_key
 
@@ -122,6 +123,27 @@ class TestCreateAppRequestDependencies:
 
         # Assert
         assert response.status_code == 401, response.text
+
+
+class TestCreateAppUsageTokenizerDeprecation:
+    @pytest.mark.parametrize("set_usage_tokenizer", [False, True])
+    def test_should_warn_about_usage_tokenizer_only_when_it_is_set(self, caplog, createapp_configuration, set_usage_tokenizer):
+        # Arrange
+        fields = {key: value for key, value in createapp_configuration.settings.__dict__.items() if key != "usage_tokenizer"}
+        if set_usage_tokenizer:
+            fields["usage_tokenizer"] = Tokenizer.TIKTOKEN_O200K_BASE
+        configuration = Configuration.model_construct(settings=Settings.model_construct(**fields), dependencies=createapp_configuration.dependencies)
+        # configure_logging stops the "api" logger from propagating to the root logger caplog listens on
+        logging.getLogger("api.app").addHandler(caplog.handler)
+
+        # Act
+        try:
+            create_app(configuration, skip_lifespan=True)
+        finally:
+            logging.getLogger("api.app").removeHandler(caplog.handler)
+
+        # Assert
+        assert any("usage_tokenizer is deprecated" in record.getMessage() for record in caplog.records) is set_usage_tokenizer
 
 
 if __name__ == "__main__":

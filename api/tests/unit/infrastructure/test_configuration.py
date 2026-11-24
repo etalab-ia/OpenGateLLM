@@ -6,6 +6,7 @@ import sys
 import pytest
 
 from api.infrastructure.configuration import (
+    Configuration,
     ConfigurationValidationError,
     ConfigurationVariableError,
     get_configuration,
@@ -233,3 +234,27 @@ settings:
         # Act & Assert
         with pytest.raises(FileNotFoundError, match="missing.yml"):
             get_configuration(config_file=config_file)
+
+    def test_should_flag_usage_tokenizer_as_deprecated_in_the_configuration_schema(self):
+        # Act
+        schema = Configuration.model_json_schema()
+
+        # Assert
+        assert schema["$defs"]["SettingsLoginPassword"]["properties"]["usage_tokenizer"]["deprecated"] is True
+
+    @pytest.mark.parametrize(
+        "settings,expected",
+        [("", False), ("  usage_tokenizer: tiktoken_o200k_base\n", True)],
+    )
+    def test_should_report_usage_tokenizer_as_set_only_when_the_file_sets_it(self, write_config_file, settings, expected):
+        # Arrange
+        config_file = write_config_file(f"""{CONFIG_FILE_DEPENDENCIES}
+settings:
+  auth_secret_key: secret
+{settings}""")
+
+        # Act
+        configuration = get_configuration(config_file=config_file)
+
+        # Assert
+        assert ("usage_tokenizer" in configuration.settings.model_fields_set) is expected
