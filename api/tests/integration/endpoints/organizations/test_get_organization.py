@@ -4,8 +4,9 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_my_organization_use_case_factory
-from api.domain.organization.errors import OrganizationNotFoundError
+from api.dependencies import _get_organization_authorization, get_my_organization_use_case_factory
+from api.domain.organization import OrganizationAuthorization
+from api.domain.organization.errors import OrganizationNotFoundError, UserCannotReadOrganizationError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
@@ -17,10 +18,13 @@ URL = f"/v1{EndpointRoute.ORGANIZATIONS_ME}"
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetMyOrganization:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.organization = OrganizationSQLFactory(name="my-organization")
         self.user = UserSQLFactory(regular_user=True, organization=self.organization)
         self.key = await create_key(db_session, name="user_key", user=self.user, never_expires=True)
+        self.mock_organization_authorization = create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+        self.mock_organization_authorization.can_read_my_organization.return_value = True
+        app.dependency_overrides[_get_organization_authorization] = lambda: self.mock_organization_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         response = await client.get(
@@ -51,6 +55,17 @@ class TestGetMyOrganization:
         assert admin_data["id"] == admin_user.organization_id
         assert admin_data["users"] == 1
 
+    async def test_should_return_403_when_the_user_has_no_member_relation_on_their_organization(self, client: AsyncClient):
+        self.mock_organization_authorization.can_read_my_organization.return_value = False
+
+        response = await client.get(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 403, response.text
+        assert response.json().get("detail") == f"User {self.user.id} is not allowed to perform this action."
+
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
@@ -58,6 +73,11 @@ class TestGetMyOrganization:
                 OrganizationNotFoundError(id=999),
                 404,
                 "Organization 999 not found.",
+            ),
+            (
+                UserCannotReadOrganizationError(user_id=42),
+                403,
+                "User 42 is not allowed to perform this action.",
             ),
         ],
     )
