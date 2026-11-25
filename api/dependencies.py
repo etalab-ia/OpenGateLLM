@@ -18,7 +18,7 @@ from api.domain.provider import (
     ProviderRepository,
 )
 from api.domain.role import LimitRepository, PermissionRepository
-from api.domain.router import RouterRateLimiter
+from api.domain.router import RouterAuthorization, RouterRateLimiter
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserAuthorization, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
@@ -32,6 +32,7 @@ from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.langfuse import LangfuseRequestTracer
 from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaUserAuthorization
 from api.infrastructure.openfga._openfgaorganizationauthorization import OpenFgaOrganizationAuthorization
+from api.infrastructure.openfga._openfgarouterauthorization import OpenFgaRouterAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresAuthenticatedUserQuery,
@@ -181,6 +182,10 @@ def _get_organization_authorization(openfga_client: OpenFgaAuthorizationClient =
 
 def _get_user_authorization(openfga_client: OpenFgaAuthorizationClient = Depends(_authorization_client)) -> UserAuthorization:
     return OpenFgaUserAuthorization(openfga_client=openfga_client)
+
+
+def _get_router_authorization(openfga_client: OpenFgaAuthorizationClient = Depends(_authorization_client)) -> RouterAuthorization:
+    return OpenFgaRouterAuthorization(openfga_client=openfga_client)
 
 
 # repositories
@@ -625,10 +630,11 @@ def get_routers_use_case_factory(postgres_session: AsyncSession = Depends(get_po
     )
 
 
-def create_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRouterUseCase:
-    return CreateRouterUseCase(
-        router_repository=_router_repository(postgres_session),
-    )
+def create_router_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    router_authorization: RouterAuthorization = Depends(_get_router_authorization),
+) -> CreateRouterUseCase:
+    return CreateRouterUseCase(router_repository=_router_repository(postgres_session), router_authorization=router_authorization)
 
 
 def delete_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteRouterUseCase:
