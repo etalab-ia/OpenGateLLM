@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 from fastapi import Depends
 import httpx
@@ -10,6 +10,7 @@ import respx
 from api.dependencies import _key_encoder, auth_sso_login_use_case_factory, get_postgres_session
 from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError, SsoProviderNotAvailableError
 from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME
+from api.domain.organization import OrganizationAuthorization
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
@@ -59,6 +60,8 @@ def _mock_valid_session(email: str = EMAIL) -> None:
 
 
 def _oidc_auth_sso_login_use_case_factory(default_role_id: int, default_organization_id: int):
+    mock_organization_authorization = create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+
     def factory(
         postgres_session=Depends(get_postgres_session),
         key_encoder=Depends(_key_encoder),
@@ -69,6 +72,7 @@ def _oidc_auth_sso_login_use_case_factory(default_role_id: int, default_organiza
             user_repository=PostgresUserRepository(postgres_session=postgres_session),
             role_repository=PostgresRolesRepository(postgres_session=postgres_session),
             auth_sso_session_validator=HttpAuthSsoSessionValidator(auth_playground_url=PLAYGROUND_URL),
+            organization_authorization=mock_organization_authorization,
             auth_login_type="oidc",
             auth_sso_default_role_id=default_role_id,
             auth_sso_default_organization_id=default_organization_id,
