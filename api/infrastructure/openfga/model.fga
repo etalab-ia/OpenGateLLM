@@ -16,6 +16,7 @@ type platform
     define can_create_router: admin
     define can_delete_router: admin
     define can_update_router: admin
+    define can_read_router: admin
 
 type organization
   relations
