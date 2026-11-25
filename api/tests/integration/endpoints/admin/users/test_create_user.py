@@ -63,6 +63,7 @@ class TestCreateUser:
         assert data["expires"] is None
         assert isinstance(data["created"], int)
         assert isinstance(data["updated"], int)
+        self.mock_organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=organization.id, user_id=data["id"])
 
     @pytest.mark.parametrize(
         "expires_delta",

@@ -47,6 +47,7 @@ class TestUpdateUser:
         user = UserSQLFactory()
         organization = OrganizationSQLFactory()
         await db_session.flush()
+        previous_organization_id = user.organization_id
 
         response = await client.patch(
             url=f"{URL}/{user.id}",
@@ -62,6 +63,10 @@ class TestUpdateUser:
         assert data["priority"] == 2
         assert data["role_id"] == user.role_id
         assert data["organization_id"] == organization.id
+        self.mock_organization_authorization.remove_organization_user.assert_awaited_once_with(
+            organization_id=previous_organization_id, user_id=user.id
+        )
+        self.mock_organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=organization.id, user_id=user.id)
 
     async def test_clears_nullable_fields_sent_as_null(self, client: AsyncClient, db_session):
         user = UserSQLFactory(expires=dt.datetime.now() + dt.timedelta(days=30))

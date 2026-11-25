@@ -30,6 +30,7 @@ class TestDeleteUser:
     async def test_happy_path(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
         await db_session.flush()
+        organization_id = user.organization_id
 
         response = await client.delete(
             url=f"{URL}/{user.id}",
@@ -39,6 +40,7 @@ class TestDeleteUser:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["id"] == user.id
+        self.mock_organization_authorization.remove_organization_user.assert_awaited_once_with(organization_id=organization_id, user_id=user.id)
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
