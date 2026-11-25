@@ -52,3 +52,13 @@ class RouterRateLimitExceededError:
     id: int
     limit_type: LimitType
     headers: dict[str, str]
+
+
+@dataclass
+class UserCannotReadRoutersError:
+    user_id: int
+
+
+@dataclass
+class UserCannotReadRouterError:
+    user_id: int
