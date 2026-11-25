@@ -1,10 +1,11 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_one_router_use_case_factory
+from api.dependencies import _get_router_authorization, get_one_router_use_case_factory
+from api.domain.router import RouterAuthorization
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
@@ -17,9 +18,12 @@ URL = f"/v1{EndpointRoute.ADMIN_ROUTERS}"
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetRouter:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+        self.mock_router_authorization = create_autospec(RouterAuthorization, instance=True, spec_set=True)
+        self.mock_router_authorization.can_read_router.return_value = True
+        app.dependency_overrides[_get_router_authorization] = lambda: self.mock_router_authorization
 
     async def test_should_return_the_router_with_its_number_of_providers_when_it_exists(self, client: AsyncClient, db_session):
         # Arrange
@@ -64,9 +68,10 @@ class TestGetRouter:
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
 
-    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
+    async def test_should_return_403_when_can_read_router_is_denied(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+        self.mock_router_authorization.can_read_router.return_value = False
 
         response = await client.get(
             url=f"{URL}/1",
@@ -74,7 +79,7 @@ class TestGetRouter:
         )
 
         assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
+        assert response.json().get("detail") == f"User {regular_user.id} is not allowed to perform this action."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
