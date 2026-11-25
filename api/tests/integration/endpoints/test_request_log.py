@@ -4,7 +4,8 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_my_organization_use_case_factory
+from api.dependencies import _get_organization_authorization, get_my_organization_use_case_factory
+from api.domain.organization import OrganizationAuthorization
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import UserSQLFactory
@@ -16,9 +17,12 @@ URL = f"/v1{EndpointRoute.ORGANIZATIONS_ME}"
 @pytest.mark.asyncio(loop_scope="session")
 class TestRequestLog:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.user = UserSQLFactory(regular_user=True)
         self.key = await create_key(db_session, name="user_key", user=self.user, never_expires=True)
+        mock_organization_authorization = create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+        mock_organization_authorization.can_read_my_organization.return_value = True
+        app.dependency_overrides[_get_organization_authorization] = lambda: mock_organization_authorization
 
     async def test_happy_path_returns_a_request_id(self, client: AsyncClient):
         response = await client.get(url=URL, headers={"Authorization": f"Bearer {self.key.token}"})

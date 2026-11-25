@@ -5,7 +5,8 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import _get_user_authorization, update_user_use_case_factory
+from api.dependencies import _get_organization_authorization, _get_user_authorization, update_user_use_case_factory
+from api.domain.organization import OrganizationAuthorization
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserAuthorization
@@ -39,11 +40,14 @@ class TestUpdateUser:
         self.mock_user_authorization = create_autospec(UserAuthorization, instance=True, spec_set=True)
         self.mock_user_authorization.can_update_user.return_value = True
         app.dependency_overrides[_get_user_authorization] = lambda: self.mock_user_authorization
+        self.mock_organization_authorization = create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+        app.dependency_overrides[_get_organization_authorization] = lambda: self.mock_organization_authorization
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
         organization = OrganizationSQLFactory()
         await db_session.flush()
+        previous_organization_id = user.organization_id
 
         response = await client.patch(
             url=f"{URL}/{user.id}",
@@ -59,6 +63,10 @@ class TestUpdateUser:
         assert data["priority"] == 2
         assert data["role_id"] == user.role_id
         assert data["organization_id"] == organization.id
+        self.mock_organization_authorization.remove_organization_user.assert_awaited_once_with(
+            organization_id=previous_organization_id, user_id=user.id
+        )
+        self.mock_organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=organization.id, user_id=user.id)
 
     async def test_clears_nullable_fields_sent_as_null(self, client: AsyncClient, db_session):
         user = UserSQLFactory(expires=dt.datetime.now() + dt.timedelta(days=30))

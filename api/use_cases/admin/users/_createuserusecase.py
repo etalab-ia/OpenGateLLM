@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from api.domain import UtcDatetime
+from api.domain.organization import OrganizationAuthorization
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role import RoleRepository
 from api.domain.role.entities import PermissionType
@@ -39,11 +40,13 @@ class CreateUserUseCase:
         role_repository: RoleRepository,
         user_password_encoder: UserPasswordEncoder,
         user_authorization: UserAuthorization,
+        organization_authorization: OrganizationAuthorization,
     ):
         self.user_repository = user_repository
         self.role_repository = role_repository
         self.user_password_encoder = user_password_encoder
         self.user_authorization = user_authorization
+        self.organization_authorization = organization_authorization
 
     async def execute(self, command: CreateUserCommand) -> CreateUserUseCaseResult:
         is_authorized = await self.user_authorization.can_create_user(user_id=command.authenticated_user_id, organization_id=command.organization_id)
@@ -69,6 +72,7 @@ class CreateUserUseCase:
 
         match result:
             case User() as user:
+                await self.organization_authorization.add_organization_user(organization_id=user.organization_id, user_id=user.id)
                 if PermissionType.ADMIN in role.permissions:
                     await self.user_authorization.grant_platform_admin(user_id=user.id)
                 return CreateUserUseCaseSuccess(user)

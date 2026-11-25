@@ -7,6 +7,10 @@ class OrganizationAuthorization(ABC):
         pass
 
     @abstractmethod
+    async def can_read_my_organization(self, user_id: int, organization_id: int) -> bool:
+        pass
+
+    @abstractmethod
     async def can_create_organization(self, user_id: int) -> bool:
         pass
 
@@ -24,4 +28,12 @@ class OrganizationAuthorization(ABC):
 
     @abstractmethod
     async def unregister_organization(self, organization_id: int) -> None:
+        pass
+
+    @abstractmethod
+    async def add_organization_user(self, organization_id: int, user_id: int) -> None:
+        pass
+
+    @abstractmethod
+    async def remove_organization_user(self, organization_id: int, user_id: int) -> None:
         pass

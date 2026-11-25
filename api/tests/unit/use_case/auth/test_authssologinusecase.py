@@ -5,6 +5,7 @@ import pytest
 
 from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError, SsoProviderNotAvailableError
 from api.domain.key.entities import Key
+from api.domain.organization import OrganizationAuthorization
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 from api.tests.unit.use_case.factories import UserFactory
@@ -45,12 +46,18 @@ def auth_sso_session_validator():
 
 
 @pytest.fixture
+def organization_authorization():
+    return AsyncMock(spec=OrganizationAuthorization)
+
+
+@pytest.fixture
 def use_case(
     key_repository,
     organization_repository,
     user_repository,
     role_repository,
     auth_sso_session_validator,
+    organization_authorization,
 ):
     return AuthSsoLoginUseCase(
         key_repository=key_repository,
@@ -58,6 +65,7 @@ def use_case(
         user_repository=user_repository,
         role_repository=role_repository,
         auth_sso_session_validator=auth_sso_session_validator,
+        organization_authorization=organization_authorization,
         auth_login_type="oidc",
         auth_sso_default_role_id=DEFAULT_ROLE_ID,
         auth_sso_default_organization_id=DEFAULT_ORGANIZATION_ID,
@@ -110,6 +118,7 @@ class TestAuthSsoLoginUseCase:
         user_repository,
         role_repository,
         auth_sso_session_validator,
+        organization_authorization,
         default_command,
     ):
         # Arrange
@@ -119,6 +128,7 @@ class TestAuthSsoLoginUseCase:
             user_repository=user_repository,
             role_repository=role_repository,
             auth_sso_session_validator=auth_sso_session_validator,
+            organization_authorization=organization_authorization,
             auth_login_type="password",
             auth_sso_default_role_id=DEFAULT_ROLE_ID,
             auth_sso_default_organization_id=DEFAULT_ORGANIZATION_ID,
@@ -138,6 +148,7 @@ class TestAuthSsoLoginUseCase:
         key_repository,
         user_repository,
         auth_sso_session_validator,
+        organization_authorization,
         default_command,
     ):
         # Arrange
@@ -155,6 +166,8 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator.validate_session.assert_awaited_once_with(session_cookie=SESSION_COOKIE)
         user_repository.get_user_by_iss_and_sub.assert_awaited_once_with(iss=ISSUER_URL, sub=SUBJECT)
         user_repository.update_user.assert_not_awaited()
+        organization_authorization.add_organization_user.assert_not_awaited()
+        organization_authorization.remove_organization_user.assert_not_awaited()
         key_repository.upsert_key.assert_awaited_once()
         expire = key_repository.upsert_key.await_args.kwargs["expire"]
         assert expire == datetime.fromtimestamp(TOKEN_EXPIRES, tz=UTC)
@@ -166,6 +179,7 @@ class TestAuthSsoLoginUseCase:
         key_repository,
         user_repository,
         auth_sso_session_validator,
+        organization_authorization,
         default_command,
     ):
         # Arrange
@@ -191,6 +205,8 @@ class TestAuthSsoLoginUseCase:
         assert updated.organization_id == 5
         assert updated.name == "Custom Name"
         assert updated.claims == default_command.claims
+        organization_authorization.remove_organization_user.assert_awaited_once_with(organization_id=DEFAULT_ORGANIZATION_ID, user_id=1)
+        organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=5, user_id=1)
 
     @pytest.mark.asyncio
     async def test_should_update_email_when_session_email_changed_for_existing_user(
@@ -323,6 +339,7 @@ class TestAuthSsoLoginUseCase:
         key_repository,
         user_repository,
         auth_sso_session_validator,
+        organization_authorization,
         default_command,
     ):
         # Arrange
@@ -347,6 +364,7 @@ class TestAuthSsoLoginUseCase:
             iss=ISSUER_URL,
             claims={"name": "Test User"},
         )
+        organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=DEFAULT_ORGANIZATION_ID, user_id=7)
 
     @pytest.mark.asyncio
     async def test_should_return_role_not_found_error_when_default_role_does_not_exist(
@@ -377,6 +395,7 @@ class TestAuthSsoLoginUseCase:
         key_repository,
         user_repository,
         auth_sso_session_validator,
+        organization_authorization,
         default_command,
     ):
         # Arrange

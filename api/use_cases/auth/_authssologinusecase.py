@@ -6,7 +6,7 @@ from api.domain.auth import AuthSsoSessionValidator
 from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError, SsoProviderNotAvailableError
 from api.domain.key import KeyRepository
 from api.domain.key.entities import SYSTEM_PLAYGROUND_KEY_NAME, Key
-from api.domain.organization import OrganizationRepository
+from api.domain.organization import OrganizationAuthorization, OrganizationRepository
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role import RoleRepository
 from api.domain.role.errors import RoleNotFoundError
@@ -49,6 +49,7 @@ class AuthSsoLoginUseCase:
         user_repository: UserRepository,
         role_repository: RoleRepository,
         auth_sso_session_validator: AuthSsoSessionValidator,
+        organization_authorization: OrganizationAuthorization,
         auth_login_type: Literal["password", "oidc"],
         auth_sso_default_role_id: int,
         auth_sso_default_organization_id: int,
@@ -58,6 +59,7 @@ class AuthSsoLoginUseCase:
         self.user_repository = user_repository
         self.role_repository = role_repository
         self.auth_sso_session_validator = auth_sso_session_validator
+        self.organization_authorization = organization_authorization
 
         self.auth_login_type = auth_login_type
         self.auth_sso_default_role_id = auth_sso_default_role_id
@@ -133,7 +135,7 @@ class AuthSsoLoginUseCase:
                         )
                         match result:
                             case User() as user:
-                                pass
+                                await self.organization_authorization.add_organization_user(organization_id=user.organization_id, user_id=user.id)
                             case error:
                                 return error
 
@@ -146,6 +148,7 @@ class AuthSsoLoginUseCase:
             sub=command.sub,
             claims=command.claims,
         ):
+            previous_organization_id = user.organization_id
             user = user.model_copy(
                 update={
                     "email": email,
@@ -160,7 +163,9 @@ class AuthSsoLoginUseCase:
             result = await self.user_repository.update_user(user=user)
             match result:
                 case User() as user:
-                    pass
+                    if previous_organization_id != user.organization_id:
+                        await self.organization_authorization.remove_organization_user(organization_id=previous_organization_id, user_id=user.id)
+                        await self.organization_authorization.add_organization_user(organization_id=user.organization_id, user_id=user.id)
                 case error:
                     return error
 

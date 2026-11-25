@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pydantic import SecretStr
 
 from api.domain import UtcDatetime
+from api.domain.organization import OrganizationAuthorization
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role import RoleRepository
 from api.domain.role.entities import PermissionType
@@ -49,11 +50,13 @@ class UpdateUserUseCase:
         role_repository: RoleRepository,
         user_password_encoder: UserPasswordEncoder,
         user_authorization: UserAuthorization,
+        organization_authorization: OrganizationAuthorization,
     ):
         self.user_repository = user_repository
         self.role_repository = role_repository
         self.user_password_encoder = user_password_encoder
         self.user_authorization = user_authorization
+        self.organization_authorization = organization_authorization
 
     async def execute(self, command: UpdateUserCommand) -> UpdateUserUseCaseResult:
         is_authorized = await self.user_authorization.can_update_user(user_id=command.authenticated_user_id, target_user_id=command.user_id)
@@ -106,6 +109,9 @@ class UpdateUserUseCase:
                     await self.user_authorization.grant_platform_admin(user_id=user.id)
                 if was_admin and not is_admin:
                     await self.user_authorization.revoke_platform_admin(user_id=user.id)
+                if existing_user.organization_id != user.organization_id:
+                    await self.organization_authorization.remove_organization_user(organization_id=existing_user.organization_id, user_id=user.id)
+                    await self.organization_authorization.add_organization_user(organization_id=user.organization_id, user_id=user.id)
                 return UpdateUserUseCaseSuccess(user)
             case error:
                 return error

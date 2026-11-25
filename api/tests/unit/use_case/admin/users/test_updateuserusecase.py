@@ -4,6 +4,7 @@ from unittest.mock import create_autospec
 from pydantic import SecretStr
 import pytest
 
+from api.domain.organization import OrganizationAuthorization
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role import RoleRepository
 from api.domain.role.entities import PermissionType
@@ -42,12 +43,18 @@ def mock_user_authorization():
 
 
 @pytest.fixture
-def use_case(mock_user_repository, mock_role_repository, mock_user_password_encoder, mock_user_authorization):
+def mock_organization_authorization():
+    return create_autospec(OrganizationAuthorization, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def use_case(mock_user_repository, mock_role_repository, mock_user_password_encoder, mock_user_authorization, mock_organization_authorization):
     return UpdateUserUseCase(
         user_repository=mock_user_repository,
         role_repository=mock_role_repository,
         user_password_encoder=mock_user_password_encoder,
         user_authorization=mock_user_authorization,
+        organization_authorization=mock_organization_authorization,
     )
 
 
@@ -139,6 +146,38 @@ class TestUpdateUserUseCase:
         assert result.user.priority == 5
 
     @pytest.mark.asyncio
+    async def test_should_move_the_member_tuple_to_the_new_organization_when_the_organization_changes(
+        self, use_case, mock_user_repository, mock_organization_authorization, sample_user
+    ):
+        # Arrange
+        mock_user_repository.get_user_by_id.return_value = sample_user  # organization_id=7
+        mock_user_repository.update_user.side_effect = lambda user: user
+
+        # Act
+        result = await use_case.execute(full_command(sample_user, organization_id=8))
+
+        # Assert
+        assert isinstance(result, UpdateUserUseCaseSuccess)
+        mock_organization_authorization.remove_organization_user.assert_awaited_once_with(organization_id=7, user_id=sample_user.id)
+        mock_organization_authorization.add_organization_user.assert_awaited_once_with(organization_id=8, user_id=sample_user.id)
+
+    @pytest.mark.asyncio
+    async def test_should_keep_the_member_tuple_when_the_organization_does_not_change(
+        self, use_case, mock_user_repository, mock_organization_authorization, sample_user
+    ):
+        # Arrange
+        mock_user_repository.get_user_by_id.return_value = sample_user
+        mock_user_repository.update_user.side_effect = lambda user: user
+
+        # Act
+        result = await use_case.execute(full_command(sample_user, email="new@example.com"))
+
+        # Assert
+        assert isinstance(result, UpdateUserUseCaseSuccess)
+        mock_organization_authorization.remove_organization_user.assert_not_awaited()
+        mock_organization_authorization.add_organization_user.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_should_keep_current_password_when_no_new_password(self, use_case, mock_user_repository, mock_user_password_encoder, sample_user):
         # Arrange
         mock_user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": SecretStr("encoded-old")})
@@ -188,7 +227,7 @@ class TestUpdateUserUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_user_cannot_update_user_error_without_reading_when_the_user_is_not_allowed(
-        self, use_case, mock_user_repository, mock_user_authorization, sample_user
+        self, use_case, mock_user_repository, mock_user_authorization, mock_organization_authorization, sample_user
     ):
         # Arrange
         mock_user_authorization.can_update_user.return_value = False
@@ -202,6 +241,8 @@ class TestUpdateUserUseCase:
         mock_user_authorization.can_update_user.assert_awaited_once_with(user_id=1, target_user_id=sample_user.id)
         mock_user_repository.get_user_by_id.assert_not_awaited()
         mock_user_repository.update_user.assert_not_awaited()
+        mock_organization_authorization.add_organization_user.assert_not_awaited()
+        mock_organization_authorization.remove_organization_user.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_user_not_found_error_when_user_does_not_exist(self, use_case, mock_user_repository):

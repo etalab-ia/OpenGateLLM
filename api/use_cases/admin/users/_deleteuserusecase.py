@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from api.domain.organization import OrganizationAuthorization
 from api.domain.user import UserAuthorization, UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserCannotDeleteUserError, UserHasProvidersError, UserHasRoutersError, UserNotFoundError
@@ -20,9 +21,10 @@ type DeleteUserUseCaseResult = DeleteUserUseCaseSuccess | UserNotFoundError | Us
 
 
 class DeleteUserUseCase:
-    def __init__(self, user_repository: UserRepository, user_authorization: UserAuthorization):
+    def __init__(self, user_repository: UserRepository, user_authorization: UserAuthorization, organization_authorization: OrganizationAuthorization):
         self.user_repository = user_repository
         self.user_authorization = user_authorization
+        self.organization_authorization = organization_authorization
 
     async def execute(self, command: DeleteUserCommand) -> DeleteUserUseCaseResult:
         is_authorized = await self.user_authorization.can_delete_user(user_id=command.authenticated_user_id, target_user_id=command.user_id)
@@ -35,6 +37,7 @@ class DeleteUserUseCase:
         match result:
             case User() as user:
                 await self.user_authorization.revoke_platform_admin(user_id=user.id)
+                await self.organization_authorization.remove_organization_user(organization_id=user.organization_id, user_id=user.id)
                 return DeleteUserUseCaseSuccess(user=user)
             case UserHasRoutersError() as error:
                 return error
