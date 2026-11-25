@@ -7,6 +7,7 @@ from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
+from api.infrastructure.postgres._providermapping import row_to_provider
 from api.infrastructure.postgres.decorators import with_lock
 from api.infrastructure.postgres.models import Provider as ProviderTable
 
@@ -14,27 +15,6 @@ from api.infrastructure.postgres.models import Provider as ProviderTable
 class PostgresProviderRepository(ProviderRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
-
-    @staticmethod
-    def _row_to_provider(row) -> Provider:
-        return Provider(
-            router_id=row.router_id,
-            user_id=row.user_id,
-            type=row.type,
-            url=row.url,
-            key=row.key,
-            timeout=row.timeout,
-            qos_limit=row.qos_limit,
-            model_name=row.model_name,
-            model_hosting_zone=HostingZone[row.model_hosting_zone],
-            model_total_params=row.model_total_params,
-            model_active_params=row.model_active_params,
-            max_context_length=row.max_context_length,
-            vector_size=row.vector_size,
-            id=row.id,
-            created=row.created,
-            updated=row.updated,
-        )
 
     @with_lock(namespace="provider", key="provider.id")
     async def update_provider(self, provider: Provider) -> Provider | ProviderAlreadyExistsError:
@@ -54,7 +34,7 @@ class PostgresProviderRepository(ProviderRepository):
             )
             result = await self.postgres_session.execute(update_query)
             row = result.scalar_one()
-            return self._row_to_provider(row)
+            return row_to_provider(row)
         except IntegrityError as e:
             if "unique_provider_router_id_url_model_name" in str(e.orig):
                 return ProviderAlreadyExistsError(model_name=provider.model_name, url=provider.url, router_id=provider.router_id)
@@ -81,7 +61,7 @@ class PostgresProviderRepository(ProviderRepository):
         providers_query = select_query.add_columns(func.count().over().label("total")).order_by(sort_order_clause).limit(limit).offset(offset)
         rows, total = await fetch_page_with_total(self.postgres_session, providers_query, count_query)
 
-        return ProviderPage(total=total, data=[self._row_to_provider(row[0]) for row in rows])
+        return ProviderPage(total=total, data=[row_to_provider(row[0]) for row in rows])
 
     async def get_one_provider(self, provider_id: int) -> Provider | ProviderNotFoundError:
         select_query = select(ProviderTable).where(ProviderTable.id == provider_id)
@@ -90,7 +70,7 @@ class PostgresProviderRepository(ProviderRepository):
         row = result.scalar_one_or_none()
         if row is None:
             return ProviderNotFoundError(id=provider_id)
-        return self._row_to_provider(row)
+        return row_to_provider(row)
 
     @with_lock(namespace="provider", key="router_id")
     async def create_provider(
@@ -131,7 +111,7 @@ class PostgresProviderRepository(ProviderRepository):
             )
             result = await self.postgres_session.execute(query)
             row = result.scalar_one()
-            return self._row_to_provider(row)
+            return row_to_provider(row)
         except IntegrityError as e:
             if "unique_provider_router_id_url_model_name" in str(e.orig):
                 return ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id)
@@ -144,12 +124,7 @@ class PostgresProviderRepository(ProviderRepository):
         if row is None:
             return ProviderNotFoundError(id=provider_id)
 
-        return self._row_to_provider(row)
-
-    async def get_all_providers(self) -> list[Provider]:
-        select_query = select(ProviderTable)
-        rows = (await self.postgres_session.execute(select_query)).scalars().all()
-        return [self._row_to_provider(row) for row in rows]
+        return row_to_provider(row)
 
     async def get_provider_ids_by_user_id(self, user_id: int) -> list[int]:
         result = await self.postgres_session.execute(statement=select(ProviderTable.id).where(ProviderTable.user_id == user_id))
@@ -158,4 +133,4 @@ class PostgresProviderRepository(ProviderRepository):
     async def get_all_providers_of_router(self, router_id: int) -> list[Provider]:
         select_query = select(ProviderTable).where(ProviderTable.router_id == router_id)
         rows = (await self.postgres_session.execute(select_query)).scalars().all()
-        return [self._row_to_provider(row) for row in rows]
+        return [row_to_provider(row) for row in rows]

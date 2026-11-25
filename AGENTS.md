@@ -502,7 +502,7 @@ Two session factories. Choose **in the use-case factory** in `api/dependencies.p
 | `get_postgres_session`            | transactional `AsyncSession` | Admin CRUD, auth login/SSO, bootstrap, anything with `@with_lock` or multi-statement atomicity |
 | `get_autocommit_postgres_session` | `AutocommitSession`          | Use cases that call AI models (provider forward / inference)                                   |
 
-**Why:** a transactional session stays checked out and `idle in transaction` for the whole request. Inference can take minutes and pin a pool connection. `AutocommitSession` commits after each `execute` / `scalar` / `get`, so the connection returns to the pool **before** the provider call. Everything wired to it is a read — the router and provider lookups, and the `AccessController` key and user lookups. Writes and multi-statement work take the transactional factory.
+**Why:** a transactional session stays checked out and `idle in transaction` for the whole request. Inference can take minutes and pin a pool connection. `AutocommitSession` commits after each `execute` / `scalar` / `get`, so the connection returns to the pool **before** the provider call. Everything wired to it is a read — the router lookup (which loads the router's providers), and the `AccessController` key and user lookups. Writes and multi-statement work take the transactional factory.
 
 Autocommit wiring:
 
@@ -515,7 +515,6 @@ def create_embeddings_use_case_factory(
     ...
 ) -> CreateEmbeddingsUseCase:
     return CreateEmbeddingsUseCase(
-        provider_repository=_provider_repository(postgres_session),
         router_repository=_router_repository(postgres_session),
         ...
     )

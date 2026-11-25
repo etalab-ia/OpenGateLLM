@@ -3,7 +3,7 @@ from unittest.mock import create_autospec
 import pytest
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
-from api.domain.provider import ProviderConcurrencyLimiter, ProviderLimitsCannotBeEnforced, ProviderRepository
+from api.domain.provider import ProviderConcurrencyLimiter, ProviderLimitsCannotBeEnforced
 from api.domain.provider.entities import ProviderLoads
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRepository
@@ -29,16 +29,10 @@ def mock_router_repository():
 
 
 @pytest.fixture
-def mock_provider_repository():
-    return create_autospec(ProviderRepository, instance=True, spec_set=True)
-
-
-@pytest.fixture
-def use_case(mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, mock_provider_repository):
+def use_case(mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository):
     return GetHealthModelsUseCase(
         provider_liveness_probe=mock_provider_liveness_probe,
         provider_concurrency_limiter=mock_provider_concurrency_limiter,
-        provider_repository=mock_provider_repository,
         router_repository=mock_router_repository,
     )
 
@@ -52,12 +46,11 @@ def command():
 class TestGetHealthModelsUseCase:
     @pytest.mark.asyncio
     async def test_should_compute_each_provider_status_from_its_liveness_and_load(
-        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, mock_provider_repository, command
+        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, command
     ):
         # Arrange
         provider = ProviderFactory(id=1, router_id=1, qos_limit=20)
-        mock_router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        mock_provider_repository.get_all_providers.return_value = [provider]
+        mock_router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=[provider])]
         mock_provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 19})
 
         # Act
@@ -70,13 +63,18 @@ class TestGetHealthModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_the_best_provider_status_when_a_model_has_several_providers(
-        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, mock_provider_repository, command
+        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, command
     ):
         # Arrange
-        mock_router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=2)]
-        mock_provider_repository.get_all_providers.return_value = [
-            ProviderFactory(id=1, router_id=1, qos_limit=20),
-            ProviderFactory(id=2, router_id=1, qos_limit=20),
+        mock_router_repository.get_all_routers.return_value = [
+            RouterFactory(
+                id=1,
+                name="gpt-4",
+                providers=[
+                    ProviderFactory(id=1, router_id=1, qos_limit=20),
+                    ProviderFactory(id=2, router_id=1, qos_limit=20),
+                ],
+            )
         ]
         mock_provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 0, 2: 0})
         mock_provider_liveness_probe.is_live.side_effect = [False, True]
@@ -89,11 +87,10 @@ class TestGetHealthModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_red_when_the_only_provider_is_not_live(
-        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, mock_provider_repository, command
+        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, command
     ):
         # Arrange
-        mock_router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        mock_provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1)]
+        mock_router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=[ProviderFactory(id=1, router_id=1)])]
         mock_provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 0})
         mock_provider_liveness_probe.is_live.return_value = False
 
@@ -104,12 +101,11 @@ class TestGetHealthModelsUseCase:
         assert result.models == [ModelHealthStatus(id="gpt-4", status=HealthStatus.RED)]
 
     @pytest.mark.asyncio
-    async def test_should_ignore_the_load_when_it_cannot_be_read(
-        self, use_case, mock_provider_concurrency_limiter, mock_router_repository, mock_provider_repository, command
-    ):
+    async def test_should_ignore_the_load_when_it_cannot_be_read(self, use_case, mock_provider_concurrency_limiter, mock_router_repository, command):
         # Arrange
-        mock_router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        mock_provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1, qos_limit=20)]
+        mock_router_repository.get_all_routers.return_value = [
+            RouterFactory(id=1, name="gpt-4", providers=[ProviderFactory(id=1, router_id=1, qos_limit=20)])
+        ]
         mock_provider_concurrency_limiter.read_loads.return_value = ProviderLimitsCannotBeEnforced()
 
         # Act
@@ -120,16 +116,15 @@ class TestGetHealthModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_should_skip_the_routers_without_providers_and_the_routers_the_user_cannot_access(
-        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, mock_provider_repository, command
+        self, use_case, mock_provider_liveness_probe, mock_provider_concurrency_limiter, mock_router_repository, command
     ):
         # Arrange
         accessible_provider = ProviderFactory(id=1, router_id=1)
         mock_router_repository.get_all_routers.return_value = [
-            RouterFactory(id=1, name="accessible", providers=1),
-            RouterFactory(id=2, name="forbidden", providers=1),
-            RouterFactory(id=3, name="no-providers", providers=0),
+            RouterFactory(id=1, name="accessible", providers=[accessible_provider]),
+            RouterFactory(id=2, name="forbidden", providers=[ProviderFactory(id=2, router_id=2)]),
+            RouterFactory(id=3, name="no-providers", providers=[]),
         ]
-        mock_provider_repository.get_all_providers.return_value = [accessible_provider, ProviderFactory(id=2, router_id=2)]
         mock_provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={1: 0, 2: 0})
 
         # Act

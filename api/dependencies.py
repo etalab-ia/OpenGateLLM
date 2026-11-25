@@ -259,7 +259,6 @@ def create_audio_transcriptions_use_case_factory(
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
-        provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
@@ -285,7 +284,6 @@ def create_chat_completions_use_case_factory(
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
-        provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
@@ -338,7 +336,6 @@ def get_health_models_use_case_factory(
         provider_liveness_probe=provider_liveness_probe,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
         router_repository=_router_repository(postgres_session),
-        provider_repository=_provider_repository(postgres_session),
     )
 
 
@@ -358,7 +355,6 @@ def create_embeddings_use_case_factory(
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
-        provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
@@ -451,7 +447,6 @@ def create_ocr_use_case_factory(
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
-        provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,
@@ -572,7 +567,6 @@ def create_rerank_use_case_factory(
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
         provider_concurrency_limiter=_provider_concurrency_limiter(redis_client),
-        provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=router_rate_limiter,
         router_repository=_router_repository(postgres_session),
         usage_context=usage_context,

@@ -13,7 +13,6 @@ from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
     ProviderLimitsCannotBeEnforced,
-    ProviderRepository,
     ProviderReservation,
     ProviderReservationRefused,
     ProviderReservationResult,
@@ -82,7 +81,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         model_tokenizer: ModelTokenizer,
         provider_client: ProviderClient,
         provider_concurrency_limiter: ProviderConcurrencyLimiter,
-        provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_context: UsageContext,
@@ -93,7 +91,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self.model_tokenizer = model_tokenizer
         self.provider_client = provider_client
         self.provider_concurrency_limiter = provider_concurrency_limiter
-        self.provider_repository = provider_repository
 
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
@@ -216,12 +213,10 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         | UnsupportedProviderEndpointError
         | NoAvailableProviderError
     ):
-        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=payload)
 
         result = await self._reserve_provider(
-            providers=providers,
-            retries_before_reject=router.qos_retries_before_reject,
+            router=router,
             request_id=request_id,
         )
         match result:
@@ -261,25 +256,21 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
     async def _reserve_provider(
         self,
-        providers: list[Provider],
-        retries_before_reject: int | None,
+        router: Router,
         request_id: str,
     ) -> ProviderReservationResult:
-        open_providers = [provider for provider in providers if not provider.is_closed]
-        if not open_providers:
+        if not router.open_providers:
             return ProviderReservationRefused()
 
-        remaining_retries = retries_before_reject or 0
+        remaining_retries = router.qos_retries_before_reject or 0
 
         while True:
-            result = await self._reserve_first_available_provider(
-                providers=open_providers, enforce_limit=retries_before_reject is not None, request_id=request_id
-            )
+            result = await self._reserve_first_available_provider(router=router, request_id=request_id)
             match result:
                 case ProviderReservation():
                     return result
                 case ProviderLimitsCannotBeEnforced():
-                    return ProviderReservation(provider=self.random_generator.choice(open_providers), request_id=request_id)
+                    return ProviderReservation(provider=self.random_generator.choice(router.open_providers), request_id=request_id)
                 case ProviderReservationRefused() if remaining_retries == 0:
                     return result
                 case ProviderReservationRefused():
@@ -291,11 +282,10 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
     async def _reserve_first_available_provider(
         self,
-        providers: list[Provider],
-        enforce_limit: bool,
+        router: Router,
         request_id: str,
     ) -> ProviderReservation | ProviderReservationRefused | ProviderLimitsCannotBeEnforced:
-        result = await self._order_providers(providers=providers)
+        result = await self._order_providers(router=router)
         match result:
             case list(ordered_providers):
                 pass
@@ -306,7 +296,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             if provider.qos_limit is None:
                 return ProviderReservation(provider=provider, request_id=request_id)
 
-            limit = provider.qos_limit if enforce_limit else None
+            limit = provider.qos_limit if router.enforces_limits else None
             result = await self.provider_concurrency_limiter.reserve(request_id=request_id, provider=provider, limit=limit)
             match result:
                 case ProviderReservationRefused():
@@ -316,8 +306,9 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
 
         return ProviderReservationRefused()
 
-    async def _order_providers(self, providers: list[Provider]) -> list[Provider] | ProviderLimitsCannotBeEnforced:
-        if any(provider.qos_limit is None for provider in providers):
+    async def _order_providers(self, router: Router) -> list[Provider] | ProviderLimitsCannotBeEnforced:
+        providers = router.open_providers
+        if not router.is_ranked_by_load_rate:
             return self.random_generator.sample(providers, k=len(providers))
 
         result = await self.provider_concurrency_limiter.read_loads(providers=providers)

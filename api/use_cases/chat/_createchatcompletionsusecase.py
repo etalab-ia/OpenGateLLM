@@ -70,12 +70,10 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         request_id = self.usage_context.get_request_id()
 
         if command.stream:
-            providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
             request = ProviderRequest(id=request_id, endpoint=self.ENDPOINT, payload=command.payload)
 
             result = await self._reserve_provider(
-                providers=providers,
-                retries_before_reject=router.qos_retries_before_reject,
+                router=router,
                 request_id=request_id,
             )
             match result:

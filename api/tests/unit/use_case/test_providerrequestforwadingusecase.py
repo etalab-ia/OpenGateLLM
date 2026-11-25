@@ -12,7 +12,6 @@ from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
     ProviderLimitsCannotBeEnforced,
-    ProviderRepository,
     ProviderReservation,
     ProviderReservationRefused,
 )
@@ -89,11 +88,6 @@ def provider_concurrency_limiter():
 
 
 @pytest.fixture
-def provider_repository():
-    return create_autospec(ProviderRepository, instance=True, spec_set=True)
-
-
-@pytest.fixture
 def router_rate_limiter():
     return create_autospec(RouterRateLimiter, instance=True, spec_set=True)
 
@@ -126,12 +120,12 @@ def mock_random_generator():
 
 
 @pytest.fixture
-def router():
+def router(provider):
     return RouterFactory(
         id=1,
         name="test-router",
         type=RouterType.TEXT_GENERATION,
-        providers=1,
+        providers=[provider],
         cost_prompt_tokens=2.0,
         cost_completion_tokens=4.0,
     )
@@ -175,7 +169,6 @@ def use_case(
     model_tokenizer,
     provider_client,
     provider_concurrency_limiter,
-    provider_repository,
     router_rate_limiter,
     router_repository,
     mock_usage_context,
@@ -187,7 +180,6 @@ def use_case(
         model_tokenizer=model_tokenizer,
         provider_client=provider_client,
         provider_concurrency_limiter=provider_concurrency_limiter,
-        provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
         usage_context=mock_usage_context,
@@ -213,7 +205,7 @@ class TestGetUsableRouter:
     @pytest.mark.asyncio
     async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(self, use_case, admin_user):
         # Arrange
-        router = RouterFactory(id=1, name="test-router", type=RouterType.TEXT_GENERATION, providers=0)
+        router = RouterFactory(id=1, name="test-router", type=RouterType.TEXT_GENERATION, providers=[])
         use_case.router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
@@ -227,7 +219,7 @@ class TestGetUsableRouter:
     @pytest.mark.asyncio
     async def test_should_return_router_has_wrong_type_error_when_router_type_does_not_match(self, use_case, admin_user):
         # Arrange
-        router = RouterFactory(id=1, name="test-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=1)
+        router = RouterFactory(id=1, name="test-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=[ProviderFactory()])
         use_case.router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
@@ -339,7 +331,6 @@ class TestGetRemainingRateLimits:
 class TestForwardRequestToProvider:
     @pytest.fixture(autouse=True)
     def configure_provider_flow(self, use_case, provider, sample_data):
-        use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
         use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={provider.id: 0})
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider, request_id=REQUEST_ID)
         use_case.provider_client.forward.return_value = ProviderResponse(data=sample_data)
@@ -423,7 +414,7 @@ class TestForwardRequestToProvider:
         # Arrange
         router.qos_retries_before_reject = 2
         provider_with_limit = provider.with_qos_limit(2)
-        use_case.provider_repository.get_all_providers_of_router.return_value = [provider_with_limit]
+        router.providers = [provider_with_limit]
         use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={provider_with_limit.id: 2})
         use_case.provider_concurrency_limiter.reserve.side_effect = [
             ProviderReservationRefused(),
@@ -486,7 +477,6 @@ class TestForwardRequestToProvider:
             cost=0.000006,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
-        use_case.provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=router.id)
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
         use_case.provider_concurrency_limiter.reserve.assert_awaited_once_with(request_id=forwarded_request.id, provider=provider, limit=None)
         use_case.provider_concurrency_limiter.release.assert_awaited_once_with(
@@ -660,9 +650,7 @@ class TestReserveProvider:
 
         # Act
         result = await use_case._reserve_provider(
-            providers=[available_provider, full_provider],
-            retries_before_reject=None,
-            request_id=REQUEST_ID,
+            router=RouterFactory(providers=[available_provider, full_provider], qos_retries_before_reject=None), request_id=REQUEST_ID
         )
 
         # Assert
@@ -682,9 +670,7 @@ class TestReserveProvider:
 
         # Act
         await use_case._reserve_provider(
-            providers=[closed_provider, open_provider],
-            retries_before_reject=None,
-            request_id=REQUEST_ID,
+            router=RouterFactory(providers=[closed_provider, open_provider], qos_retries_before_reject=None), request_id=REQUEST_ID
         )
 
         # Assert
@@ -698,7 +684,7 @@ class TestReserveProvider:
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider_with_limit, request_id=REQUEST_ID)
 
         # Act
-        await use_case._reserve_provider(providers=[provider_with_limit], retries_before_reject=None, request_id=REQUEST_ID)
+        await use_case._reserve_provider(router=RouterFactory(providers=[provider_with_limit], qos_retries_before_reject=None), request_id=REQUEST_ID)
 
         # Assert
         use_case.provider_concurrency_limiter.reserve.assert_awaited_once_with(request_id=REQUEST_ID, provider=provider_with_limit, limit=None)
@@ -712,7 +698,9 @@ class TestReserveProvider:
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=idle_provider, request_id=REQUEST_ID)
 
         # Act
-        await use_case._reserve_provider(providers=[idle_provider, busy_provider], retries_before_reject=None, request_id=REQUEST_ID)
+        await use_case._reserve_provider(
+            router=RouterFactory(providers=[idle_provider, busy_provider], qos_retries_before_reject=None), request_id=REQUEST_ID
+        )
 
         # Assert
         use_case.provider_concurrency_limiter.read_loads.assert_awaited_once_with(providers=[idle_provider, busy_provider])
@@ -727,7 +715,9 @@ class TestReserveProvider:
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderReservation(provider=provider_with_limit, request_id=REQUEST_ID)
 
         # Act
-        await use_case._reserve_provider(providers=[provider_without_limit, provider_with_limit], retries_before_reject=None, request_id=REQUEST_ID)
+        await use_case._reserve_provider(
+            router=RouterFactory(providers=[provider_without_limit, provider_with_limit], qos_retries_before_reject=None), request_id=REQUEST_ID
+        )
 
         # Assert
         use_case.random_generator.sample.assert_called_once_with([provider_without_limit, provider_with_limit], k=2)
@@ -740,7 +730,9 @@ class TestReserveProvider:
         provider_without_limit = ProviderFactory(id=1, qos_limit=None)
 
         # Act
-        result = await use_case._reserve_provider(providers=[provider_without_limit], retries_before_reject=3, request_id=REQUEST_ID)
+        result = await use_case._reserve_provider(
+            router=RouterFactory(providers=[provider_without_limit], qos_retries_before_reject=3), request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == ProviderReservation(provider=provider_without_limit, request_id=REQUEST_ID)
@@ -755,7 +747,9 @@ class TestReserveProvider:
         use_case.provider_concurrency_limiter.reserve.return_value = ProviderLimitsCannotBeEnforced()
 
         # Act
-        result = await use_case._reserve_provider(providers=[closed_provider, open_provider], retries_before_reject=3, request_id=REQUEST_ID)
+        result = await use_case._reserve_provider(
+            router=RouterFactory(providers=[closed_provider, open_provider], qos_retries_before_reject=3), request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == ProviderReservation(provider=open_provider, request_id=REQUEST_ID)
@@ -769,7 +763,9 @@ class TestReserveProvider:
         use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLimitsCannotBeEnforced()
 
         # Act
-        result = await use_case._reserve_provider(providers=[open_provider], retries_before_reject=None, request_id=REQUEST_ID)
+        result = await use_case._reserve_provider(
+            router=RouterFactory(providers=[open_provider], qos_retries_before_reject=None), request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == ProviderReservation(provider=open_provider, request_id=REQUEST_ID)
@@ -781,7 +777,9 @@ class TestReserveProvider:
         closed_provider = ProviderFactory(id=1, qos_limit=0)
 
         # Act
-        result = await use_case._reserve_provider(providers=[closed_provider], retries_before_reject=3, request_id=REQUEST_ID)
+        result = await use_case._reserve_provider(
+            router=RouterFactory(providers=[closed_provider], qos_retries_before_reject=3), request_id=REQUEST_ID
+        )
 
         # Assert
         assert result == ProviderReservationRefused()

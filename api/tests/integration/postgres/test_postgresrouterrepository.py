@@ -10,7 +10,7 @@ from api.infrastructure.postgres import PostgresRouterRepository
 from api.infrastructure.postgres.models import Provider as ProviderTable
 from api.infrastructure.postgres.models import Router as RouterTable
 from api.infrastructure.postgres.models import RouterAlias as RouterAliasTable
-from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 
 
 def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
@@ -23,7 +23,7 @@ def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
         qos_retries_before_reject=router_sql.qos_retries_before_reject,
         cost_prompt_tokens=router_sql.cost_prompt_tokens or 0.0,
         cost_completion_tokens=router_sql.cost_completion_tokens or 0.0,
-        providers=0,
+        providers=[],
         created=int(router_sql.created.timestamp()),
         updated=int(router_sql.updated.timestamp()),
     )
@@ -36,57 +36,41 @@ def repository(db_session):
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetAllRouters:
-    async def test_get_all_routers_should_return_all_routers(self, repository, db_session):
+    async def test_should_return_every_router_with_its_own_aliases_and_providers(self, repository, db_session):
         # Arrange
-        user_1 = UserSQLFactory()
-        user_2 = UserSQLFactory()
-
         router_1 = RouterSQLFactory(
-            user=user_1,
             name="router_1",
             type=RouterType.TEXT_GENERATION,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
-            providers=2,
             alias=["alias1", "alias2"],
         )
-        router_2 = RouterSQLFactory(
-            user=user_1,
-            name="router_2",
-            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
-            cost_prompt_tokens=0.0,
-            cost_completion_tokens=0.0,
-            providers=1,
-            alias=["alias3", "alias4"],
-        )
-        router_3 = RouterSQLFactory(
-            user=user_2,
-            name="router_3",
-            type=RouterType.TEXT_CLASSIFICATION,
-            cost_prompt_tokens=0.0,
-            cost_completion_tokens=0.0,
-            providers=1,
-        )
+        provider_1 = ProviderSQLFactory(router=router_1, model_name="model_1", qos_limit=10, key="secret")
+        provider_2 = ProviderSQLFactory(router=router_1, model_name="model_2", qos_limit=None)
+        router_2 = RouterSQLFactory(name="router_2", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, alias=["alias3", "alias4"])
+        provider_3 = ProviderSQLFactory(router=router_2, model_name="model_3")
+        router_3 = RouterSQLFactory(name="router_3", type=RouterType.TEXT_CLASSIFICATION)
+        await db_session.flush()
 
         # Act
-        await db_session.flush()
-        result_routers = await repository.get_all_routers()
+        result = await repository.get_all_routers()
 
         # Assert
-        assert len(result_routers) == 3
-        router_names = {r.name for r in result_routers}
-        assert router_names == {router_1.name, router_2.name, router_3.name}
-        result_router_1 = next(r for r in result_routers if r.name == router_1.name)
-        result_router_2 = next(r for r in result_routers if r.name == router_2.name)
-        assert result_router_1.type == RouterType.TEXT_GENERATION
-        assert result_router_1.providers == 2
-        assert result_router_1.cost_prompt_tokens == 0.001
-        assert result_router_1.cost_completion_tokens == 0.002
-        assert result_router_1.aliases == ["alias1", "alias2"]
+        assert [router.id for router in result] == [router_1.id, router_2.id, router_3.id]
+        assert [router.name for router in result] == ["router_1", "router_2", "router_3"]
+        assert [router.type for router in result] == [
+            RouterType.TEXT_GENERATION,
+            RouterType.TEXT_EMBEDDINGS_INFERENCE,
+            RouterType.TEXT_CLASSIFICATION,
+        ]
+        assert [router.aliases for router in result] == [["alias1", "alias2"], ["alias3", "alias4"], []]
+        assert [[provider.id for provider in router.providers] for router in result] == [[provider_1.id, provider_2.id], [provider_3.id], []]
 
-        assert result_router_2.type == RouterType.TEXT_EMBEDDINGS_INFERENCE
-        assert result_router_2.providers == 1
-        assert result_router_2.aliases == ["alias3", "alias4"]
+        assert result[0].cost_prompt_tokens == 0.001
+        assert result[0].cost_completion_tokens == 0.002
+        assert result[0].providers[0].qos_limit == 10
+        assert result[0].providers[0].key == "secret"
+        assert result[0].providers[1].qos_limit is None
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -115,7 +99,7 @@ class TestCreateRouter:
         assert result.cost_completion_tokens == 0.002
         assert result.user_id == user.id
         assert result.aliases == []
-        assert result.providers == 0
+        assert result.providers == []
         assert result.id is not None
         assert result.created is not None
         assert result.updated is not None
@@ -208,12 +192,11 @@ class TestCreateRouter:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetRoutersPage:
-    async def test_returns_correct_page_with_limit_and_offset(self, repository, db_session):
+    async def test_should_return_the_requested_page_when_routers_have_several_providers(self, repository, db_session):
         # Arrange
-        user = UserSQLFactory()
-        RouterSQLFactory(user=user, name="router_a")
-        RouterSQLFactory(user=user, name="router_b")
-        RouterSQLFactory(user=user, name="router_c")
+        RouterSQLFactory(name="router_a", providers=2)
+        RouterSQLFactory(name="router_b", providers=2)
+        RouterSQLFactory(name="router_c", providers=2)
         await db_session.flush()
 
         # Act
@@ -221,9 +204,7 @@ class TestGetRoutersPage:
 
         # Assert
         assert result.total == 3
-        assert len(result.data) == 2
-        assert result.data[0].name == "router_a"
-        assert result.data[1].name == "router_b"
+        assert [router.name for router in result.data] == ["router_a", "router_b"]
 
     async def test_total_is_consistent_across_pages(self, repository, db_session):
         # Arrange
@@ -322,16 +303,17 @@ class TestGetRoutersPage:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetRouterById:
-    async def test_get_router_by_id_should_return_router_when_it_exists(self, repository, db_session):
+    async def test_should_return_the_router_with_its_aliases_and_providers_when_it_exists(self, repository, db_session):
         # Arrange
         router = RouterSQLFactory(
             name="router_by_id",
             type=RouterType.TEXT_GENERATION,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
-            providers=2,
             alias=["alias1", "alias2"],
         )
+        provider_1 = ProviderSQLFactory(router=router, model_name="model_1")
+        provider_2 = ProviderSQLFactory(router=router, model_name="model_2")
         await db_session.flush()
 
         # Act
@@ -344,8 +326,8 @@ class TestGetRouterById:
         assert result.type == RouterType.TEXT_GENERATION
         assert result.cost_prompt_tokens == 0.001
         assert result.cost_completion_tokens == 0.002
-        assert result.providers == 2
         assert result.aliases == ["alias1", "alias2"]
+        assert [provider.id for provider in result.providers] == [provider_1.id, provider_2.id]
 
     async def test_get_router_by_id_should_return_router_not_found_when_router_does_not_exist(self, repository, db_session):
         # Act
@@ -378,9 +360,10 @@ class TestGetRouterByNameOrAlias:
             type=RouterType.TEXT_GENERATION,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
-            providers=2,
             alias=["alias1", "alias2"],
         )
+        provider_1 = ProviderSQLFactory(router=router, model_name="model_1")
+        provider_2 = ProviderSQLFactory(router=router, model_name="model_2")
         await db_session.flush()
 
         # Act
@@ -393,12 +376,15 @@ class TestGetRouterByNameOrAlias:
         assert result.type == RouterType.TEXT_GENERATION
         assert result.cost_prompt_tokens == 0.001
         assert result.cost_completion_tokens == 0.002
-        assert result.providers == 2
+        assert [provider.id for provider in result.providers] == [provider_1.id, provider_2.id]
         assert result.aliases == ["alias1", "alias2"]
 
-    async def test_get_router_by_name_or_alias_should_return_router_when_lookup_by_alias(self, repository, db_session):
+    async def test_should_return_the_router_with_its_aliases_and_providers_when_looked_up_by_alias(self, repository, db_session):
         # Arrange
         router = RouterSQLFactory(name="router_by_alias", alias=["lookup_alias", "other_alias"])
+        provider_1 = ProviderSQLFactory(router=router, model_name="model_1")
+        provider_2 = ProviderSQLFactory(router=router, model_name="model_2")
+        RouterSQLFactory(name="other-router", providers=1)
         await db_session.flush()
 
         # Act
@@ -409,6 +395,7 @@ class TestGetRouterByNameOrAlias:
         assert result.id == router.id
         assert result.name == "router_by_alias"
         assert result.aliases == ["lookup_alias", "other_alias"]
+        assert [provider.id for provider in result.providers] == [provider_1.id, provider_2.id]
 
     async def test_get_router_by_name_or_alias_should_return_router_not_found_when_name_or_alias_does_not_exist(self, repository, db_session):
         # Act
@@ -478,25 +465,22 @@ class TestDeleteRouter:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestDeleteAllRouters:
-    async def test_delete_all_routers_should_return_the_deleted_routers(self, repository, db_session):
+    async def test_should_return_the_deleted_routers_with_their_aliases_and_providers(self, repository, db_session):
         # Arrange
-        user = UserSQLFactory()
-        router_1 = RouterSQLFactory(user=user, name="router_1", alias=["alias1"], providers=1)
-        router_2 = RouterSQLFactory(user=user, name="router_2", alias=["alias2"], providers=2)
+        router_1 = RouterSQLFactory(name="router_1", alias=["alias1"])
+        provider_1 = ProviderSQLFactory(router=router_1, model_name="model_1")
+        router_2 = RouterSQLFactory(name="router_2", alias=["alias2"])
+        provider_2 = ProviderSQLFactory(router=router_2, model_name="model_2")
+        provider_3 = ProviderSQLFactory(router=router_2, model_name="model_3")
         await db_session.flush()
 
         # Act
         result = await repository.delete_all_routers()
 
         # Assert
-        assert len(result) == 2
-        result_by_name = {router.name: router for router in result}
-        assert result_by_name["router_1"].id == router_1.id
-        assert result_by_name["router_1"].aliases == ["alias1"]
-        assert result_by_name["router_1"].providers == 1
-        assert result_by_name["router_2"].id == router_2.id
-        assert result_by_name["router_2"].aliases == ["alias2"]
-        assert result_by_name["router_2"].providers == 2
+        assert [router.id for router in result] == [router_1.id, router_2.id]
+        assert [router.aliases for router in result] == [["alias1"], ["alias2"]]
+        assert [[provider.id for provider in router.providers] for router in result] == [[provider_1.id], [provider_2.id, provider_3.id]]
 
     async def test_delete_all_routers_should_delete_cascade_router_aliases_and_providers_from_database(self, repository, db_session):
         # Arrange

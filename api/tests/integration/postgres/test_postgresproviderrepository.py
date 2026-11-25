@@ -118,54 +118,6 @@ class TestGetOneProvider:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestGetAllProviders:
-    async def test_get_all_providers_should_return_all_providers(self, repository, db_session):
-        # Arrange
-        user_1 = UserSQLFactory()
-        user_2 = UserSQLFactory()
-
-        router_1 = RouterSQLFactory(user=user_1, name="router_1")
-        router_2 = RouterSQLFactory(user=user_1, name="router_2")
-        RouterSQLFactory(user=user_2, name="router_3_no_providers")
-
-        provider_1 = ProviderSQLFactory(router=router_1, model_name="provider_r1_a", url="https://r1-a.example.com")
-        provider_2 = ProviderSQLFactory(router=router_1, model_name="provider_r1_b", url="https://r1-b.example.com")
-        provider_3 = ProviderSQLFactory(router=router_2, model_name="provider_r2_a", url="https://r2-a.example.com")
-
-        await db_session.flush()
-
-        # Act
-        result = await repository.get_all_providers()
-
-        # Assert
-        assert len(result) == 3
-        model_names = {p.model_name for p in result}
-        assert model_names == {provider_1.model_name, provider_2.model_name, provider_3.model_name}
-
-        r1_providers = [p for p in result if p.router_id == router_1.id]
-        assert len(r1_providers) == 2
-
-        r1_first = next(p for p in result if p.id == provider_1.id)
-        assert r1_first.type.value == provider_1.type.value
-        assert r1_first.url == provider_1.url
-        assert r1_first.router_id == router_1.id
-        assert r1_first.user_id == user_1.id
-        assert r1_first.max_context_length == provider_1.max_context_length
-        assert r1_first.vector_size == provider_1.vector_size
-
-    async def test_get_all_providers_should_return_empty_list_when_no_providers(self, repository, db_session):
-        # Arrange
-        RouterSQLFactory()
-        await db_session.flush()
-
-        # Act
-        result = await repository.get_all_providers()
-
-        # Assert
-        assert result == []
-
-
-@pytest.mark.asyncio(loop_scope="session")
 class TestGetAllProvidersOfRouter:
     async def test_get_all_providers_of_router_should_return_only_providers_for_that_router(self, repository, db_session):
         # Arrange

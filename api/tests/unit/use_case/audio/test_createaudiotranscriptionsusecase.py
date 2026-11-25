@@ -13,7 +13,7 @@ from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.provider.entities import ProviderEndpoint, ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.usage import UsageContext, UsageRepository
-from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, KeyFactory, ProviderFactory, RouterFactory
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
     CreateAudioTranscriptionsJsonUseCaseSuccess,
@@ -49,7 +49,7 @@ def router():
         id=1,
         name="audio-router",
         type=RouterType.AUTOMATIC_SPEECH_RECOGNITION,
-        providers=1,
+        providers=[ProviderFactory()],
     )
 
 
@@ -99,7 +99,6 @@ def use_case(model_tokenizer, mock_usage_context, mock_usage_repository) -> Crea
         model_tokenizer=model_tokenizer,
         provider_client=AsyncMock(),
         provider_concurrency_limiter=AsyncMock(),
-        provider_repository=AsyncMock(),
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
         usage_context=mock_usage_context,

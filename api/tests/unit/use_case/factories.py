@@ -65,7 +65,7 @@ class RouterFactory(factory.Factory):
     qos_retries_before_reject = None
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
-    providers = 0
+    providers = factory.LazyFunction(list)
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
     updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
@@ -78,8 +78,6 @@ class RouterFactory(factory.Factory):
         )
 
         embedding = factory.Trait(type=RouterType.TEXT_EMBEDDINGS_INFERENCE)
-
-        with_providers = factory.Trait(providers=factory.Faker("random_int", min=1, max=5))
 
 
 class ProviderFactory(factory.Factory):

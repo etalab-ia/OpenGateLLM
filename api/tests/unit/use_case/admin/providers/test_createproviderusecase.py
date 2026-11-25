@@ -53,7 +53,7 @@ def sample_router():
         id=1,
         name="test-router",
         type=RouterType.TEXT_GENERATION,
-        providers=0,
+        providers=[],
     )
 
 
@@ -63,7 +63,7 @@ def sample_router_with_providers():
         id=1,
         name="test-router",
         type=RouterType.TEXT_GENERATION,
-        providers=2,
+        providers=[ProviderFactory()],
     )
 
 
@@ -73,7 +73,7 @@ def sample_embedding_router_with_providers():
         id=1,
         name="embedding-router",
         type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
-        providers=1,
+        providers=[ProviderFactory()],
     )
 
 
@@ -289,7 +289,7 @@ class TestCreateProviderUseCase:
         # Arrange
         capabilities = capabilities_for(router_type)
         provider = ProviderFactory(id=1, router_id=1, user_id=1, type=provider_type, url="https://example.com/", model_name="my-model")
-        router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type, providers=0)
+        router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type, providers=[])
         provider_capabilities_probe.get_capabilities.return_value = capabilities
         provider_repository.create_provider.return_value = provider
         command = with_provider_type(default_command, provider_type)

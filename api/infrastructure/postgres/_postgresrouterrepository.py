@@ -1,82 +1,83 @@
-from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, literal, or_, select, text, update
+from collections.abc import Sequence
+
+from sqlalchemy import Row, Select, asc, delete, desc, func, insert, literal, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer, joinedload
 
 from api.domain import SortField, SortOrder
+from api.domain.provider.entities import Provider
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterPage, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
-from api.infrastructure.postgres._pagination import fetch_page_with_total
+from api.infrastructure.postgres._providermapping import row_to_provider
 from api.infrastructure.postgres.decorators import with_lock
-from api.infrastructure.postgres.models import Provider as ProviderTable
 from api.infrastructure.postgres.models import Router as RouterTable
 from api.infrastructure.postgres.models import RouterAlias as RouterAliasTable
 
 
 class PostgresRouterRepository(RouterRepository):
+    # every column but load_balancing_strategy, so that a later release can drop it
+    _RETURNING_COLUMNS = (
+        RouterTable.id,
+        RouterTable.name,
+        RouterTable.user_id,
+        RouterTable.type,
+        RouterTable.qos_retries_before_reject,
+        RouterTable.cost_prompt_tokens,
+        RouterTable.cost_completion_tokens,
+        RouterTable.created,
+        RouterTable.updated,
+    )
+
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
     @staticmethod
-    def _select_providers_statement() -> Select:
-        return (
-            select(func.count(ProviderTable.id))
-            .where(ProviderTable.router_id == RouterTable.id)
-            .correlate(RouterTable)
-            .scalar_subquery()
-            .label("providers")
+    def _select_routers_statement() -> Select:
+        return select(RouterTable).options(
+            joinedload(RouterTable.provider),
+            joinedload(RouterTable.alias),
+            # no longer read, so that a later release can drop the column
+            defer(RouterTable.load_balancing_strategy, raiseload=True),
+        )
+
+    async def _fetch_rows(self, query: Select) -> Sequence[Row]:
+        result = await self.postgres_session.execute(query)
+
+        return result.unique().all()
+
+    @classmethod
+    def _row_to_router_with_providers(cls, row: Row) -> Router:
+        return cls._row_to_router(
+            row=row.Router,
+            aliases=[alias.value for alias in row.Router.alias],
+            providers=[row_to_provider(provider) for provider in row.Router.provider],
         )
 
     @staticmethod
-    def _select_aliases_statement() -> list[str]:
-        return (
-            select(func.coalesce(func.array_agg(RouterAliasTable.value), text("'{}'::text[]")))
-            .where(RouterAliasTable.router_id == RouterTable.id)
-            .correlate(RouterTable)
-            .scalar_subquery()
-            .label("aliases")
-        )
-
-    @staticmethod
-    def _select_all_routers_statement() -> Select:
-        return select(
-            RouterTable.id,
-            RouterTable.name,
-            RouterTable.user_id,
-            RouterTable.type,
-            RouterTable.qos_retries_before_reject,
-            RouterTable.cost_prompt_tokens,
-            RouterTable.cost_completion_tokens,
-            PostgresRouterRepository._select_providers_statement(),
-            PostgresRouterRepository._select_aliases_statement(),
-            RouterTable.created,
-            RouterTable.updated,
-        )
-
-    @staticmethod
-    def _row_to_router_with_aliases(row, aliases: list[str] | None = None) -> Router:
+    def _row_to_router(row, aliases: list[str], providers: list[Provider]) -> Router:
         return Router(
             id=row.id,
             name=row.name,
             user_id=row.user_id,
             type=RouterType(row.type),
-            aliases=row.aliases if aliases is None else aliases,
+            aliases=aliases,
             qos_retries_before_reject=row.qos_retries_before_reject,
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,
-            providers=row.providers,
+            providers=providers,
             created=row.created,
             updated=row.updated,
         )
 
     async def get_router_by_id(self, router_id: int) -> Router | RouterNotFoundError:
-        query = self._select_all_routers_statement().where(RouterTable.id == router_id)
-        result = await self.postgres_session.execute(query)
-        row = result.one_or_none()
-        if row is None:
+        query = self._select_routers_statement().where(RouterTable.id == router_id)
+        rows = await self._fetch_rows(query)
+        if not rows:
             return RouterNotFoundError(id=router_id)
 
-        return self._row_to_router_with_aliases(row)
+        return self._row_to_router_with_providers(rows[0])
 
     async def get_router_by_name_or_alias(self, name_or_alias: str) -> Router | RouterNotFoundError:
         alias_matches = (
@@ -85,19 +86,18 @@ class PostgresRouterRepository(RouterRepository):
             .correlate(RouterTable)
             .exists()
         )
-        query = self._select_all_routers_statement().where(or_(RouterTable.name == name_or_alias, alias_matches)).order_by(RouterTable.id).limit(1)
-        result = await self.postgres_session.execute(query)
-        row = result.one_or_none()
-        if row is None:
+        query = self._select_routers_statement().where(or_(RouterTable.name == name_or_alias, alias_matches)).order_by(RouterTable.id).limit(1)
+        rows = await self._fetch_rows(query)
+        if not rows:
             return RouterNotFoundError(name=name_or_alias)
 
-        return self._row_to_router_with_aliases(row)
+        return self._row_to_router_with_providers(rows[0])
 
     async def get_all_routers(self) -> list[Router]:
-        query = self._select_all_routers_statement().order_by(RouterTable.id)
-        result = await self.postgres_session.execute(query)
+        query = self._select_routers_statement().order_by(RouterTable.id)
+        rows = await self._fetch_rows(query)
 
-        return [self._row_to_router_with_aliases(row) for row in result.all()]
+        return [self._row_to_router_with_providers(row) for row in rows]
 
     async def get_routers_page(
         self,
@@ -106,16 +106,16 @@ class PostgresRouterRepository(RouterRepository):
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> RouterPage:
-        routers = self._select_all_routers_statement().subquery()
-
-        sort_column = routers.c[sort_by.value]
+        sort_column = getattr(RouterTable, sort_by.value)
         sort_order_clause = asc(sort_column) if sort_order == SortOrder.ASC else desc(sort_column)
 
-        routers_query = select(routers, func.count().over().label("total")).order_by(sort_order_clause).limit(limit).offset(offset)
-        count_query = select(func.count()).select_from(RouterTable)
-        rows, total = await fetch_page_with_total(self.postgres_session, routers_query, count_query)
+        routers_query = (
+            self._select_routers_statement().add_columns(func.count().over().label("total")).order_by(sort_order_clause).limit(limit).offset(offset)
+        )
+        rows = await self._fetch_rows(routers_query)
+        total = rows[0].total if rows else (await self.postgres_session.execute(select(func.count()).select_from(RouterTable))).scalar_one()
 
-        return RouterPage(total=total, data=[self._row_to_router_with_aliases(row) for row in rows])
+        return RouterPage(total=total, data=[self._row_to_router_with_providers(row) for row in rows])
 
     @with_lock(namespace="router", key="name")
     async def create_router(
@@ -141,18 +141,7 @@ class PostgresRouterRepository(RouterRepository):
                     cost_prompt_tokens=cost_prompt_tokens,
                     cost_completion_tokens=cost_completion_tokens,
                 )
-                .returning(
-                    RouterTable.id,
-                    RouterTable.name,
-                    RouterTable.user_id,
-                    RouterTable.type,
-                    RouterTable.qos_retries_before_reject,
-                    RouterTable.cost_prompt_tokens,
-                    RouterTable.cost_completion_tokens,
-                    cast(literal(0), Integer).label("providers"),
-                    RouterTable.created,
-                    RouterTable.updated,
-                )
+                .returning(*self._RETURNING_COLUMNS)
             )
             result = await self.postgres_session.execute(insert_router_query)
             row = result.one()
@@ -172,7 +161,7 @@ class PostgresRouterRepository(RouterRepository):
                 return RouterAliasAlreadyExistsError(aliases=duplicate_aliases)
             raise
 
-        return self._row_to_router_with_aliases(row=row, aliases=aliases)
+        return self._row_to_router(row=row, aliases=aliases, providers=[])
 
     async def get_aliases(self, filtered_aliases: list[str] | None = None) -> list[str]:
         query = select(RouterAliasTable.value)
@@ -213,17 +202,7 @@ class PostgresRouterRepository(RouterRepository):
                     cost_prompt_tokens=router.cost_prompt_tokens,
                     cost_completion_tokens=router.cost_completion_tokens,
                 )
-                .returning(
-                    RouterTable.id,
-                    RouterTable.name,
-                    RouterTable.user_id,
-                    RouterTable.type,
-                    RouterTable.qos_retries_before_reject,
-                    RouterTable.cost_prompt_tokens,
-                    RouterTable.cost_completion_tokens,
-                    RouterTable.created,
-                    RouterTable.updated,
-                )
+                .returning(*self._RETURNING_COLUMNS)
             )
             result = await self.postgres_session.execute(update_query)
             row = result.one()
@@ -239,19 +218,7 @@ class PostgresRouterRepository(RouterRepository):
                 return RouterNameAlreadyExistsError(name=router.name)
             raise
 
-        return Router(
-            id=row.id,
-            name=row.name,
-            user_id=router.user_id,
-            type=RouterType(row.type),
-            aliases=router.aliases,
-            qos_retries_before_reject=row.qos_retries_before_reject,
-            cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
-            cost_completion_tokens=row.cost_completion_tokens or 0.0,
-            providers=router.providers,
-            created=row.created,
-            updated=row.updated,
-        )
+        return self._row_to_router(row=row, aliases=router.aliases, providers=router.providers)
 
     async def get_router_ids_by_user_id(self, user_id: int) -> list[int]:
         result = await self.postgres_session.execute(statement=select(RouterTable.id).where(RouterTable.user_id == user_id))
