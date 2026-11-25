@@ -55,10 +55,5 @@ class RouterRateLimitExceededError:
 
 
 @dataclass
-class UserCannotReadRoutersError:
-    user_id: int
-
-
-@dataclass
 class UserCannotReadRouterError:
     user_id: int
