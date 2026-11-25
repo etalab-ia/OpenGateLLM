@@ -11,11 +11,7 @@ class RouterAuthorization(ABC):
         pass
 
     @abstractmethod
-    async def can_read_routers(self, user_id: int) -> bool:
-        pass
-
-    @abstractmethod
-    async def can_read_router(self, user_id: int, router_id: int) -> bool:
+    async def can_read_router(self, user_id: int) -> bool:
         pass
 
     @abstractmethod
