@@ -33,6 +33,11 @@ class RouterHasWrongTypeError:
 
 
 @dataclass
+class UserCannotCreateRouterError:
+    user_id: int
+
+
+@dataclass
 class RouterRateLimitExceededError:
     id: int
     limit_type: LimitType
