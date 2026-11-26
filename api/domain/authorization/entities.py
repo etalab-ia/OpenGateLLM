@@ -19,6 +19,7 @@ class PlatformRelation(StrEnum):
     CAN_CREATE_ORGANIZATION = "can_create_organization"
     CAN_CREATE_USER = "can_create_user"
     CAN_CREATE_ROUTER = "can_create_router"
+    CAN_DELETE_ROUTER = "can_delete_router"
     CAN_DELETE_USER = "can_delete_user"
     CAN_READ_USER = "can_read_user"
     CAN_UPDATE_USER = "can_update_user"
