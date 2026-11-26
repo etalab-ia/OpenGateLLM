@@ -15,16 +15,21 @@ class AuthorizationObjectType(StrEnum):
 
 class PlatformRelation(StrEnum):
     ADMIN = "admin"
-    CAN_READ_ORGANIZATION = "can_read_organization"
+
     CAN_CREATE_ORGANIZATION = "can_create_organization"
+    CAN_READ_ORGANIZATION = "can_read_organization"
+
     CAN_CREATE_USER = "can_create_user"
-    CAN_CREATE_ROUTER = "can_create_router"
-    CAN_DELETE_ROUTER = "can_delete_router"
-    CAN_UPDATE_ROUTER = "can_update_router"
-    CAN_DELETE_USER = "can_delete_user"
     CAN_READ_USER = "can_read_user"
     CAN_UPDATE_USER = "can_update_user"
+    CAN_DELETE_USER = "can_delete_user"
+
+    CAN_CREATE_ROUTER = "can_create_router"
     CAN_READ_ROUTER = "can_read_router"
+    CAN_UPDATE_ROUTER = "can_update_router"
+    CAN_DELETE_ROUTER = "can_delete_router"
+
+    CAN_CREATE_ROLE = "can_create_role"
 
 
 class OrganizationRelation(StrEnum):

@@ -17,7 +17,7 @@ from api.domain.provider import (
     ProviderConcurrencyLimiter,
     ProviderRepository,
 )
-from api.domain.role import LimitRepository, PermissionRepository
+from api.domain.role import LimitRepository, PermissionRepository, RoleAuthorization
 from api.domain.router import RouterAuthorization, RouterRateLimiter
 from api.domain.usage import UsageContext, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserAuthorization, UserPasswordEncoder
@@ -30,7 +30,7 @@ from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.langfuse import LangfuseRequestTracer
-from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaUserAuthorization
+from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaRoleAuthorization, OpenFgaUserAuthorization
 from api.infrastructure.openfga._openfgaorganizationauthorization import OpenFgaOrganizationAuthorization
 from api.infrastructure.openfga._openfgarouterauthorization import OpenFgaRouterAuthorization
 from api.infrastructure.postgres import (
@@ -186,6 +186,10 @@ def _get_user_authorization(openfga_client: OpenFgaAuthorizationClient = Depends
 
 def _get_router_authorization(openfga_client: OpenFgaAuthorizationClient = Depends(_authorization_client)) -> RouterAuthorization:
     return OpenFgaRouterAuthorization(openfga_client=openfga_client)
+
+
+def _get_role_authorization(openfga_client: OpenFgaAuthorizationClient = Depends(_authorization_client)) -> RoleAuthorization:
+    return OpenFgaRoleAuthorization(openfga_client=openfga_client)
 
 
 # repositories
@@ -581,11 +585,15 @@ def create_rerank_use_case_factory(
 
 
 # roles use cases
-def create_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRoleUseCase:
+def create_role_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    role_authorization: RoleAuthorization = Depends(_get_role_authorization),
+) -> CreateRoleUseCase:
     return CreateRoleUseCase(
         role_repository=_role_repository(postgres_session),
         limit_repository=_limit_repository(postgres_session),
         permission_repository=_permission_repository(postgres_session),
+        role_authorization=role_authorization,
     )
 
 

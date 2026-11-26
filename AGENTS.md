@@ -705,11 +705,12 @@ inconsistency is a bug.
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
 Today **only `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/organizations`, `GET` (list and get-one), `POST`, `PATCH`
-and `DELETE` on `/v1/admin/users`, and `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/routers`, ask OpenFGA**. They are the admin routes guarded by a bare
+and `DELETE` on `/v1/admin/users`, `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/routers`, and `POST` on `/v1/admin/roles`, ask
+OpenFGA**. They are the admin routes guarded by a bare
 `AccessController()`. Never put both on one route: two sources of truth for the same decision drift, and `only_admin` short-circuits any
 rule that would let a non-admin through (an organization member reading their own organization, for one).
 
-**What is actually wired.** Fourteen relations the model declares are reached by code:
+**What is actually wired.** Fifteen relations the model declares are reached by code:
 
 | Relation                                  | Written by                                                                                                       | Checked by                                             |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
@@ -724,6 +725,7 @@ rule that would let a non-admin through (an organization member reading their ow
 | `platform:api#can_read_user`              | computed from `admin`, never written                                                                             | `GetUsersUseCase`, `GetOneUserUseCase`                 |
 | `platform:api#can_update_user`            | computed from `admin`, never written                                                                             | `UpdateUserUseCase`                                    |
 | `platform:api#can_read_router`            | computed from `admin`, never written                                                                             | `GetRoutersUseCase`, `GetOneRouterUseCase`             |
+| `platform:api#can_create_role`            | computed from `admin`, never written                                                                             | `CreateRoleUseCase`                                    |
 | `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`                                  | — (only via the rule below)                            |
 | `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                                               | `DeleteOrganizationUseCase`                            |
 | `organization:<id>#can_update`            | computed from `admin from platform`, never written                                                               | `UpdateOrganizationUseCase`                            |
@@ -808,6 +810,22 @@ before the API starts, so it would otherwise publish the model to an arbitrary o
 or admin from platform` is a question you ask, and writing it returns a 400. In this model the `can_*` prefix marks
 exactly the non-writable relations. A check, by contrast, accepts any relation.
 
+**Relations are grouped by resource, in CRUD order.** In `model.fga` and in the relation enums
+(`api/domain/authorization/entities.py`), the stored relations of a type come first (`admin`, `platform`, `member`),
+then one block per resource, in the order create, read, update, delete, then any other verb of that resource
+(`can_add_member`, `can_remove_member`). In `model.fga` a blank line separates the blocks; the enums follow the same
+order. A new relation goes into the block of its resource, never appended at the end, so the relations of one resource
+are never scattered among those of another.
+
+```
+define can_create_router: admin
+define can_read_router: admin
+define can_update_router: admin
+define can_delete_router: admin
+
+define can_create_role: admin
+```
+
 **Objects are typed; tuple direction is on you.** Build each side through `AuthorizationObject.platform()` /
 `.organization(id)` / `.user(id)`, never as a formatted string — a typo in a hand-written `"organization:42"` yields a
 silent `false`, not an error. The platform is a singleton, `platform:api` (`PLATFORM_ID`). `RelationTuple` carries no
@@ -817,7 +835,7 @@ organization` therefore means `organization:42#platform@platform:api`, and writi
 (`relation 'platform#platform' not found`).
 
 **Creation is checked on the platform.** A permission is checked against an object, and the object does not exist yet
-when it is being created — so `can_create_organization`, `can_create_user` and `can_create_router` live on `platform:api`. Anything
+when it is being created — so `can_create_organization`, `can_create_user`, `can_create_router` and `can_create_role` live on `platform:api`. Anything
 actioning on an existing organization belongs on `organization:<id>`. A list has no single object either, so `can_read_user` lives
 on the platform too: all or 403, with pagination and filters left to Postgres. Get-one reuses it through
 `UserAuthorization.can_read_user(user_id, target_user_id)`: the adapter ignores the target today, so a finer rule later changes the

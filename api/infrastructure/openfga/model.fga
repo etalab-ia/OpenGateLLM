@@ -20,6 +20,8 @@ type platform
     define can_update_router: admin
     define can_delete_router: admin
 
+    define can_create_role: admin
+
 type organization
   relations
     define platform: [platform]

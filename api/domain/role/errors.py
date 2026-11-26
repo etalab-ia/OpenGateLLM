@@ -20,3 +20,8 @@ class RoleHasUsersError:
 @dataclass
 class RoleAdminPermissionChangeError:
     id: int
+
+
+@dataclass
+class UserCannotCreateRoleError:
+    user_id: int

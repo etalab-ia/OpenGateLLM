@@ -9,8 +9,16 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
-from api.domain.role.errors import RoleAdminPermissionChangeError, RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
+from api.domain.role.errors import (
+    RoleAdminPermissionChangeError,
+    RoleAlreadyExistsError,
+    RoleHasUsersError,
+    RoleNotFoundError,
+    UserCannotCreateRoleError,
+)
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -19,6 +27,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RoleAlreadyExistsHTTPException,
     RoleHasUsersHTTPException,
     RoleNotFoundHTTPException,
+    UnauthorizedActionHTTPException,
 )
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, RoleResponse, RolesResponse, UpdateRoleBody
@@ -43,15 +52,21 @@ from api.use_cases.admin.roles import (
 
 @router.post(
     path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException]),
+    responses=get_documentation_responses([RoleAlreadyExistsHTTPException, UnauthorizedActionHTTPException]),
 )
 async def create_role(
     body: CreateRoleBody = Body(description="The role creation request."),
     create_role_use_case: CreateRoleUseCase = Depends(create_role_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
-    command = CreateRoleCommand(name=body.name, permissions=body.permissions, limits=body.limits)
+    command = CreateRoleCommand(
+        authenticated_user_id=authenticated_user.id,
+        name=body.name,
+        permissions=body.permissions,
+        limits=body.limits,
+    )
     result = await create_role_use_case.execute(command)
 
     match result:
@@ -59,6 +74,8 @@ async def create_role(
             return RoleResponse.model_validate(role, from_attributes=True)
         case RoleAlreadyExistsError(name=name):
             raise RoleAlreadyExistsHTTPException(name)
+        case UserCannotCreateRoleError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.patch(
