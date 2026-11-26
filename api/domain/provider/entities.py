@@ -1,10 +1,11 @@
+from collections.abc import Iterator
 from enum import StrEnum
 import random
 from typing import Annotated
 from uuid import uuid4
 
 import pycountry
-from pydantic import Field, model_validator
+from pydantic import Field, RootModel, model_validator
 
 from api.domain import BaseModel, EntitiesPage, ForwardablePayload, RouterType, UtcDatetime
 from api.domain.usage.entities import Usage
@@ -135,25 +136,54 @@ class Provider(BaseModel):
     def with_qos_limit(self, qos_limit: int | None) -> "Provider":
         return self.model_copy(update={"qos_limit": qos_limit})
 
-    def is_compatible_with_router_type(self, router_type: RouterType) -> bool:
-        return self.type.is_compatible_with(router_type)
-
     @property
     def is_closed(self) -> bool:
         return self.qos_limit == 0
 
-    @staticmethod
-    def mixes_qos_limits(qos_limits: list[int | None]) -> bool:
-        has_undefined_limit = False
-        has_defined_limit = False
-        for qos_limit in qos_limits:
-            if qos_limit is None:
-                has_undefined_limit = True
-            elif qos_limit != 0:
-                has_defined_limit = True
-            if has_undefined_limit and has_defined_limit:
-                return True
-        return False
+    @property
+    def capabilities(self) -> "ProviderCapabilities":
+        return ProviderCapabilities(max_context_length=self.max_context_length, vector_size=self.vector_size)
+
+
+class Providers(RootModel[list[Provider]]):
+    def __iter__(self) -> Iterator[Provider]:
+        return iter(self.root)
+
+    def __len__(self) -> int:
+        return len(self.root)
+
+    def with_provider(self, provider: Provider) -> "Providers":
+        return Providers([*self.root, provider])
+
+    def has_provider(self, provider_id: int) -> bool:
+        return any(provider.id == provider_id for provider in self.root)
+
+    def without_provider(self, provider_id: int) -> "Providers":
+        return Providers([provider for provider in self.root if provider.id != provider_id])
+
+    @property
+    def open_providers(self) -> list[Provider]:
+        return [provider for provider in self.root if not provider.is_closed]
+
+    @property
+    def are_ranked_by_load_rate(self) -> bool:
+        open_providers = self.open_providers
+        return len(open_providers) > 0 and all(provider.qos_limit is not None for provider in open_providers)
+
+    @property
+    def capabilities(self) -> "ProviderCapabilities | None":
+        return self.root[0].capabilities if self.root else None
+
+    def are_compatible_with_vector_size(self, vector_size: int | None) -> bool:
+        return self.capabilities is None or self.capabilities.vector_size == vector_size
+
+    def are_compatible_with_max_context_length(self, max_context_length: int | None) -> bool:
+        return self.capabilities is None or self.capabilities.max_context_length == max_context_length
+
+    def are_compatible_with_qos_limit(self, qos_limit: int | None) -> bool:
+        if qos_limit == 0:
+            return True
+        return all((provider.qos_limit is None) == (qos_limit is None) for provider in self.open_providers)
 
 
 class ProviderLoads(BaseModel):

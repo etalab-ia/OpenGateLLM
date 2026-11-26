@@ -104,9 +104,6 @@ class BootstrapModelsUseCase:
                 url, model_name = duplicates[0]
                 return ProviderAlreadyExistsError(url=url, model_name=model_name, router_id=i)
 
-            if Provider.mixes_qos_limits([provider_to_create.qos_limit for provider_to_create in router_to_create.providers]):
-                return InconsistentModelQosLimitError(router_name=router_to_create.name)
-
         duplicates = [val for val, count in Counter(router_to_create_names).items() if count > 1]
         if duplicates:
             return RouterNameAlreadyExistsError(name=duplicates[0])
@@ -122,11 +119,7 @@ class BootstrapModelsUseCase:
                 aliases=router_to_create.aliases,
             )
 
-            # all providers of a router must expose the same capabilities: the first one of the configuration sets the reference
-            reference_max_context_length = None
-            reference_vector_size = None
-
-            for i, provider_to_create in enumerate(router_to_create.providers):
+            for provider_to_create in router_to_create.providers:
                 result = await self.provider_capabilities_probe.get_capabilities(
                     router_type=router.type,
                     provider_type=provider_to_create.type,
@@ -148,28 +141,10 @@ class BootstrapModelsUseCase:
                     case provider_capabilities:
                         pass
 
-                max_context_length = provider_capabilities.max_context_length
-                vector_size = provider_capabilities.vector_size
-
-                if i == 0:
-                    reference_max_context_length = max_context_length
-                    reference_vector_size = vector_size
-                else:
-                    if max_context_length != reference_max_context_length:
-                        await self.router_repository.delete_all_routers()
-                        return InconsistentModelMaxContextLengthError(
-                            actual_max_context_length=max_context_length,
-                            expected_max_context_length=reference_max_context_length,
-                            router_name=router.name,
-                        )
-
-                    if vector_size != reference_vector_size:
-                        await self.router_repository.delete_all_routers()
-                        return InconsistentModelVectorSizeError(
-                            actual_vector_size=vector_size,
-                            expected_vector_size=reference_vector_size,
-                            router_name=router.name,
-                        )
+                inconsistency = router.check_new_provider(capabilities=provider_capabilities, qos_limit=provider_to_create.qos_limit)
+                if inconsistency is not None:
+                    await self.router_repository.delete_all_routers()
+                    return inconsistency
 
                 result = await self.provider_repository.create_provider(
                     router_id=router.id,
@@ -183,8 +158,13 @@ class BootstrapModelsUseCase:
                     model_hosting_zone=provider_to_create.model_hosting_zone,
                     model_total_params=provider_to_create.model_total_params,
                     model_active_params=provider_to_create.model_active_params,
-                    max_context_length=max_context_length,
-                    vector_size=vector_size,
+                    max_context_length=provider_capabilities.max_context_length,
+                    vector_size=provider_capabilities.vector_size,
                 )
+                match result:
+                    case Provider() as provider:
+                        router = router.with_provider(provider)
+                    case ProviderAlreadyExistsError() as error:
+                        return error
 
         return BootstrapModelsUseCaseSuccess(number_of_routers=len(command.routers_to_create))

@@ -47,38 +47,11 @@ class UpdateProviderUseCase:
         self.provider_repository = provider_repository
 
     async def execute(self, command: UpdateProviderCommand) -> UpdateProviderUseCaseResult:
-        existing_provider = await self.provider_repository.get_one_provider(provider_id=command.provider_id)
-        if isinstance(existing_provider, ProviderNotFoundError):
-            return existing_provider
-
-        router_providers = await self.provider_repository.get_all_providers_of_router(router_id=command.router_id)
-        other_providers = [provider for provider in router_providers if provider.id != existing_provider.id]
-
-        if command.router_id != existing_provider.router_id:
-            result = await self.router_repository.get_router_by_id(router_id=command.router_id)
-
-            match result:
-                case Router() as new_router:
-                    if not existing_provider.is_compatible_with_router_type(new_router.type):
-                        return InvalidProviderTypeError(provider_type=existing_provider.type.value, router_type=new_router.type.value)
-                case RouterNotFoundError() as error:
-                    return error
-
-            # all providers of a router must expose the same capabilities: compare with one of the providers already attached to the target router
-            reference_provider = next(iter(other_providers), None)
-            if reference_provider is not None:
-                if reference_provider.vector_size != existing_provider.vector_size:
-                    return InconsistentModelVectorSizeError(
-                        actual_vector_size=existing_provider.vector_size,
-                        expected_vector_size=reference_provider.vector_size,
-                        router_name=new_router.name,
-                    )
-                if reference_provider.max_context_length != existing_provider.max_context_length:
-                    return InconsistentModelMaxContextLengthError(
-                        actual_max_context_length=existing_provider.max_context_length,
-                        expected_max_context_length=reference_provider.max_context_length,
-                        router_name=new_router.name,
-                    )
+        match await self.provider_repository.get_one_provider(provider_id=command.provider_id):
+            case ProviderNotFoundError() as error:
+                return error
+            case Provider() as existing_provider:
+                pass
 
         provider_to_persist = (
             existing_provider.with_router_id(command.router_id)
@@ -92,8 +65,15 @@ class UpdateProviderUseCase:
         if existing_provider == provider_to_persist:
             return UpdateProviderUseCaseSuccess(existing_provider)
 
-        if command.qos_limit != 0 and Provider.mixes_qos_limits([*(provider.qos_limit for provider in other_providers), command.qos_limit]):
-            return InconsistentModelQosLimitError(router_id=command.router_id)
+        match await self.router_repository.lock_and_get_router_by_id(router_id=command.router_id):
+            case RouterNotFoundError() as error:
+                return error
+            case Router() as target_router:
+                pass
+
+        inconsistency = target_router.check_provider(provider_to_persist)
+        if inconsistency is not None:
+            return inconsistency
 
         result = await self.provider_repository.update_provider(provider_to_persist)
 

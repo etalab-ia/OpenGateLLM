@@ -15,7 +15,7 @@ from api.domain.provider import (
     ProviderReservation,
     ProviderReservationRefused,
 )
-from api.domain.provider.entities import ProviderEndpoint, ProviderJsonResponse, ProviderLoads, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderEndpoint, ProviderJsonResponse, ProviderLoads, ProviderResponse, Providers, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -414,7 +414,7 @@ class TestForwardRequestToProvider:
         # Arrange
         router.qos_retries_before_reject = 2
         provider_with_limit = provider.with_qos_limit(2)
-        router.providers = [provider_with_limit]
+        router.providers = Providers([provider_with_limit])
         use_case.provider_concurrency_limiter.read_loads.return_value = ProviderLoads(load_by_provider_id={provider_with_limit.id: 2})
         use_case.provider_concurrency_limiter.reserve.side_effect = [
             ProviderReservationRefused(),

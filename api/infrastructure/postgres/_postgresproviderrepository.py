@@ -72,7 +72,7 @@ class PostgresProviderRepository(ProviderRepository):
             return ProviderNotFoundError(id=provider_id)
         return row_to_provider(row)
 
-    @with_lock(namespace="provider", key="router_id")
+    @with_lock(namespace="router", key="router_id")
     async def create_provider(
         self,
         router_id: int,
@@ -129,8 +129,3 @@ class PostgresProviderRepository(ProviderRepository):
     async def get_provider_ids_by_user_id(self, user_id: int) -> list[int]:
         result = await self.postgres_session.execute(statement=select(ProviderTable.id).where(ProviderTable.user_id == user_id))
         return list(result.scalars().all())
-
-    async def get_all_providers_of_router(self, router_id: int) -> list[Provider]:
-        select_query = select(ProviderTable).where(ProviderTable.router_id == router_id)
-        rows = (await self.postgres_session.execute(select_query)).scalars().all()
-        return [row_to_provider(row) for row in rows]

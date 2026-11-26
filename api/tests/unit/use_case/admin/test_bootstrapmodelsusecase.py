@@ -148,9 +148,9 @@ class TestBootstrapModelsUseCase:
             ProviderCapabilities(max_context_length=512, vector_size=768),
         ]
         provider_repository.create_provider.side_effect = [
-            ProviderFactory(id=10, router_id=1),
-            ProviderFactory(id=11, router_id=1),
-            ProviderFactory(id=20, router_id=2),
+            ProviderFactory(id=10, router_id=1, max_context_length=4096),
+            ProviderFactory(id=11, router_id=1, max_context_length=4096),
+            ProviderFactory(id=20, router_id=2, max_context_length=512, vector_size=768),
         ]
 
         # Act
@@ -248,7 +248,7 @@ class TestBootstrapModelsUseCase:
         provider_repository.create_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_inconsistent_qos_limit_error_before_writing_when_a_model_mixes_providers_with_and_without_limit(
+    async def test_should_return_inconsistent_qos_limit_error_and_delete_routers_when_a_model_mixes_providers_with_and_without_limit(
         self,
         use_case,
         router_repository,
@@ -263,16 +263,21 @@ class TestBootstrapModelsUseCase:
                 ProviderToCreateFactory(url="https://provider-b.com/", qos_limit=None),
             ],
         )
+        router = RouterFactory(id=1, name="mixed-model", type=RouterType.TEXT_GENERATION, providers=[])
         router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = router
+        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        provider_repository.create_provider.return_value = ProviderFactory(
+            id=100, router_id=1, qos_limit=5, max_context_length=4096, vector_size=None
+        )
 
         # Act
         result = await use_case.execute(BootstrapModelsCommand(routers_to_create=[router_to_create], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID))
 
         # Assert
-        assert result == InconsistentModelQosLimitError(router_name="mixed-model")
-        router_repository.create_router.assert_not_awaited()
-        provider_capabilities_probe.get_capabilities.assert_not_awaited()
-        provider_repository.create_provider.assert_not_awaited()
+        assert result == InconsistentModelQosLimitError(router_id=1, router_name="mixed-model")
+        provider_repository.create_provider.assert_awaited_once()
+        router_repository.delete_all_routers.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_returns_provider_not_reachable_error_and_rolls_back(
@@ -355,7 +360,7 @@ class TestBootstrapModelsUseCase:
             ProviderCapabilities(max_context_length=4096, vector_size=None),
             ProviderCapabilities(max_context_length=2048, vector_size=None),
         ]
-        provider_repository.create_provider.return_value = ProviderFactory(id=10, router_id=1)
+        provider_repository.create_provider.return_value = ProviderFactory(id=10, router_id=1, max_context_length=4096)
 
         # Act
         result = await use_case.execute(BootstrapModelsCommand(routers_to_create=[router_to_create], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID))
@@ -386,7 +391,7 @@ class TestBootstrapModelsUseCase:
             ProviderCapabilities(max_context_length=512, vector_size=768),
             ProviderCapabilities(max_context_length=512, vector_size=384),
         ]
-        provider_repository.create_provider.return_value = ProviderFactory(id=10, router_id=1)
+        provider_repository.create_provider.return_value = ProviderFactory(id=10, router_id=1, max_context_length=512, vector_size=768)
 
         # Act
         result = await use_case.execute(BootstrapModelsCommand(routers_to_create=[router_to_create], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID))
@@ -413,6 +418,24 @@ class TestBootstrapModelsUseCase:
         router_repository.create_router.assert_not_awaited()
         provider_capabilities_probe.get_capabilities.assert_not_awaited()
         provider_repository.create_provider.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_return_provider_already_exists_error_when_the_provider_already_exists(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe
+    ):
+        # Arrange
+        router_to_create = RouterToCreateFactory(providers=[ProviderToCreateFactory()])
+        error = ProviderAlreadyExistsError(model_name="model-a", url="https://provider-a.com/", router_id=1)
+        router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = RouterFactory(id=1)
+        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        provider_repository.create_provider.return_value = error
+
+        # Act
+        result = await use_case.execute(BootstrapModelsCommand(routers_to_create=[router_to_create], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID))
+
+        # Assert
+        assert result == error
 
 
 if __name__ == "__main__":
