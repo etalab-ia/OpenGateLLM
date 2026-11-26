@@ -637,10 +637,11 @@ def create_router_use_case_factory(
     return CreateRouterUseCase(router_repository=_router_repository(postgres_session), router_authorization=router_authorization)
 
 
-def delete_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteRouterUseCase:
-    return DeleteRouterUseCase(
-        router_repository=_router_repository(postgres_session),
-    )
+def delete_router_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    router_authorization: RouterAuthorization = Depends(_get_router_authorization),
+) -> DeleteRouterUseCase:
+    return DeleteRouterUseCase(router_repository=_router_repository(postgres_session), router_authorization=router_authorization)
 
 
 def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateRouterUseCase:

@@ -13,6 +13,7 @@ from api.domain.router.errors import (
     RouterNameAlreadyExistsError,
     RouterNotFoundError,
     UserCannotCreateRouterError,
+    UserCannotDeleteRouterError,
 )
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -131,15 +132,16 @@ async def get_routers(
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
-    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
+    dependencies=[Security(dependency=AccessController())],
+    responses=get_documentation_responses([UnauthorizedActionHTTPException, RouterNotFoundHTTPException]),
     status_code=200,
 )
 async def delete_router(
     router_id: int = Path(description="The ID of the router to delete (router ID, eg. 123)."),
     delete_router_use_case: DeleteRouterUseCase = Depends(delete_router_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RouterResponse:
-    command = DeleteRouterCommand(router_id=router_id)
+    command = DeleteRouterCommand(authenticated_user_id=authenticated_user.id, router_id=router_id)
     result = await delete_router_use_case.execute(command)
 
     match result:
@@ -147,6 +149,8 @@ async def delete_router(
             return RouterResponse.model_validate(deleted_router, from_attributes=True)
         case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
+        case UserCannotDeleteRouterError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.patch(
