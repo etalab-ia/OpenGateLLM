@@ -80,8 +80,8 @@
 | api/domain/organization/errors.py                                                                               |       19 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/provider/\_providerclient.py                                                                         |       16 |        2 |        0 |        0 |     87.50% |    29, 33 |
 | api/domain/provider/\_providerconcurrencylimiter.py                                                             |       23 |        2 |        0 |        0 |     91.30% |    29, 42 |
-| api/domain/provider/\_providerrepository.py                                                                     |       26 |        7 |        0 |        0 |     73.08% |26, 30, 34, 45, 49, 53, 57 |
-| api/domain/provider/entities.py                                                                                 |      112 |        4 |       18 |        2 |     95.38% |130, 133, 197, 200 |
+| api/domain/provider/\_providerrepository.py                                                                     |       23 |        6 |        0 |        0 |     73.91% |26, 30, 34, 45, 49, 53 |
+| api/domain/provider/entities.py                                                                                 |      131 |        4 |       12 |        2 |     95.80% |131, 134, 227, 230 |
 | api/domain/provider/errors.py                                                                                   |       22 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/rerank/entities.py                                                                                   |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/role/\_limitrepository.py                                                                            |       12 |        3 |        0 |        0 |     75.00% | 9, 16, 23 |
@@ -91,8 +91,8 @@
 | api/domain/role/errors.py                                                                                       |       11 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/router/\_routerauthorization.py                                                                      |       11 |        3 |        0 |        0 |     72.73% | 7, 11, 15 |
 | api/domain/router/\_routerratelimiter.py                                                                        |       13 |        3 |        0 |        0 |     76.92% |10, 16, 21 |
-| api/domain/router/\_routerrepository.py                                                                         |       35 |       10 |        0 |        0 |     71.43% |11, 21, 25, 29, 42, 46, 50, 54, 58, 62 |
-| api/domain/router/entities.py                                                                                   |       96 |        0 |       12 |        0 |    100.00% |           |
+| api/domain/router/\_routerrepository.py                                                                         |       37 |       10 |        0 |        0 |     72.97% |11, 21, 25, 33, 46, 50, 54, 58, 62, 66 |
+| api/domain/router/entities.py                                                                                   |      121 |        0 |       24 |        0 |    100.00% |           |
 | api/domain/router/errors.py                                                                                     |       23 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/router/views.py                                                                                      |        7 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/usage/\_usagecontext.py                                                                              |       25 |        7 |        0 |        0 |     72.00% |10, 14, 18, 22, 26, 30, 34 |
@@ -150,7 +150,7 @@
 | api/infrastructure/fastapi/schemas/admin/organizations.py                                                       |        8 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/admin/providers.py                                                           |       11 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/admin/roles.py                                                               |       19 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/fastapi/schemas/admin/routers.py                                                             |       11 |        0 |        0 |        0 |    100.00% |           |
+| api/infrastructure/fastapi/schemas/admin/routers.py                                                             |       12 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/fastapi/schemas/admin/users.py                                                               |       20 |        1 |        4 |        1 |     91.67% |        22 |
 | api/infrastructure/fastapi/schemas/audio.py                                                                     |       17 |        4 |        0 |        0 |     76.47% |     54-64 |
 | api/infrastructure/fastapi/schemas/auth.py                                                                      |        9 |        0 |        0 |        0 |    100.00% |           |
@@ -215,9 +215,9 @@
 | api/infrastructure/postgres/\_postgresmodelquery.py                                                             |       35 |        0 |        2 |        0 |    100.00% |           |
 | api/infrastructure/postgres/\_postgresorganizationrepository.py                                                 |       82 |        3 |       16 |        3 |     93.88% |30, 120, 135 |
 | api/infrastructure/postgres/\_postgrespermissionrepository.py                                                   |       24 |        0 |        4 |        0 |    100.00% |           |
-| api/infrastructure/postgres/\_postgresproviderrepository.py                                                     |       68 |        2 |       10 |        2 |     94.87% |   41, 118 |
+| api/infrastructure/postgres/\_postgresproviderrepository.py                                                     |       64 |        2 |       10 |        2 |     94.59% |   41, 118 |
 | api/infrastructure/postgres/\_postgresrolesrepository.py                                                        |       83 |        2 |       14 |        3 |     94.85% |80, 151-\>154, 159 |
-| api/infrastructure/postgres/\_postgresrouterrepository.py                                                       |      110 |        2 |       22 |        3 |     96.21% |162, 180-\>183, 219 |
+| api/infrastructure/postgres/\_postgresrouterrepository.py                                                       |      117 |        2 |       24 |        3 |     96.45% |171, 189-\>192, 228 |
 | api/infrastructure/postgres/\_postgresusagerepository.py                                                        |       54 |        0 |       10 |        0 |    100.00% |           |
 | api/infrastructure/postgres/\_postgresusersrepository.py                                                        |      118 |        8 |       40 |        3 |     91.77% |107, 125-129, 212, 226 |
 | api/infrastructure/postgres/\_providermapping.py                                                                |        4 |        0 |        0 |        0 |    100.00% |           |
@@ -241,11 +241,11 @@
 | api/use\_cases/admin/organizations/\_getoneorganizationusecase.py                                               |       23 |        0 |        6 |        1 |     96.55% | 38-\>exit |
 | api/use\_cases/admin/organizations/\_getorganizationsusecase.py                                                 |       25 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/admin/organizations/\_updateorganizationusecase.py                                               |       29 |        0 |        8 |        0 |    100.00% |           |
-| api/use\_cases/admin/providers/\_createproviderusecase.py                                                       |       52 |        0 |       20 |        0 |    100.00% |           |
+| api/use\_cases/admin/providers/\_createproviderusecase.py                                                       |       47 |        0 |       16 |        1 |     98.41% |   72-\>75 |
 | api/use\_cases/admin/providers/\_deleteproviderusecase.py                                                       |       19 |        0 |        4 |        1 |     95.65% | 31-\>exit |
 | api/use\_cases/admin/providers/\_getoneproviderusecase.py                                                       |       17 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/admin/providers/\_getprovidersusecase.py                                                         |       15 |        0 |        0 |        0 |    100.00% |           |
-| api/use\_cases/admin/providers/\_updateproviderusecase.py                                                       |       48 |        0 |       22 |        1 |     98.57% |   64-\>68 |
+| api/use\_cases/admin/providers/\_updateproviderusecase.py                                                       |       40 |        0 |       14 |        2 |     96.30% |53-\>56, 71-\>74 |
 | api/use\_cases/admin/roles/\_createroleusecase.py                                                               |       24 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/admin/roles/\_deleteroleusecase.py                                                               |       21 |        0 |        6 |        1 |     96.30% | 33-\>exit |
 | api/use\_cases/admin/roles/\_getoneroleusecase.py                                                               |       19 |        0 |        4 |        1 |     95.65% | 30-\>exit |
@@ -271,7 +271,7 @@
 | api/use\_cases/limits/\_getlimitsusecase.py                                                                     |       32 |        0 |        8 |        0 |    100.00% |           |
 | api/use\_cases/me/\_getmeusecase.py                                                                             |       10 |        0 |        0 |        0 |    100.00% |           |
 | api/use\_cases/me/\_updatemeusecase.py                                                                          |       32 |        0 |        8 |        0 |    100.00% |           |
-| api/use\_cases/models/\_bootstrapmodelsusecase.py                                                               |       79 |        0 |       28 |        0 |    100.00% |           |
+| api/use\_cases/models/\_bootstrapmodelsusecase.py                                                               |       73 |        0 |       26 |        1 |     98.99% | 167-\>122 |
 | api/use\_cases/models/\_getmodelsusecase.py                                                                     |       15 |        0 |        0 |        0 |    100.00% |           |
 | api/use\_cases/models/\_getonemodelusecase.py                                                                   |       23 |        0 |        6 |        1 |     96.55% |   32-\>35 |
 | api/use\_cases/ocr/\_createocrusecase.py                                                                        |        9 |        0 |        2 |        0 |    100.00% |           |
@@ -279,7 +279,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **8293** |  **597** | **1486** |  **174** | **91.22%** |           |
+| **TOTAL**                                                                                                       | **8321** |  **596** | **1480** |  **177** | **91.22%** |           |
 
 
 ## Setup coverage badge
