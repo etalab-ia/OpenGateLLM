@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from api.domain.router import RouterRepository
+from api.domain.router import RouterAuthorization, RouterRepository
 from api.domain.router.entities import Router, RouterType
-from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, UserCannotCreateRouterError
 
 
 @dataclass
@@ -21,14 +21,22 @@ class CreateRouterUseCaseSuccess:
     router: Router
 
 
-type CreateRouterUseCaseResult = CreateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError
+type CreateRouterUseCaseResult = (
+    CreateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError | UserCannotCreateRouterError
+)
 
 
 class CreateRouterUseCase:
-    def __init__(self, router_repository: RouterRepository):
+    def __init__(self, router_repository: RouterRepository, router_authorization: RouterAuthorization):
         self.router_repository = router_repository
+        self.router_authorization = router_authorization
 
     async def execute(self, command: CreateRouterCommand) -> CreateRouterUseCaseResult:
+        is_authorized = await self.router_authorization.can_create_router(user_id=command.user_id)
+
+        if not is_authorized:
+            return UserCannotCreateRouterError(user_id=command.user_id)
+
         result = await self.router_repository.create_router(
             name=command.name,
             router_type=command.router_type,

@@ -703,12 +703,12 @@ inconsistency is a bug.
 `AccessController` (`api/infrastructure/fastapi/accesscontroller.py`) takes `only_admin` and `allow_expired`, both
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
-Today **only `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/organizations`, and `GET` (list and get-one), `POST`, `PATCH` and `DELETE`
-on `/v1/admin/users`, ask OpenFGA**. They are the admin routes guarded by a bare `AccessController()`. Never put both on one route: two
-sources of truth for the same decision drift, and `only_admin` short-circuits any rule that would let a non-admin
-through (an organization member reading their own organization, for one).
+Today **only `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/organizations`, `GET` (list and get-one), `POST`, `PATCH`
+and `DELETE` on `/v1/admin/users`, and `POST` on `/v1/admin/routers`, ask OpenFGA**. They are the admin routes guarded by a bare
+`AccessController()`. Never put both on one route: two sources of truth for the same decision drift, and `only_admin` short-circuits any
+rule that would let a non-admin through (an organization member reading their own organization, for one).
 
-**What is actually wired.** Ten relations the model declares are reached by code:
+**What is actually wired.** Eleven relations the model declares are reached by code:
 
 | Relation                                  | Written by                                                                                                       | Checked by                                             |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
@@ -716,6 +716,7 @@ through (an organization member reading their own organization, for one).
 | `platform:api#can_read_organization`      | computed from `admin`, never written                                                                             | `GetOrganizationsUseCase`, `GetOneOrganizationUseCase` |
 | `platform:api#can_create_organization`    | computed from `admin`, never written                                                                             | `CreateOrganizationUseCase`                            |
 | `platform:api#can_create_user`            | computed from `admin`, never written                                                                             | `CreateUserUseCase`                                    |
+| `platform:api#can_create_router`          | computed from `admin`, never written                                                                             | `CreateRouterUseCase`                                  |
 | `platform:api#can_delete_user`            | computed from `admin`, never written                                                                             | `DeleteUserUseCase`                                    |
 | `platform:api#can_read_user`              | computed from `admin`, never written                                                                             | `GetUsersUseCase`, `GetOneUserUseCase`                 |
 | `platform:api#can_update_user`            | computed from `admin`, never written                                                                             | `UpdateUserUseCase`                                    |
@@ -812,9 +813,9 @@ organization` therefore means `organization:42#platform@platform:api`, and writi
 (`relation 'platform#platform' not found`).
 
 **Creation is checked on the platform.** A permission is checked against an object, and the object does not exist yet
-when it is being created — so `can_create_organization` and `can_create_user` live on `platform:api`. Anything acting on an existing
-organization belongs on `organization:<id>`. A list has no single object either, so `can_read_user` lives on the
-platform too: all or 403, with pagination and filters left to Postgres. Get-one reuses it through
+when it is being created — so `can_create_organization`, `can_create_user` and `can_create_router` live on `platform:api`. Anything
+actioning on an existing organization belongs on `organization:<id>`. A list has no single object either, so `can_read_user` lives
+on the platform too: all or 403, with pagination and filters left to Postgres. Get-one reuses it through
 `UserAuthorization.can_read_user(user_id, target_user_id)`: the adapter ignores the target today, so a finer rule later changes the
 adapter and `model.fga`, not the use case.
 

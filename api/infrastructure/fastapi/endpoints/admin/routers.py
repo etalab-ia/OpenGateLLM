@@ -8,7 +8,12 @@ from api.dependencies import (
     update_router_use_case_factory,
 )
 from api.domain import SortField, SortOrder
-from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
+from api.domain.router.errors import (
+    RouterAliasAlreadyExistsError,
+    RouterNameAlreadyExistsError,
+    RouterNotFoundError,
+    UserCannotCreateRouterError,
+)
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
@@ -19,6 +24,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAliasAlreadyExistsHTTPException,
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
+    UnauthorizedActionHTTPException,
 )
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.routers import CreateRouterBody, RouterResponse, RoutersResponse, UpdateRouterBody
@@ -43,9 +49,9 @@ from api.use_cases.admin.routers import (
 
 @router.post(
     path=EndpointRoute.ADMIN_ROUTERS,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses([RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, UnauthorizedActionHTTPException]),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -70,6 +76,8 @@ async def create_router(
             raise RouterAliasAlreadyExistsHTTPException(name)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
+        case UserCannotCreateRouterError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.get(
