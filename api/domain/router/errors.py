@@ -43,6 +43,11 @@ class UserCannotDeleteRouterError:
 
 
 @dataclass
+class UserCannotUpdateRouterError:
+    user_id: int
+
+
+@dataclass
 class RouterRateLimitExceededError:
     id: int
     limit_type: LimitType

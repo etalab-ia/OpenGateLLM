@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 
-from api.domain.router import RouterRepository
+from api.domain.router import RouterAuthorization, RouterRepository
 from api.domain.router.entities import Router, RouterType
-from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError, UserCannotUpdateRouterError
 
 
 @dataclass
 class UpdateRouterCommand:
+    authenticated_user_id: int
     router_id: int
     name: str
     router_type: RouterType
@@ -21,14 +22,22 @@ class UpdateRouterUseCaseSuccess:
     router: Router
 
 
-type UpdateRouterUseCaseResult = UpdateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError | RouterNotFoundError
+type UpdateRouterUseCaseResult = (
+    UpdateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError | RouterNotFoundError | UserCannotUpdateRouterError
+)
 
 
 class UpdateRouterUseCase:
-    def __init__(self, router_repository: RouterRepository):
+    def __init__(self, router_repository: RouterRepository, router_authorization: RouterAuthorization):
         self.router_repository = router_repository
+        self.router_authorization = router_authorization
 
     async def execute(self, command: UpdateRouterCommand) -> UpdateRouterUseCaseResult:
+        is_authorized = await self.router_authorization.can_update_router(user_id=command.authenticated_user_id, router_id=command.router_id)
+
+        if not is_authorized:
+            return UserCannotUpdateRouterError(user_id=command.authenticated_user_id)
+
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
         if isinstance(router, RouterNotFoundError):
             return RouterNotFoundError(id=command.router_id)
