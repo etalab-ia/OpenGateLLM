@@ -54,13 +54,13 @@
 | api/alembic/versions/2026\_09\_28\_2030-bf92da1a3246\_remove\_user\_budget.py                                   |       11 |        0 |        0 |        0 |    100.00% |           |
 | api/alembic/versions/2026\_11\_19\_0952-2b8e23234402\_default\_router\_load\_balancing\_strategy.py             |       11 |        0 |        0 |        0 |    100.00% |           |
 | api/app.py                                                                                                      |       63 |        5 |       12 |        4 |     88.00% |28, 58-59, 88, 95 |
-| api/dependencies.py                                                                                             |      223 |       93 |        4 |        0 |     57.27% |91-100, 104-106, 110-112, 117, 121, 126, 130, 134, 138, 142, 146, 150, 154, 158, 162, 166, 176, 180, 184, 188, 196, 200, 204, 208, 212, 216, 220, 224, 228, 232, 236-247, 262, 287, 307, 322, 340, 358, 376, 386, 393, 397, 401, 405, 410, 414, 419, 424, 428, 436, 450, 468, 477, 486, 495, 501, 508, 518, 530, 537, 544, 551, 570, 585, 593, 601, 609, 615, 622, 628, 637, 644, 651, 659, 667, 674, 680, 686 |
+| api/dependencies.py                                                                                             |      223 |       93 |        4 |        0 |     57.27% |91-100, 104-106, 110-112, 117, 121, 126, 130, 134, 138, 142, 146, 150, 154, 158, 162, 166, 176, 180, 184, 188, 196, 200, 204, 208, 212, 216, 220, 224, 228, 232, 236-247, 262, 287, 307, 322, 340, 358, 376, 386, 393, 397, 401, 405, 410, 414, 419, 424, 428, 436, 450, 468, 477, 486, 495, 501, 508, 518, 530, 537, 544, 551, 570, 585, 593, 601, 609, 615, 625, 635, 645, 652, 659, 667, 675, 682, 688, 694 |
 | api/domain/audio/entities.py                                                                                    |       31 |        1 |        0 |        0 |     96.77% |       186 |
 | api/domain/audio/errors.py                                                                                      |        3 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/auth/\_authssosessionvalidator.py                                                                    |        6 |        1 |        0 |        0 |     83.33% |        12 |
 | api/domain/auth/errors.py                                                                                       |       10 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/authorization/\_authorizationclient.py                                                               |       15 |        4 |        0 |        0 |     73.33% |9, 13, 17, 21 |
-| api/domain/authorization/entities.py                                                                            |       43 |        4 |        0 |        0 |     90.70% |50, 54, 58, 61 |
+| api/domain/authorization/entities.py                                                                            |       44 |        4 |        0 |        0 |     90.91% |51, 55, 59, 62 |
 | api/domain/chat/entities.py                                                                                     |       91 |        3 |       28 |        3 |     94.96% |22, 26, 76 |
 | api/domain/embeddings/entities.py                                                                               |       38 |        0 |       12 |        0 |    100.00% |           |
 | api/domain/key/\_keyencoder.py                                                                                  |       11 |        2 |        0 |        0 |     81.82% |    12, 16 |
@@ -89,11 +89,11 @@
 | api/domain/role/\_rolerepository.py                                                                             |       23 |        6 |        0 |        0 |     73.91% |11, 15, 19, 23, 27, 37 |
 | api/domain/role/entities.py                                                                                     |       34 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/role/errors.py                                                                                       |       11 |        0 |        0 |        0 |    100.00% |           |
-| api/domain/router/\_routerauthorization.py                                                                      |       11 |        3 |        0 |        0 |     72.73% | 7, 11, 15 |
+| api/domain/router/\_routerauthorization.py                                                                      |       14 |        4 |        0 |        0 |     71.43% |7, 11, 15, 19 |
 | api/domain/router/\_routerratelimiter.py                                                                        |       13 |        3 |        0 |        0 |     76.92% |10, 16, 21 |
 | api/domain/router/\_routerrepository.py                                                                         |       37 |       10 |        0 |        0 |     72.97% |11, 21, 25, 33, 46, 50, 54, 58, 62, 66 |
 | api/domain/router/entities.py                                                                                   |      121 |        0 |       24 |        0 |    100.00% |           |
-| api/domain/router/errors.py                                                                                     |       23 |        0 |        0 |        0 |    100.00% |           |
+| api/domain/router/errors.py                                                                                     |       25 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/router/views.py                                                                                      |        7 |        0 |        0 |        0 |    100.00% |           |
 | api/domain/usage/\_usagecontext.py                                                                              |       25 |        7 |        0 |        0 |     72.00% |10, 14, 18, 22, 26, 30, 34 |
 | api/domain/usage/\_usagerepository.py                                                                           |       10 |        2 |        0 |        0 |     80.00% |    12, 26 |
@@ -128,7 +128,7 @@
 | api/infrastructure/fastapi/endpoints/admin/organizations.py                                                     |       71 |        0 |       32 |        5 |     95.15% |78-\>exit, 110-\>exit, 133-\>exit, 158-\>exit, 186-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/providers.py                                                         |       87 |        2 |       46 |        7 |     93.23% |121, 138-\>exit, 159-\>exit, 207, 218-\>exit, 238-\>exit, 260-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/roles.py                                                             |       61 |        2 |       24 |        5 |     89.41% |60-\>exit, 92-93, 112-\>exit, 137-\>exit, 159-\>exit |
-| api/infrastructure/fastapi/endpoints/admin/routers.py                                                           |       68 |        0 |       30 |        5 |     94.90% |81-\>exit, 100-\>exit, 125-\>exit, 153-\>exit, 196-\>exit |
+| api/infrastructure/fastapi/endpoints/admin/routers.py                                                           |       72 |        0 |       34 |        5 |     95.28% |82-\>exit, 104-\>exit, 138-\>exit, 161-\>exit, 204-\>exit |
 | api/infrastructure/fastapi/endpoints/admin/users.py                                                             |       94 |        8 |       44 |        5 |     90.58% |103-\>exit, 127-128, 173-174, 208-209, 261-262 |
 | api/infrastructure/fastapi/endpoints/audio.py                                                                   |       64 |        2 |       32 |        1 |     96.88% |   119-120 |
 | api/infrastructure/fastapi/endpoints/auth.py                                                                    |       45 |        0 |       22 |        2 |     97.01% |46-\>exit, 100-\>exit |
@@ -205,7 +205,7 @@
 | api/infrastructure/openfga/\_openfgaauthorizationclient.py                                                      |       22 |        8 |        0 |        0 |     63.64% |15-18, 21, 24, 27-28, 32 |
 | api/infrastructure/openfga/\_openfgabootstrapauthorization.py                                                   |       22 |       12 |        4 |        0 |     38.46% |     17-30 |
 | api/infrastructure/openfga/\_openfgaorganizationauthorization.py                                                |       36 |       25 |        0 |        0 |     30.56% |8, 11-16, 19-24, 27-32, 35-40, 43-48, 51-56 |
-| api/infrastructure/openfga/\_openfgarouterauthorization.py                                                      |       21 |       13 |        0 |        0 |     38.10% |8, 11-16, 19-24, 27-32 |
+| api/infrastructure/openfga/\_openfgarouterauthorization.py                                                      |       26 |       17 |        0 |        0 |     34.62% |8, 11-16, 19-24, 27-32, 35-40 |
 | api/infrastructure/openfga/\_openfgauserauthorization.py                                                        |       41 |       29 |        0 |        0 |     29.27% |8, 11-16, 19-24, 27-32, 35-40, 43-48, 51-56, 59-64 |
 | api/infrastructure/postgres/\_autocommitsession.py                                                              |       30 |        6 |        0 |        0 |     80.00% |19-22, 25-28 |
 | api/infrastructure/postgres/\_pagination.py                                                                     |        6 |        0 |        0 |        0 |    100.00% |           |
@@ -253,8 +253,8 @@
 | api/use\_cases/admin/roles/\_updateroleusecase.py                                                               |       33 |        1 |        8 |        1 |     95.12% |        38 |
 | api/use\_cases/admin/routers/\_createrouterusecase.py                                                           |       24 |        0 |        4 |        0 |    100.00% |           |
 | api/use\_cases/admin/routers/\_deleterouterusecase.py                                                           |       23 |        0 |        6 |        1 |     96.55% | 38-\>exit |
-| api/use\_cases/admin/routers/\_getonerouterusecase.py                                                           |       17 |        0 |        2 |        0 |    100.00% |           |
-| api/use\_cases/admin/routers/\_getroutersusecase.py                                                             |       15 |        0 |        0 |        0 |    100.00% |           |
+| api/use\_cases/admin/routers/\_getonerouterusecase.py                                                           |       21 |        0 |        4 |        0 |    100.00% |           |
+| api/use\_cases/admin/routers/\_getroutersusecase.py                                                             |       20 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/admin/routers/\_updaterouterusecase.py                                                           |       34 |        0 |       12 |        0 |    100.00% |           |
 | api/use\_cases/admin/users/\_createuserusecase.py                                                               |       40 |        0 |        8 |        0 |    100.00% |           |
 | api/use\_cases/admin/users/\_deleteuserusecase.py                                                               |       28 |        0 |       10 |        1 |     97.37% | 43-\>exit |
@@ -279,7 +279,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **8321** |  **596** | **1480** |  **177** | **91.22%** |           |
+| **TOTAL**                                                                                                       | **8345** |  **601** | **1488** |  **177** | **91.19%** |           |
 
 
 ## Setup coverage badge
