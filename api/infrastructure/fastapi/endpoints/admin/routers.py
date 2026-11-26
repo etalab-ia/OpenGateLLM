@@ -14,6 +14,7 @@ from api.domain.router.errors import (
     RouterNotFoundError,
     UserCannotCreateRouterError,
     UserCannotDeleteRouterError,
+    UserCannotReadRouterError,
     UserCannotUpdateRouterError,
 )
 from api.domain.user.views import AuthenticatedUserView
@@ -84,28 +85,31 @@ async def create_router(
 
 @router.get(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException, RouterNotFoundHTTPException]),
 )
 async def get_router(
     router_id: int = Path(description="The router ID."),
     get_one_router_use_case: GetOneRouterUseCase = Depends(get_one_router_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RouterResponse:
-    command = GetOneRouterCommand(router_id=router_id)
+    command = GetOneRouterCommand(authenticated_user_id=authenticated_user.id, router_id=router_id)
     result = await get_one_router_use_case.execute(command)
     match result:
         case GetOneRouterUseCaseSuccess(returned_router):
             return RouterResponse.model_validate(returned_router, from_attributes=True)
         case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(router_id=not_found_id)
+        case UserCannotReadRouterError(user_id=authenticated_user_id):
+            raise UnauthorizedActionHTTPException(authenticated_user_id)
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROUTERS,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException]),
 )
 async def get_routers(
     offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
@@ -113,8 +117,10 @@ async def get_routers(
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_routers_use_case: GetRoutersUseCase = Depends(get_routers_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoutersResponse:
     command = GetRoutersCommand(
+        authenticated_user_id=authenticated_user.id,
         offset=offset,
         limit=limit,
         sort_by=sort_by,
@@ -129,6 +135,8 @@ async def get_routers(
                 limit=limit,
                 data=[RouterResponse.model_validate(r, from_attributes=True) for r in router_page.data],
             )
+        case UserCannotReadRouterError(user_id=authenticated_user_id):
+            raise UnauthorizedActionHTTPException(authenticated_user_id)
 
 
 @router.delete(

@@ -705,11 +705,11 @@ inconsistency is a bug.
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
 Today **only `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/organizations`, `GET` (list and get-one), `POST`, `PATCH`
-and `DELETE` on `/v1/admin/users`, and `POST`, `PATCH` and `DELETE` on `/v1/admin/routers`, ask OpenFGA**. They are the admin routes guarded by a bare
+and `DELETE` on `/v1/admin/users`, and `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/routers`, ask OpenFGA**. They are the admin routes guarded by a bare
 `AccessController()`. Never put both on one route: two sources of truth for the same decision drift, and `only_admin` short-circuits any
 rule that would let a non-admin through (an organization member reading their own organization, for one).
 
-**What is actually wired.** Thirteen relations the model declares are reached by code:
+**What is actually wired.** Fourteen relations the model declares are reached by code:
 
 | Relation                                  | Written by                                                                                                       | Checked by                                             |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
@@ -723,6 +723,7 @@ rule that would let a non-admin through (an organization member reading their ow
 | `platform:api#can_delete_user`            | computed from `admin`, never written                                                                             | `DeleteUserUseCase`                                    |
 | `platform:api#can_read_user`              | computed from `admin`, never written                                                                             | `GetUsersUseCase`, `GetOneUserUseCase`                 |
 | `platform:api#can_update_user`            | computed from `admin`, never written                                                                             | `UpdateUserUseCase`                                    |
+| `platform:api#can_read_router`            | computed from `admin`, never written                                                                             | `GetRoutersUseCase`, `GetOneRouterUseCase`             |
 | `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`                                  | — (only via the rule below)                            |
 | `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                                               | `DeleteOrganizationUseCase`                            |
 | `organization:<id>#can_update`            | computed from `admin from platform`, never written                                                               | `UpdateOrganizationUseCase`                            |

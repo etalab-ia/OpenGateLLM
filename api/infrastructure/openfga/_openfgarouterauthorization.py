@@ -23,6 +23,14 @@ class OpenFgaRouterAuthorization(RouterAuthorization):
 
         return res
 
+    async def can_read_router(self, user_id: int) -> bool:
+        user_subject = AuthorizationObject.user(user_id)
+        platform_object = AuthorizationObject.platform()
+
+        res = await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.CAN_READ_ROUTER, object=platform_object)
+
+        return res
+
     async def can_update_router(self, user_id: int, router_id: int) -> bool:
         user_subject = AuthorizationObject.user(user_id)
         platform_object = AuthorizationObject.platform()
