@@ -3,7 +3,7 @@ from unittest.mock import create_autospec
 
 import pytest
 
-from api.domain.provider.entities import Provider, ProviderEndpoint, ProviderLoads, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderEndpoint, ProviderLoads, ProviderRequest, ProviderResponse, Providers
 from api.domain.rerank.entities import Rerank
 from api.domain.usage.entities import Usage
 from api.tests.unit.use_case.factories import ProviderFactory
@@ -27,17 +27,73 @@ class TestProviderQoSLimit:
         assert updated_provider.qos_limit == 4
         assert provider.qos_limit is None
 
-    @pytest.mark.parametrize("qos_limits", [[5, None], [None, 5], [5, 10, None]])
-    def test_should_mix_qos_limits_when_open_providers_have_and_lack_a_limit(self, qos_limits):
-        assert Provider.mixes_qos_limits(qos_limits)
 
-    @pytest.mark.parametrize("qos_limits", [[5, 10], [None, None], [5], [None], []])
-    def test_should_not_mix_qos_limits_when_every_open_provider_is_of_the_same_mode(self, qos_limits):
-        assert not Provider.mixes_qos_limits(qos_limits)
+class TestProvidersOpenProviders:
+    def test_should_leave_out_a_provider_when_it_is_closed(self):
+        # Arrange
+        open_provider = ProviderFactory(qos_limit=10)
+        providers = Providers([ProviderFactory(qos_limit=0), open_provider])
 
-    @pytest.mark.parametrize("qos_limits", [[0, None], [0, 5], [5, 0, 10], [None, 0, None]])
-    def test_should_not_mix_qos_limits_when_only_a_closed_provider_differs(self, qos_limits):
-        assert not Provider.mixes_qos_limits(qos_limits)
+        # Act & Assert
+        assert providers.open_providers == [open_provider]
+
+
+class TestProvidersAreRankedByLoadRate:
+    @pytest.mark.parametrize(
+        ("qos_limits", "expected"),
+        [([10, 20], True), ([None, None], False), ([10, None], False), ([10, 0], True), ([None, 0], False), ([0], False), ([], False)],
+    )
+    def test_should_be_true_only_when_there_are_open_providers_and_all_have_a_limit(self, qos_limits, expected):
+        # Arrange
+        providers = Providers([ProviderFactory(qos_limit=qos_limit) for qos_limit in qos_limits])
+
+        # Act & Assert
+        assert providers.are_ranked_by_load_rate is expected
+
+
+class TestProvidersAreCompatibleWithQosLimit:
+    @pytest.mark.parametrize(("existing", "qos_limit"), [([5], None), ([None], 5), ([5, 10], None), ([5, None], 5), ([5, None], None)])
+    def test_should_refuse_a_limit_when_it_mixes_open_providers_with_and_without_one(self, existing, qos_limit):
+        # Arrange
+        providers = Providers([ProviderFactory(qos_limit=limit) for limit in existing])
+
+        # Act & Assert
+        assert not providers.are_compatible_with_qos_limit(qos_limit)
+
+    @pytest.mark.parametrize(("existing", "qos_limit"), [([], 5), ([], None), ([5], 10), ([None], None), ([0], None), ([0], 5), ([5, 0], 10)])
+    def test_should_accept_a_limit_when_it_matches_the_open_providers(self, existing, qos_limit):
+        # Arrange
+        providers = Providers([ProviderFactory(qos_limit=limit) for limit in existing])
+
+        # Act & Assert
+        assert providers.are_compatible_with_qos_limit(qos_limit)
+
+    def test_should_accept_a_closed_provider_when_the_others_already_mix_their_limits(self):
+        # Arrange
+        providers = Providers([ProviderFactory(qos_limit=5), ProviderFactory(qos_limit=None)])
+
+        # Act & Assert
+        assert providers.are_compatible_with_qos_limit(0)
+
+
+class TestProvidersAreCompatibleWithCapabilities:
+    def test_should_accept_any_capability_when_there_is_no_provider(self):
+        # Arrange
+        providers = Providers([])
+
+        # Act & Assert
+        assert providers.are_compatible_with_vector_size(768)
+        assert providers.are_compatible_with_max_context_length(4096)
+
+    def test_should_accept_only_the_same_capabilities_when_there_is_a_provider(self):
+        # Arrange
+        providers = Providers([ProviderFactory(vector_size=768, max_context_length=512)])
+
+        # Act & Assert
+        assert providers.are_compatible_with_vector_size(768)
+        assert not providers.are_compatible_with_vector_size(None)
+        assert providers.are_compatible_with_max_context_length(512)
+        assert not providers.are_compatible_with_max_context_length(1024)
 
 
 class TestProviderLoads:

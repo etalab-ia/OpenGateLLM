@@ -15,6 +15,7 @@ from api.domain.provider.errors import (
     ProviderNotReachableError,
 )
 from api.domain.router import RouterRepository
+from api.domain.router.entities import Router
 from api.domain.router.errors import RouterNotFoundError
 from api.use_cases.services import ProviderCapabilitiesProbe
 
@@ -65,11 +66,13 @@ class CreateProviderUseCase:
         self.provider_capabilities_probe = provider_capabilities_probe
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
-        router = await self.router_repository.get_router_by_id(router_id=command.router_id)
-        if isinstance(router, RouterNotFoundError):
-            return router
+        match await self.router_repository.lock_and_get_router_by_id(router_id=command.router_id):
+            case RouterNotFoundError() as error:
+                return error
+            case Router() as router:
+                pass
 
-        if not command.provider_type.is_compatible_with(router_type=router.type):
+        if not router.is_compatible_with_provider_type(command.provider_type):
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)
 
         result = await self.provider_capabilities_probe.get_capabilities(
@@ -90,28 +93,9 @@ class CreateProviderUseCase:
             case provider_capabilities:
                 pass
 
-        max_context_length = provider_capabilities.max_context_length
-        vector_size = provider_capabilities.vector_size
-
-        # all providers of a router must expose the same capabilities: compare with one of the providers already attached to it
-        existing_providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        if existing_providers:
-            reference_provider = existing_providers[0]
-            if reference_provider.vector_size != vector_size:
-                return InconsistentModelVectorSizeError(
-                    actual_vector_size=vector_size,
-                    expected_vector_size=reference_provider.vector_size,
-                    router_name=router.name,
-                )
-            if reference_provider.max_context_length != max_context_length:
-                return InconsistentModelMaxContextLengthError(
-                    actual_max_context_length=max_context_length,
-                    expected_max_context_length=reference_provider.max_context_length,
-                    router_name=router.name,
-                )
-
-        if command.qos_limit != 0 and Provider.mixes_qos_limits([*(provider.qos_limit for provider in existing_providers), command.qos_limit]):
-            return InconsistentModelQosLimitError(router_id=router.id)
+        inconsistency = router.check_new_provider(capabilities=provider_capabilities, qos_limit=command.qos_limit)
+        if inconsistency is not None:
+            return inconsistency
 
         result = await self.provider_repository.create_provider(
             router_id=command.router_id,
@@ -125,8 +109,8 @@ class CreateProviderUseCase:
             model_hosting_zone=command.model_hosting_zone,
             model_total_params=command.model_total_params,
             model_active_params=command.model_active_params,
-            max_context_length=max_context_length,
-            vector_size=vector_size,
+            max_context_length=provider_capabilities.max_context_length,
+            vector_size=provider_capabilities.vector_size,
         )
 
         match result:

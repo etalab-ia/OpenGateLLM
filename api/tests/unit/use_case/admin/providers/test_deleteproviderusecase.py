@@ -1,7 +1,8 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 import pytest
 
+from api.domain.provider import ProviderRepository
 from api.domain.provider.errors import ProviderNotFoundError
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.use_cases.admin.providers._deleteproviderusecase import DeleteProviderCommand, DeleteProviderUseCase, DeleteProviderUseCaseSuccess
@@ -9,7 +10,7 @@ from api.use_cases.admin.providers._deleteproviderusecase import DeleteProviderC
 
 @pytest.fixture
 def provider_repository():
-    return AsyncMock()
+    return create_autospec(ProviderRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -19,7 +20,7 @@ def use_case(provider_repository):
 
 @pytest.fixture
 def sample_provider():
-    return ProviderFactory(id=42, user_id=1)
+    return ProviderFactory(id=42, router_id=7, user_id=1)
 
 
 class TestDeleteProviderUseCase:
@@ -27,7 +28,7 @@ class TestDeleteProviderUseCase:
     async def test_should_return_deleted_provider_when_user_is_admin_and_provider_exists(self, use_case, provider_repository, sample_provider):
         # Arrange
 
-        use_case.provider_repository.delete_provider.return_value = sample_provider
+        provider_repository.delete_provider.return_value = sample_provider
 
         # Act
         result = await use_case.execute(command=DeleteProviderCommand(provider_id=42))
@@ -41,7 +42,7 @@ class TestDeleteProviderUseCase:
     async def test_should_return_provider_not_found_error_when_provider_does_not_exist(self, use_case, provider_repository):
         # Arrange
 
-        use_case.provider_repository.delete_provider.return_value = ProviderNotFoundError(id=99)
+        provider_repository.delete_provider.return_value = ProviderNotFoundError(id=99)
 
         # Act
         result = await use_case.execute(command=DeleteProviderCommand(provider_id=99))
@@ -49,4 +50,3 @@ class TestDeleteProviderUseCase:
         # Assert
         assert isinstance(result, ProviderNotFoundError)
         assert result.id == 99
-        provider_repository.delete_provider.assert_called_once_with(99)

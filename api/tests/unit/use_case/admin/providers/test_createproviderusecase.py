@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 import pytest
 
@@ -8,6 +8,7 @@ from api.domain.model.errors import (
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
 )
+from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import HostingZone, ProviderCapabilities, ProviderType
 from api.domain.provider.errors import (
     InvalidProviderTypeError,
@@ -15,27 +16,27 @@ from api.domain.provider.errors import (
     ProviderInvalidResponseError,
     ProviderNotReachableError,
 )
+from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
+from api.use_cases.services import ProviderCapabilitiesProbe
 
 
 @pytest.fixture
 def router_repository():
-    return AsyncMock()
+    return create_autospec(RouterRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
 def provider_repository():
-    repository = AsyncMock()
-    repository.get_all_providers_of_router.return_value = []
-    return repository
+    return create_autospec(ProviderRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
 def provider_capabilities_probe():
-    return AsyncMock()
+    return create_autospec(ProviderCapabilitiesProbe, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -58,22 +59,22 @@ def sample_router():
 
 
 @pytest.fixture
-def sample_router_with_providers():
+def sample_router_with_providers(existing_provider_of_router):
     return RouterFactory(
         id=1,
         name="test-router",
         type=RouterType.TEXT_GENERATION,
-        providers=[ProviderFactory()],
+        providers=[existing_provider_of_router],
     )
 
 
 @pytest.fixture
-def sample_embedding_router_with_providers():
+def sample_embedding_router_with_providers(existing_embedding_provider_of_router):
     return RouterFactory(
         id=1,
         name="embedding-router",
         type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
-        providers=[ProviderFactory()],
+        providers=[existing_embedding_provider_of_router],
     )
 
 
@@ -179,14 +180,12 @@ class TestCreateProviderUseCase:
         provider_repository,
         provider_capabilities_probe,
         sample_router_with_providers,
-        existing_provider_of_router,
         sample_provider,
         default_command,
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_router_with_providers
-        provider_repository.get_all_providers_of_router.return_value = [existing_provider_of_router]
+        router_repository.lock_and_get_router_by_id.return_value = sample_router_with_providers
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_repository.create_provider.return_value = sample_provider
 
@@ -220,14 +219,12 @@ class TestCreateProviderUseCase:
         provider_repository,
         provider_capabilities_probe,
         sample_embedding_router_with_providers,
-        existing_embedding_provider_of_router,
         sample_provider,
         default_command,
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
-        provider_repository.get_all_providers_of_router.return_value = [existing_embedding_provider_of_router]
+        router_repository.lock_and_get_router_by_id.return_value = sample_embedding_router_with_providers
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=768)
         provider_repository.create_provider.return_value = sample_provider
 
@@ -259,7 +256,7 @@ class TestCreateProviderUseCase:
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = RouterNotFoundError(id=1)
+        router_repository.lock_and_get_router_by_id.return_value = RouterNotFoundError(id=1)
 
         # Act
         result = await use_case.execute(default_command)
@@ -289,7 +286,8 @@ class TestCreateProviderUseCase:
         # Arrange
         capabilities = capabilities_for(router_type)
         provider = ProviderFactory(id=1, router_id=1, user_id=1, type=provider_type, url="https://example.com/", model_name="my-model")
-        router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type, providers=[])
+        router = RouterFactory(id=1, name="test-router", type=router_type, providers=[])
+        router_repository.lock_and_get_router_by_id.return_value = router
         provider_capabilities_probe.get_capabilities.return_value = capabilities
         provider_repository.create_provider.return_value = provider
         command = with_provider_type(default_command, provider_type)
@@ -341,7 +339,7 @@ class TestCreateProviderUseCase:
         provider_type,
     ):
         # Arrange
-        router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type)
+        router_repository.lock_and_get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type)
         command = with_provider_type(default_command, provider_type)
 
         # Act
@@ -360,7 +358,7 @@ class TestCreateProviderUseCase:
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_router
+        router_repository.lock_and_get_router_by_id.return_value = sample_router
         provider_capabilities_probe.get_capabilities.return_value = ProviderNotReachableError(
             model_name="my-model", status_code=500, detail="error_detail"
         )
@@ -381,7 +379,7 @@ class TestCreateProviderUseCase:
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_router
+        router_repository.lock_and_get_router_by_id.return_value = sample_router
         provider_capabilities_probe.get_capabilities.return_value = ModelNotFoundError(name="my-model")
 
         # Act
@@ -398,7 +396,7 @@ class TestCreateProviderUseCase:
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_router
+        router_repository.lock_and_get_router_by_id.return_value = sample_router
         provider_capabilities_probe.get_capabilities.return_value = ProviderInvalidResponseError(
             model_name="my-model", detail="no embedding returned"
         )
@@ -420,13 +418,11 @@ class TestCreateProviderUseCase:
         provider_repository,
         provider_capabilities_probe,
         sample_router_with_providers,
-        existing_provider_of_router,
         default_command,
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_router_with_providers
-        provider_repository.get_all_providers_of_router.return_value = [existing_provider_of_router]
+        router_repository.lock_and_get_router_by_id.return_value = sample_router_with_providers
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=2048, vector_size=None)
 
         # Act
@@ -446,13 +442,11 @@ class TestCreateProviderUseCase:
         provider_repository,
         provider_capabilities_probe,
         sample_embedding_router_with_providers,
-        existing_embedding_provider_of_router,
         default_command,
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
-        provider_repository.get_all_providers_of_router.return_value = [existing_embedding_provider_of_router]
+        router_repository.lock_and_get_router_by_id.return_value = sample_embedding_router_with_providers
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=384)
 
         # Act
@@ -470,7 +464,7 @@ class TestCreateProviderUseCase:
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = sample_router
+        router_repository.lock_and_get_router_by_id.return_value = sample_router
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_repository.create_provider.return_value = ProviderAlreadyExistsError(model_name="my-model", url="https://example.com/", router_id=1)
 
@@ -490,19 +484,16 @@ class TestCreateProviderUseCase:
         router_repository,
         provider_repository,
         provider_capabilities_probe,
-        sample_router_with_providers,
         default_command,
     ):
         # Arrange
-        router_repository.get_router_by_id.return_value = sample_router_with_providers
-        provider_repository.get_all_providers_of_router.return_value = [
-            ProviderFactory(id=2, router_id=1, type=ProviderType.VLLM, max_context_length=4096, qos_limit=None)
-        ]
+        router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, providers=[ProviderFactory(max_context_length=4096, qos_limit=None)])
+        router_repository.lock_and_get_router_by_id.return_value = router
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
 
         # Act
         result = await use_case.execute(default_command)
 
         # Assert
-        assert result == InconsistentModelQosLimitError(router_id=1)
+        assert result == InconsistentModelQosLimitError(router_id=1, router_name=router.name)
         provider_repository.create_provider.assert_not_called()

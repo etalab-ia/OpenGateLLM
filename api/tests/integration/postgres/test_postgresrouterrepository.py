@@ -68,9 +68,10 @@ class TestGetAllRouters:
 
         assert result[0].cost_prompt_tokens == 0.001
         assert result[0].cost_completion_tokens == 0.002
-        assert result[0].providers[0].qos_limit == 10
-        assert result[0].providers[0].key == "secret"
-        assert result[0].providers[1].qos_limit is None
+        first_provider, second_provider = result[0].providers
+        assert first_provider.qos_limit == 10
+        assert first_provider.key == "secret"
+        assert second_provider.qos_limit is None
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -99,7 +100,7 @@ class TestCreateRouter:
         assert result.cost_completion_tokens == 0.002
         assert result.user_id == user.id
         assert result.aliases == []
-        assert result.providers == []
+        assert len(result.providers) == 0
         assert result.id is not None
         assert result.created is not None
         assert result.updated is not None
@@ -349,6 +350,28 @@ class TestGetRouterById:
         assert isinstance(result, Router)
         assert result.id == router.id
         assert result.aliases == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetRouterByIdForUpdate:
+    async def test_should_return_the_router_with_its_aliases_and_providers_when_it_exists(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(name="router_to_lock", alias=["alias1"])
+        provider = ProviderSQLFactory(router=router)
+        await db_session.flush()
+
+        # Act
+        result = await repository.lock_and_get_router_by_id(router.id)
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.id == router.id
+        assert result.aliases == ["alias1"]
+        assert [provider.id for provider in result.providers] == [provider.id]
+
+    async def test_should_return_router_not_found_when_it_does_not_exist(self, repository):
+        # Act & Assert
+        assert await repository.lock_and_get_router_by_id(999999) == RouterNotFoundError(id=999999)
 
 
 @pytest.mark.asyncio(loop_scope="session")

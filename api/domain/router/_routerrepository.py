@@ -25,6 +25,10 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
+    async def lock_and_get_router_by_id(self, router_id: int) -> Router | RouterNotFoundError:
+        """Locks the router until the end of the transaction: every create or update of its providers goes through this lock."""
+
+    @abstractmethod
     async def get_router_by_name_or_alias(self, name_or_alias: str) -> Router | RouterNotFoundError:
         pass
 

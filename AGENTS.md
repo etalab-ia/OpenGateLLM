@@ -538,6 +538,7 @@ When adding a model-forward use case, also add a `ForwardScenario` in `api/tests
 - **Adapter:** `api/infrastructure/postgres/_postgres<entity>repository.py` — SQLAlchemy, maps `IntegrityError` → domain errors. `<entity>` is **singular** (`_postgreskeyrepository.py`, `_postgresrouterrepository.py`). `_postgresrolesrepository.py` and `_postgresusersrepository.py` predate the rule — do not copy their plural
 - **Pagination:** `EntitiesPage["Entity"]` alias (e.g. `RolePage = EntitiesPage["Role"]`). List queries use `func.count().over().label("total")` plus `fetch_page_with_total` (see `_postgreskeyrepository.py`)
 - `@with_lock` needs a transactional session — never wire a locked method through `get_autocommit_postgres_session`
+- A rule checked on a router's providers is checked and written under one lock: a create or an update loads the router it writes to with `lock_and_get_router_by_id`. Only that router is locked: a delete cannot break the rule, nor can a provider leaving its router. The create holds the lock while it probes the provider: provider writes are rare (less than one a week), so a concurrent write to the same router waiting for the probe costs less than reading the router twice
 - No `*` keyword-only separator on method signatures
 
 ### `IntegrityError` mapping
@@ -573,7 +574,7 @@ Reference: `ModelQuery` / `ModelView` / `PostgresModelQuery` (models API), `Auth
 
 A view is read-only: no `update_*` methods, no domain invariants. It may carry the id of the aggregate it was projected from (`ModelView.router_id`) so the use case can run access control on it.
 
-**Do not put a derived field on an entity just to expose it.** `vector_size` and `max_context_length` belong to `Provider`; `Router` does not mirror them. Consistency between providers of the same router is checked in the use case by reading the router's existing providers, and the models API reads the capability from the provider through `ModelQuery`.
+**Do not put a derived field on an entity just to expose it.** `vector_size` and `max_context_length` belong to `Provider`; `Router` does not mirror them. Consistency between providers of the same router is a rule of the `Providers` collection, which the use cases ask through `Router` (`check_new_provider` for a provider not created yet, `check_provider` for one that changes or moves), and the models API reads the capability from the provider through `ModelQuery`.
 
 ---
 

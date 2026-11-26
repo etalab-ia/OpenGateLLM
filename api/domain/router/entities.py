@@ -4,7 +4,9 @@ from typing import Annotated, ClassVar
 from pydantic import BaseModel, Field
 
 from api.domain import EntitiesPage, RouterType, UtcDatetime
-from api.domain.provider.entities import Provider
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelQosLimitError, InconsistentModelVectorSizeError
+from api.domain.provider.entities import Provider, ProviderCapabilities, Providers, ProviderType
+from api.domain.provider.errors import InvalidProviderTypeError
 from api.domain.role.entities import LimitType
 
 RouterPage = EntitiesPage["Router"]
@@ -18,7 +20,7 @@ class Router(BaseModel):
     aliases: list[str]
     cost_prompt_tokens: float
     cost_completion_tokens: float
-    providers: list[Provider]
+    providers: Providers
     created: UtcDatetime
     updated: UtcDatetime
     qos_retries_before_reject: int | None = None
@@ -41,13 +43,53 @@ class Router(BaseModel):
     def with_qos_retries_before_reject(self, qos_retries_before_reject: int | None) -> "Router":
         return self.model_copy(update={"qos_retries_before_reject": qos_retries_before_reject})
 
+    def with_provider(self, provider: Provider) -> "Router":
+        return self.model_copy(update={"providers": self.providers.with_provider(provider)})
+
+    def is_compatible_with_provider_type(self, provider_type: ProviderType) -> bool:
+        return provider_type.is_compatible_with(router_type=self.type)
+
+    def check_provider(
+        self, provider: Provider
+    ) -> InvalidProviderTypeError | InconsistentModelVectorSizeError | InconsistentModelMaxContextLengthError | InconsistentModelQosLimitError | None:
+        if self.providers.has_provider(provider.id):
+            return self._check_new_qos_limit(provider)
+        if not self.is_compatible_with_provider_type(provider.type):
+            return InvalidProviderTypeError(provider_type=provider.type.value, router_type=self.type.value)
+        return self.check_new_provider(capabilities=provider.capabilities, qos_limit=provider.qos_limit)
+
+    def check_new_provider(
+        self, capabilities: ProviderCapabilities, qos_limit: int | None
+    ) -> InconsistentModelVectorSizeError | InconsistentModelMaxContextLengthError | InconsistentModelQosLimitError | None:
+        if not self.providers.are_compatible_with_vector_size(capabilities.vector_size):
+            return InconsistentModelVectorSizeError(
+                actual_vector_size=capabilities.vector_size,
+                expected_vector_size=self.providers.capabilities.vector_size,
+                router_name=self.name,
+            )
+        if not self.providers.are_compatible_with_max_context_length(capabilities.max_context_length):
+            return InconsistentModelMaxContextLengthError(
+                actual_max_context_length=capabilities.max_context_length,
+                expected_max_context_length=self.providers.capabilities.max_context_length,
+                router_name=self.name,
+            )
+        if not self.providers.are_compatible_with_qos_limit(qos_limit):
+            return InconsistentModelQosLimitError(router_id=self.id, router_name=self.name)
+        return None
+
+    def _check_new_qos_limit(self, provider: Provider) -> InconsistentModelQosLimitError | None:
+        other_providers = self.providers.without_provider(provider.id)
+        if not other_providers.are_compatible_with_qos_limit(provider.qos_limit):
+            return InconsistentModelQosLimitError(router_id=self.id, router_name=self.name)
+        return None
+
     @property
     def has_providers(self) -> bool:
         return len(self.providers) > 0
 
     @property
     def open_providers(self) -> list[Provider]:
-        return [provider for provider in self.providers if not provider.is_closed]
+        return self.providers.open_providers
 
     @property
     def enforces_limits(self) -> bool:
@@ -55,7 +97,7 @@ class Router(BaseModel):
 
     @property
     def is_ranked_by_load_rate(self) -> bool:
-        return all(provider.qos_limit is not None for provider in self.open_providers)
+        return self.providers.are_ranked_by_load_rate
 
 
 class TpmRateLimitState(BaseModel):

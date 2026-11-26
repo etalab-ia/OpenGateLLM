@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer, joinedload
 
 from api.domain import SortField, SortOrder
-from api.domain.provider.entities import Provider
+from api.domain.provider.entities import Providers
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterPage, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
@@ -52,11 +52,11 @@ class PostgresRouterRepository(RouterRepository):
         return cls._row_to_router(
             row=row.Router,
             aliases=[alias.value for alias in row.Router.alias],
-            providers=[row_to_provider(provider) for provider in row.Router.provider],
+            providers=Providers([row_to_provider(provider) for provider in row.Router.provider]),
         )
 
     @staticmethod
-    def _row_to_router(row, aliases: list[str], providers: list[Provider]) -> Router:
+    def _row_to_router(row, aliases: list[str], providers: Providers) -> Router:
         return Router(
             id=row.id,
             name=row.name,
@@ -73,6 +73,15 @@ class PostgresRouterRepository(RouterRepository):
 
     async def get_router_by_id(self, router_id: int) -> Router | RouterNotFoundError:
         query = self._select_routers_statement().where(RouterTable.id == router_id)
+        rows = await self._fetch_rows(query)
+        if not rows:
+            return RouterNotFoundError(id=router_id)
+
+        return self._row_to_router_with_providers(rows[0])
+
+    @with_lock(namespace="router", key="router_id")
+    async def lock_and_get_router_by_id(self, router_id: int) -> Router | RouterNotFoundError:
+        query = self._select_routers_statement().where(RouterTable.id == router_id).execution_options(populate_existing=True)
         rows = await self._fetch_rows(query)
         if not rows:
             return RouterNotFoundError(id=router_id)
@@ -161,7 +170,7 @@ class PostgresRouterRepository(RouterRepository):
                 return RouterAliasAlreadyExistsError(aliases=duplicate_aliases)
             raise
 
-        return self._row_to_router(row=row, aliases=aliases, providers=[])
+        return self._row_to_router(row=row, aliases=aliases, providers=Providers([]))
 
     async def get_aliases(self, filtered_aliases: list[str] | None = None) -> list[str]:
         query = select(RouterAliasTable.value)

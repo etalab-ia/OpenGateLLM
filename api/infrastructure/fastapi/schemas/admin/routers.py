@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from pydantic import BeforeValidator, Field, StringConstraints
 
 from api.domain import BaseModel
+from api.domain.provider.entities import Providers
 from api.domain.router.entities import RouterType
 from api.infrastructure.fastapi.schemas import UnixTimestamp
 
@@ -26,7 +27,7 @@ class UpdateRouterBody(BaseModel):
 
 
 def _count_providers(value: object) -> object:
-    return len(value) if isinstance(value, list) else value
+    return len(value) if isinstance(value, Providers) else value
 
 
 class RouterResponse(BaseModel):

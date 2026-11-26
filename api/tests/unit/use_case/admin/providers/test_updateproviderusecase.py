@@ -1,26 +1,33 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 import pytest
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelQosLimitError, InconsistentModelVectorSizeError
+from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
+from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
 from api.use_cases.admin.providers._updateproviderusecase import UpdateProviderCommand, UpdateProviderUseCase, UpdateProviderUseCaseSuccess
 
 
+def stub_locked_routers(router_repository, *routers) -> None:
+    routers_by_id = {router.id: router for router in routers}
+    router_repository.lock_and_get_router_by_id.side_effect = lambda router_id: routers_by_id.get(router_id, RouterNotFoundError(id=router_id))
+
+
 @pytest.fixture
 def router_repository():
-    return AsyncMock()
+    repository = create_autospec(RouterRepository, instance=True, spec_set=True)
+    stub_locked_routers(repository, RouterFactory(id=1, type=RouterType.TEXT_GENERATION))
+    return repository
 
 
 @pytest.fixture
 def provider_repository():
-    repository = AsyncMock()
-    repository.get_all_providers_of_router.return_value = []
-    return repository
+    return create_autospec(ProviderRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -88,7 +95,7 @@ class TestUpdateProviderUseCase:
         # Assert
         assert isinstance(result, ProviderNotFoundError)
         assert result.id == 10
-        router_repository.get_router_by_id.assert_not_called()
+        router_repository.lock_and_get_router_by_id.assert_not_called()
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
@@ -101,7 +108,6 @@ class TestUpdateProviderUseCase:
     ):
         # Arrange
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = RouterNotFoundError(id=99)
 
         # Act
         result = await use_case.execute(command=full_command(sample_provider, router_id=99))
@@ -122,7 +128,7 @@ class TestUpdateProviderUseCase:
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.OPENAI, timeout=30)
         new_router = RouterFactory(id=2, type=RouterType.TEXT_CLASSIFICATION, providers=[])
         provider_repository.get_one_provider.return_value = provider
-        router_repository.get_router_by_id.return_value = new_router
+        stub_locked_routers(router_repository, RouterFactory(id=1), new_router)
 
         # Act
         result = await use_case.execute(command=full_command(provider, router_id=2))
@@ -140,10 +146,9 @@ class TestUpdateProviderUseCase:
         # Arrange
 
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.TEI, vector_size=768)
-        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=[ProviderFactory()])
+        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=[ProviderFactory(vector_size=384)])
         provider_repository.get_one_provider.return_value = provider
-        provider_repository.get_all_providers_of_router.return_value = [ProviderFactory(id=20, router_id=2, type=ProviderType.TEI, vector_size=384)]
-        router_repository.get_router_by_id.return_value = new_router
+        stub_locked_routers(router_repository, RouterFactory(id=1), new_router)
 
         # Act
         result = await use_case.execute(command=full_command(provider, router_id=2))
@@ -162,12 +167,9 @@ class TestUpdateProviderUseCase:
         # Arrange
 
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, max_context_length=4096)
-        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_GENERATION, providers=[ProviderFactory()])
+        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_GENERATION, providers=[ProviderFactory(max_context_length=8192)])
         provider_repository.get_one_provider.return_value = provider
-        provider_repository.get_all_providers_of_router.return_value = [
-            ProviderFactory(id=20, router_id=2, type=ProviderType.VLLM, max_context_length=8192)
-        ]
-        router_repository.get_router_by_id.return_value = new_router
+        stub_locked_routers(router_repository, RouterFactory(id=1), new_router)
 
         # Act
         result = await use_case.execute(command=full_command(provider, router_id=2))
@@ -219,7 +221,7 @@ class TestUpdateProviderUseCase:
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
         provider_repository.update_provider.assert_called_once_with(updated_provider)
-        router_repository.get_router_by_id.assert_not_called()
+        router_repository.lock_and_get_router_by_id.assert_awaited_once_with(router_id=1)
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed_and_has_provider(
@@ -231,16 +233,7 @@ class TestUpdateProviderUseCase:
         updated_provider = provider_after_command(sample_provider, command)
 
         provider_repository.get_one_provider.return_value = sample_provider
-        provider_repository.get_all_providers_of_router.return_value = [
-            ProviderFactory(
-                id=20,
-                router_id=2,
-                type=ProviderType.VLLM,
-                max_context_length=sample_provider.max_context_length,
-                vector_size=sample_provider.vector_size,
-            )
-        ]
-        router_repository.get_router_by_id.return_value = new_router
+        stub_locked_routers(router_repository, RouterFactory(id=1), new_router)
         provider_repository.update_provider.return_value = updated_provider
 
         # Act
@@ -261,7 +254,7 @@ class TestUpdateProviderUseCase:
         updated_provider = provider_after_command(sample_provider, command)
 
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = new_router
+        stub_locked_routers(router_repository, RouterFactory(id=1), new_router)
         provider_repository.update_provider.return_value = updated_provider
 
         # Act
@@ -308,7 +301,7 @@ class TestUpdateProviderUseCase:
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
         provider_repository.update_provider.assert_called_once_with(updated_provider)
-        router_repository.get_router_by_id.assert_not_called()
+        router_repository.lock_and_get_router_by_id.assert_awaited_once_with(router_id=1)
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_model_total_params_is_changed(
@@ -332,7 +325,7 @@ class TestUpdateProviderUseCase:
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
         provider_repository.update_provider.assert_called_once_with(updated_provider)
-        router_repository.get_router_by_id.assert_not_called()
+        router_repository.lock_and_get_router_by_id.assert_awaited_once_with(router_id=1)
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed(self, use_case, provider_repository, router_repository, sample_provider):
@@ -342,7 +335,7 @@ class TestUpdateProviderUseCase:
         updated_provider = provider_after_command(sample_provider, command)
 
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = new_router
+        stub_locked_routers(router_repository, RouterFactory(id=1), new_router)
         provider_repository.update_provider.return_value = updated_provider
 
         # Act
@@ -352,30 +345,34 @@ class TestUpdateProviderUseCase:
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
         provider_repository.update_provider.assert_called_once_with(updated_provider)
-        router_repository.get_router_by_id.assert_called_once_with(router_id=new_router.id)
+        router_repository.lock_and_get_router_by_id.assert_awaited_once_with(router_id=2)
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_qos_limit_error_when_the_update_removes_the_limit_of_one_of_several_open_providers(
-        self, use_case, provider_repository
+        self, use_case, provider_repository, router_repository
     ):
         # Arrange
         provider = ProviderFactory(id=10, router_id=1, qos_limit=5)
         provider_repository.get_one_provider.return_value = provider
-        provider_repository.get_all_providers_of_router.return_value = [provider, ProviderFactory(id=20, router_id=1, qos_limit=5)]
+        stub_locked_routers(
+            router_repository, RouterFactory(id=1, name="my-router", providers=[provider, ProviderFactory(id=20, router_id=1, qos_limit=5)])
+        )
 
         # Act
         result = await use_case.execute(command=full_command(provider, qos_limit=None))
 
         # Assert
-        assert result == InconsistentModelQosLimitError(router_id=1)
+        assert result == InconsistentModelQosLimitError(router_id=1, router_name="my-router")
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_accept_an_unchanged_provider_when_its_router_already_mixes_qos_limits(self, use_case, provider_repository):
+    async def test_should_accept_an_unchanged_provider_when_its_router_already_mixes_qos_limits(
+        self, use_case, provider_repository, router_repository
+    ):
         # Arrange
         provider = ProviderFactory(id=10, router_id=1, qos_limit=5)
         provider_repository.get_one_provider.return_value = provider
-        provider_repository.get_all_providers_of_router.return_value = [provider, ProviderFactory(id=20, router_id=1, qos_limit=None)]
+        stub_locked_routers(router_repository, RouterFactory(id=1, providers=[provider, ProviderFactory(id=20, router_id=1, qos_limit=None)]))
 
         # Act
         result = await use_case.execute(command=full_command(provider))
@@ -385,17 +382,16 @@ class TestUpdateProviderUseCase:
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_accept_closing_a_provider_when_its_router_already_mixes_qos_limits(self, use_case, provider_repository):
+    async def test_should_accept_closing_a_provider_when_its_router_already_mixes_qos_limits(self, use_case, provider_repository, router_repository):
         # Arrange
         provider = ProviderFactory(id=10, router_id=1, qos_limit=5)
         command = full_command(provider, qos_limit=0)
         closed_provider = provider_after_command(provider, command)
         provider_repository.get_one_provider.return_value = provider
-        provider_repository.get_all_providers_of_router.return_value = [
-            provider,
-            ProviderFactory(id=20, router_id=1, qos_limit=5),
-            ProviderFactory(id=30, router_id=1, qos_limit=None),
-        ]
+        router = RouterFactory(
+            id=1, providers=[provider, ProviderFactory(id=20, router_id=1, qos_limit=5), ProviderFactory(id=30, router_id=1, qos_limit=None)]
+        )
+        stub_locked_routers(router_repository, router)
         provider_repository.update_provider.return_value = closed_provider
 
         # Act
@@ -404,3 +400,20 @@ class TestUpdateProviderUseCase:
         # Assert
         assert result == UpdateProviderUseCaseSuccess(provider=closed_provider)
         provider_repository.update_provider.assert_called_once_with(closed_provider)
+
+    @pytest.mark.asyncio
+    async def test_should_return_inconsistent_qos_limit_error_when_a_provider_with_a_limit_moves_to_a_router_whose_providers_have_none(
+        self, use_case, provider_repository, router_repository
+    ):
+        # Arrange
+        provider = ProviderFactory(id=10, router_id=1, type=ProviderType.VLLM, qos_limit=5)
+        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=[ProviderFactory(qos_limit=None)])
+        stub_locked_routers(router_repository, RouterFactory(id=1), new_router)
+        provider_repository.get_one_provider.return_value = provider
+
+        # Act
+        result = await use_case.execute(command=full_command(provider, router_id=2))
+
+        # Assert
+        assert result == InconsistentModelQosLimitError(router_id=2, router_name=new_router.name)
+        provider_repository.update_provider.assert_not_called()
