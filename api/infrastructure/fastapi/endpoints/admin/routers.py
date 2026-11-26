@@ -14,6 +14,7 @@ from api.domain.router.errors import (
     RouterNotFoundError,
     UserCannotCreateRouterError,
     UserCannotDeleteRouterError,
+    UserCannotUpdateRouterError,
 )
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -155,10 +156,10 @@ async def delete_router(
 
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     responses=get_documentation_responses(
         [
-            NotAdminUserHTTPException,
+            UnauthorizedActionHTTPException,
             RouterNotFoundHTTPException,
             RouterAliasAlreadyExistsHTTPException,
             RouterAlreadyExistsHTTPException,
@@ -169,9 +170,11 @@ async def delete_router(
 async def update_router(
     router_id: int = Path(description="The ID of the router to update (router ID, eg. 123)."),
     update_router_use_case: UpdateRouterUseCase = Depends(update_router_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
     body: UpdateRouterBody = Body(description="The router update request."),
 ) -> RouterResponse:
     command = UpdateRouterCommand(
+        authenticated_user_id=authenticated_user.id,
         router_id=router_id,
         name=body.name,
         router_type=body.router_type,
@@ -190,3 +193,5 @@ async def update_router(
             raise RouterAliasAlreadyExistsHTTPException(aliases)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
+        case UserCannotUpdateRouterError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
