@@ -1,27 +1,26 @@
 ---
 name: "\U0001F41E Bug report"
 about: Create a report to help us improve
-title: "[topic] Explicite bug impact (not copy error title)"
+title: "[topic] Describe the impact of the bug"
 labels: ''
 assignees: ''
-
 ---
 
-### Describe the bug - a clear and concise description of what the bug is.
+### Describe the bug
 
-### To Reproduce
+<!-- What happens, who is affected, and what is the impact? -->
 
-**Steps to reproduce the behavior:**
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+### Steps to reproduce
+
+<!-- List the conditions and steps that reproduce the observed behavior. -->
 
 ### Expected behavior
-A clear and concise description of what you expected to happen.
 
-### Screenshots 
-If applicable, add screenshots to help explain your problem.
+<!-- Describe the expected result: Given [context], when [action], then [outcome]. -->
+
+### Screenshots
+
+<!-- Attach screenshots if they help demonstrate the bug. -->
 
 ### Additional context
-Add any other context about the problem here.
+<!-- Include any other evidence needed to understand or reproduce the bug. -->
