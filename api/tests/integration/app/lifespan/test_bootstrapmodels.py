@@ -1,9 +1,15 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, create_autospec, patch
 
 import pytest
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider import TokenizerRegistry
+from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
+    ProviderAlreadyExistsError,
+    ProviderNotReachableError,
+    TokenizerNotLoadableError,
+)
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.configuration import Configuration, Dependencies, Settings
 from api.lifespan import bootstrap_models
@@ -26,6 +32,11 @@ def postgres_session():
     return AsyncMock()
 
 
+@pytest.fixture
+def tokenizer_registry():
+    return create_autospec(TokenizerRegistry, instance=True, spec_set=True)
+
+
 class TestBootstrapModels:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -36,7 +47,7 @@ class TestBootstrapModels:
             (BootstrapModelsUseCaseSuccess(number_of_routers=0), 0),
         ],
     )
-    async def test_happy_path(self, bootstrap_configuration, postgres_session, use_case_result, expected_count):
+    async def test_happy_path(self, bootstrap_configuration, postgres_session, tokenizer_registry, use_case_result, expected_count):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
 
@@ -45,6 +56,7 @@ class TestBootstrapModels:
                 configuration=bootstrap_configuration,
                 postgres_session=postgres_session,
                 bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
+                tokenizer_registry=tokenizer_registry,
             )
 
         assert result == expected_count
@@ -87,9 +99,20 @@ class TestBootstrapModels:
                 ),
                 "Inconsistent model max context length (my-router).",
             ),
+            (
+                TokenizerNotLoadableError(tokenizer_name="org/missing", detail="RepositoryNotFoundError"),
+                "Tokenizer org/missing cannot be loaded from the Hugging Face Hub (RepositoryNotFoundError).",
+            ),
+            (
+                DefaultTokenizerNotLoadableError(model_name="my-model", detail="GatedRepoError"),
+                "Model name my-model cannot be loaded as a tokenizer from the Hugging Face Hub (GatedRepoError). "
+                "Specify a valid tokenizer_name for this provider in the models section.",
+            ),
         ],
     )
-    async def test_error_maps_to_runtime_error(self, bootstrap_configuration, postgres_session, use_case_result, expected_message):
+    async def test_error_maps_to_runtime_error(
+        self, bootstrap_configuration, postgres_session, tokenizer_registry, use_case_result, expected_message
+    ):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
 
@@ -99,6 +122,7 @@ class TestBootstrapModels:
                     configuration=bootstrap_configuration,
                     postgres_session=postgres_session,
                     bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
+                    tokenizer_registry=tokenizer_registry,
                 )
 
         assert str(exc_info.value) == expected_message

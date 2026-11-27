@@ -1,6 +1,7 @@
 from unittest.mock import create_autospec
 
 import pytest
+from tokenizers import Tokenizer
 
 from api.domain.model.errors import (
     InconsistentModelMaxContextLengthError,
@@ -8,9 +9,15 @@ from api.domain.model.errors import (
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
 )
-from api.domain.provider import ProviderRepository
+from api.domain.provider import ProviderRepository, TokenizerRegistry
 from api.domain.provider.entities import ProviderCapabilities
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+    TokenizerNotLoadableError,
+)
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNameAlreadyExistsError
@@ -37,11 +44,19 @@ def provider_capabilities_probe():
 
 
 @pytest.fixture
-def use_case(router_repository, provider_repository, provider_capabilities_probe):
+def mock_tokenizer_registry():
+    registry = create_autospec(TokenizerRegistry, instance=True, spec_set=True)
+    registry.get.return_value = create_autospec(Tokenizer, instance=True)
+    return registry
+
+
+@pytest.fixture
+def use_case(router_repository, provider_repository, provider_capabilities_probe, mock_tokenizer_registry):
     return BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
         provider_capabilities_probe=provider_capabilities_probe,
+        tokenizer_registry=mock_tokenizer_registry,
     )
 
 
@@ -438,6 +453,98 @@ class TestBootstrapModelsUseCase:
 
         # Assert
         assert result == error
+
+    @pytest.mark.asyncio
+    async def test_should_create_providers_with_the_model_name_as_tokenizer_when_no_tokenizer_name_is_given(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe, mock_tokenizer_registry
+    ):
+        # Arrange
+        provider_to_create = ProviderToCreateFactory(tokenizer_name=None, hf_token="hf_x")
+        router_to_create = RouterToCreateFactory(providers=[provider_to_create])
+        router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = RouterFactory(id=1)
+        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        provider_repository.create_provider.return_value = ProviderFactory(id=100)
+
+        # Act
+        await use_case.execute(BootstrapModelsCommand(routers_to_create=[router_to_create], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID))
+
+        # Assert
+        mock_tokenizer_registry.get.assert_awaited_once_with(tokenizer_name=provider_to_create.model_name, hf_token="hf_x")
+        assert provider_repository.create_provider.call_args.kwargs["tokenizer_name"] == provider_to_create.model_name
+        assert provider_repository.create_provider.call_args.kwargs["hf_token"] == "hf_x"
+
+    @pytest.mark.asyncio
+    async def test_should_create_providers_with_the_given_tokenizer_when_a_tokenizer_name_is_given(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe, mock_tokenizer_registry
+    ):
+        # Arrange
+        first = ProviderToCreateFactory(tokenizer_name="org/tokenizer-a", hf_token="hf_a")
+        second = ProviderToCreateFactory(tokenizer_name="org/tokenizer-b", hf_token="hf_b")
+        router_to_create = RouterToCreateFactory(providers=[first, second])
+        router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = RouterFactory(id=1)
+        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        provider_repository.create_provider.return_value = ProviderFactory(id=100, max_context_length=4096)
+
+        # Act
+        await use_case.execute(BootstrapModelsCommand(routers_to_create=[router_to_create], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID))
+
+        # Assert
+        assert mock_tokenizer_registry.get.await_args_list[0].kwargs == {"tokenizer_name": "org/tokenizer-a", "hf_token": "hf_a"}
+        assert mock_tokenizer_registry.get.await_args_list[1].kwargs == {"tokenizer_name": "org/tokenizer-b", "hf_token": "hf_b"}
+        created = provider_repository.create_provider.await_args_list
+        assert created[0].kwargs["tokenizer_name"] == "org/tokenizer-a"
+        assert created[0].kwargs["hf_token"] == "hf_a"
+        assert created[1].kwargs["tokenizer_name"] == "org/tokenizer-b"
+        assert created[1].kwargs["hf_token"] == "hf_b"
+
+    @pytest.mark.asyncio
+    async def test_should_delete_routers_and_return_default_tokenizer_not_loadable_when_the_model_name_is_not_a_loadable_tokenizer(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe, mock_tokenizer_registry
+    ):
+        # Arrange
+        provider_to_create = ProviderToCreateFactory(tokenizer_name=None)
+        router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = RouterFactory(id=1)
+        mock_tokenizer_registry.get.return_value = TokenizerNotLoadableError(tokenizer_name=provider_to_create.model_name, detail="GatedRepoError")
+
+        # Act
+        result = await use_case.execute(
+            BootstrapModelsCommand(
+                routers_to_create=[RouterToCreateFactory(providers=[provider_to_create])], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID
+            )
+        )
+
+        # Assert
+        assert result == DefaultTokenizerNotLoadableError(model_name=provider_to_create.model_name, detail="GatedRepoError")
+        router_repository.delete_all_routers.assert_awaited_once()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()
+        provider_repository.create_provider.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_delete_routers_and_return_tokenizer_not_loadable_when_the_given_tokenizer_cannot_be_loaded(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe, mock_tokenizer_registry
+    ):
+        # Arrange
+        provider_to_create = ProviderToCreateFactory(tokenizer_name="org/missing")
+        router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = RouterFactory(id=1)
+        error = TokenizerNotLoadableError(tokenizer_name="org/missing", detail="RepositoryNotFoundError")
+        mock_tokenizer_registry.get.return_value = error
+
+        # Act
+        result = await use_case.execute(
+            BootstrapModelsCommand(
+                routers_to_create=[RouterToCreateFactory(providers=[provider_to_create])], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID
+            )
+        )
+
+        # Assert
+        assert result == error
+        router_repository.delete_all_routers.assert_awaited_once()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()
+        provider_repository.create_provider.assert_not_awaited()
 
 
 if __name__ == "__main__":

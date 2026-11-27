@@ -182,6 +182,8 @@ class ProviderToCreateFactory(factory.Factory):
     model_hosting_zone = HostingZone.WOR
     model_total_params = 0
     model_active_params = 0
+    tokenizer_name = None
+    hf_token = None
 
     class Params:
         tei = factory.Trait(type=ProviderType.TEI)

@@ -19,7 +19,14 @@ from api.domain.model.errors import (
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
 )
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.provider import TokenizerRegistry
+from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+    TokenizerNotLoadableError,
+)
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.configuration import Configuration, Tokenizer
@@ -76,7 +83,12 @@ async def lifespan(app: FastAPI):
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
         if bootstrap_admin_user_id is not None:
-            await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
+            await bootstrap_models(
+                configuration=configuration,
+                postgres_session=postgres_session,
+                bootstrap_admin_user_id=bootstrap_admin_user_id,
+                tokenizer_registry=global_context.tokenizer_registry,
+            )
 
     global_context.langfuse = create_langfuse(configuration=configuration)
     global_context.tokenizer = initialize_tokenizer(configuration=configuration)
@@ -166,7 +178,9 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
             return skipped.user_id
 
 
-async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
+async def bootstrap_models(
+    configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int, tokenizer_registry: TokenizerRegistry
+) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
     provider_capabilities_probe = ProviderCapabilitiesProbe(provider_client=HttpProviderClient(adapter_builder=HttpProviderAdapterBuilder()))
@@ -179,6 +193,7 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
         router_repository=router_repository,
         provider_repository=provider_repository,
         provider_capabilities_probe=provider_capabilities_probe,
+        tokenizer_registry=tokenizer_registry,
     ).execute(command)
 
     match result:
@@ -206,6 +221,13 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(
                 f"Inconsistent qos_limit ({error.router_name}): the open providers of a model must all have a qos_limit, or none of them."
             )
+        case TokenizerNotLoadableError() as error:
+            raise RuntimeError(f"Tokenizer {error.tokenizer_name} cannot be loaded from the Hugging Face Hub ({error.detail}).")
+        case DefaultTokenizerNotLoadableError() as error:
+            raise RuntimeError(
+                f"Model name {error.model_name} cannot be loaded as a tokenizer from the Hugging Face Hub ({error.detail}). "
+                "Specify a valid tokenizer_name for this provider in the models section."
+            )
 
 
 def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[RouterToCreate]:
@@ -228,6 +250,8 @@ def map_models_to_routers_to_create(models: list[ModelConfiguration]) -> list[Ro
                     model_hosting_zone=provider.model_hosting_zone,
                     model_total_params=provider.model_total_params,
                     model_active_params=provider.model_active_params,
+                    tokenizer_name=provider.tokenizer_name,
+                    hf_token=provider.hf_token,
                 )
                 for provider in model.providers
             ],
