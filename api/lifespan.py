@@ -26,6 +26,7 @@ from api.infrastructure.configuration import Configuration, Tokenizer
 from api.infrastructure.configuration import Model as ModelConfiguration
 from api.infrastructure.context import global_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.huggingface import HuggingFaceTokenizerRegistry
 from api.infrastructure.openfga import OpenFgaAuthorizationClient, OpenFgaBootstrapAuthorization
 from api.infrastructure.postgres import (
     AutocommitSession,
@@ -70,6 +71,7 @@ async def lifespan(app: FastAPI):
     global_context.postgres_engine = create_postgres_engine(configuration)
     global_context.postgres_session_factory = create_postgres_session_factory(engine=global_context.postgres_engine)
     global_context.autocommit_postgres_session_factory = create_autocommit_postgres_session_factory(engine=global_context.postgres_engine)
+    global_context.tokenizer_registry = HuggingFaceTokenizerRegistry()
 
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)

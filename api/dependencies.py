@@ -16,6 +16,7 @@ from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
     ProviderRepository,
+    TokenizerRegistry,
 )
 from api.domain.role import LimitRepository, PermissionRepository, RoleAuthorization
 from api.domain.router import RouterAuthorization, RouterRateLimiter
@@ -132,6 +133,10 @@ def _key_encoder(configuration: Configuration = Depends(get_app_configuration)) 
 
 def _model_tokenizer() -> ModelTokenizer:
     return TiktokenModelTokenizer(model=global_context.tokenizer)
+
+
+def _tokenizer_registry() -> TokenizerRegistry:
+    return global_context.tokenizer_registry
 
 
 def _model_environmental_impacts_computer() -> ModelEnvironmentalImpactsComputer:

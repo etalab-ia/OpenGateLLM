@@ -11,6 +11,8 @@ if TYPE_CHECKING:
     from redis.asyncio import ConnectionPool
     from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
+    from api.domain.provider import TokenizerRegistry
+
 
 class GlobalContext(BaseModel):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
@@ -22,6 +24,7 @@ class GlobalContext(BaseModel):
     langfuse: Langfuse | None = None
     openfga_client: OpenFgaClient | None = None
     tokenizer: Encoding | None = None
+    tokenizer_registry: TokenizerRegistry | None = None
 
 
 global_context: GlobalContext = GlobalContext.model_construct()
