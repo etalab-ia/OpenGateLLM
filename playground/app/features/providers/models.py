@@ -13,6 +13,8 @@ class Provider(Entity):
     timeout: int = 300
     qos_limit: int | None = None
     model_name: str | None = None
+    tokenizer_name: str | None = None
+    hf_token: str | None = None
     model_hosting_zone: str = "WOR"
     model_total_params: int | None = 0
     model_active_params: int | None = 0

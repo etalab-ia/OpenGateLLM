@@ -687,10 +687,14 @@ def create_provider_use_case_factory(
     )
 
 
-def update_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateProviderUseCase:
+def update_provider_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    tokenizer_registry: TokenizerRegistry = Depends(_tokenizer_registry),
+) -> UpdateProviderUseCase:
     return UpdateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
+        tokenizer_registry=tokenizer_registry,
     )
 
 

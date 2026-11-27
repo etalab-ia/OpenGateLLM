@@ -37,6 +37,8 @@ class UpdateProviderBody(BaseModel):
     model_total_params: Annotated[int, Field(..., ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If 0, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(..., ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If 0, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     qos_limit: Annotated[int | None, Field(..., ge=0, description="Maximum concurrent load for this provider. Null disables the limit.")]  # fmt: off
+    tokenizer_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Hugging Face Hub name of the model tokenizer. It is validated on every update.")]  # fmt: off
+    hf_token: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Hugging Face token to load a gated tokenizer. Omit it to keep the stored token. It is never returned.")]  # fmt: off
 
 
 class ProviderResponse(BaseModel):

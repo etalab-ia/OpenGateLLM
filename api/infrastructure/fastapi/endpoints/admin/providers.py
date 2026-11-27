@@ -187,6 +187,7 @@ async def delete_provider(
             ProviderAlreadyExistsHTTPException,
             RouterNotFoundHTTPException,
             ProviderNotFoundHTTPException,
+            TokenizerNotLoadableHTTPException,
             NotAdminUserHTTPException,
         ]
     ),
@@ -204,6 +205,8 @@ async def update_provider(
         model_total_params=body.model_total_params,
         model_active_params=body.model_active_params,
         qos_limit=body.qos_limit,
+        tokenizer_name=body.tokenizer_name,
+        hf_token=body.hf_token,
     )
     result = await update_provider_use_case.execute(command)
 
@@ -231,6 +234,9 @@ async def update_provider(
 
         case ProviderNotFoundError(id=provider_id):
             raise ProviderNotFoundHTTPException(provider_id=provider_id)
+
+        case TokenizerNotLoadableError(tokenizer_name=tokenizer_name, detail=detail):
+            raise TokenizerNotLoadableHTTPException(tokenizer_name=tokenizer_name, detail=detail)
 
 
 @router.get(

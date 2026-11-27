@@ -1,9 +1,14 @@
 from dataclasses import dataclass
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelQosLimitError, InconsistentModelVectorSizeError
-from api.domain.provider import ProviderRepository
+from api.domain.provider import ProviderRepository, TokenizerRegistry
 from api.domain.provider.entities import HostingZone, Provider
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
+from api.domain.provider.errors import (
+    InvalidProviderTypeError,
+    ProviderAlreadyExistsError,
+    ProviderNotFoundError,
+    TokenizerNotLoadableError,
+)
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router
 from api.domain.router.errors import RouterNotFoundError
@@ -18,6 +23,8 @@ class UpdateProviderCommand:
     model_total_params: int
     model_active_params: int
     qos_limit: int | None
+    tokenizer_name: str
+    hf_token: str | None = None
 
 
 @dataclass
@@ -34,6 +41,7 @@ type UpdateProviderUseCaseResult = (
     | RouterNotFoundError
     | ProviderAlreadyExistsError
     | ProviderNotFoundError
+    | TokenizerNotLoadableError
 )
 
 
@@ -42,9 +50,11 @@ class UpdateProviderUseCase:
         self,
         router_repository: RouterRepository,
         provider_repository: ProviderRepository,
+        tokenizer_registry: TokenizerRegistry,
     ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
+        self.tokenizer_registry = tokenizer_registry
 
     async def execute(self, command: UpdateProviderCommand) -> UpdateProviderUseCaseResult:
         match await self.provider_repository.get_one_provider(provider_id=command.provider_id):
@@ -53,9 +63,16 @@ class UpdateProviderUseCase:
             case Provider() as existing_provider:
                 pass
 
+        hf_token = command.hf_token if command.hf_token is not None else existing_provider.hf_token
+        match await self.tokenizer_registry.get(tokenizer_name=command.tokenizer_name, hf_token=hf_token):
+            case TokenizerNotLoadableError() as error:
+                return error
+
         provider_to_persist = (
             existing_provider.with_router_id(command.router_id)
             .with_timeout(command.timeout)
+            .with_tokenizer_name(command.tokenizer_name)
+            .with_hf_token(hf_token)
             .with_model_hosting_zone(command.model_hosting_zone)
             .with_model_total_params(command.model_total_params)
             .with_model_active_params(command.model_active_params)
