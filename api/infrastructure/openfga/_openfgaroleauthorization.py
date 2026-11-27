@@ -12,3 +12,9 @@ class OpenFgaRoleAuthorization(RoleAuthorization):
         platform_object = AuthorizationObject.platform()
 
         return await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.CAN_CREATE_ROLE, object=platform_object)
+
+    async def can_delete_role(self, user_id: int, role_id: int) -> bool:
+        user_subject = AuthorizationObject.user(user_id)
+        platform_object = AuthorizationObject.platform()
+
+        return await self.openfga_client.check(subject=user_subject, relation=PlatformRelation.CAN_DELETE_ROLE, object=platform_object)

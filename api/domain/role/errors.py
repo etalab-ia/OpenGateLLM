@@ -25,3 +25,8 @@ class RoleAdminPermissionChangeError:
 @dataclass
 class UserCannotCreateRoleError:
     user_id: int
+
+
+@dataclass
+class UserCannotDeleteRoleError:
+    user_id: int
