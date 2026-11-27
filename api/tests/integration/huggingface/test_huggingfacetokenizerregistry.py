@@ -192,3 +192,44 @@ async def test_should_return_an_error_when_the_hub_is_offline_and_the_tokenizer_
     result = await registry.get("org/never-cached", hf_token=None)
 
     assert result == TokenizerNotLoadableError(tokenizer_name="org/never-cached", detail="LocalEntryNotFoundError")
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_should_return_an_error_when_the_hub_rejects_the_token(mock_hub):
+    responses, _ = mock_hub
+    responses["/org/tok/resolve/main/tokenizer.json"] = httpx2.Response(
+        401, headers={"X-Error-Message": "Invalid credentials in Authorization header"}
+    )
+    registry = HuggingFaceTokenizerRegistry()
+
+    result = await registry.get("org/tok", hf_token="hf_expired")
+
+    assert isinstance(result, TokenizerNotLoadableError)
+    assert result.tokenizer_name == "org/tok"
+    assert "hf_expired" not in str(result)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_should_return_an_error_when_the_hub_answers_forbidden(mock_hub):
+    responses, _ = mock_hub
+    responses["/org/tok/resolve/main/tokenizer.json"] = httpx2.Response(403)
+    registry = HuggingFaceTokenizerRegistry()
+
+    result = await registry.get("org/tok", hf_token=None)
+
+    assert result == TokenizerNotLoadableError(tokenizer_name="org/tok", detail="HfHubHTTPError")
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_should_return_an_error_and_not_cache_it_when_the_tokenizer_file_is_not_a_tokenizer(mock_hub):
+    responses, _ = mock_hub
+    malformed = b'{"this is not": "a tokenizer"}'
+    responses["/org/bad/resolve/main/tokenizer.json"] = httpx2.Response(
+        200, headers={"ETag": '"bad"', "X-Repo-Commit": "a" * 40, "Content-Length": str(len(malformed))}, content=malformed
+    )
+    registry = HuggingFaceTokenizerRegistry()
+
+    result = await registry.get("org/bad", hf_token=None)
+
+    assert result == TokenizerNotLoadableError(tokenizer_name="org/bad", detail="InvalidTokenizerFile")
+    assert registry._tokenizers == {}

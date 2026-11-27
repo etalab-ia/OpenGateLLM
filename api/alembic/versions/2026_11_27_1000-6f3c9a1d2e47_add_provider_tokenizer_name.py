@@ -23,6 +23,11 @@ def upgrade() -> None:
 
     Expand: both columns are nullable so the previous release can still insert providers. Existing providers get their
     model name as tokenizer, unvalidated: an admin fixes an unloadable one through PATCH, and sets an hf_token for a gated one.
+
+    Breaking for API clients: PATCH /v1/admin/providers/{id} requires tokenizer_name and checks it on every update, so
+    a provider whose model name is not a Hub repository (e.g. "gemma3:1b") cannot be updated until it gets a tokenizer.
+    Creating or updating a provider, and bootstrapping the models section, needs the Hub unless the tokenizer is in the
+    disk cache and HF_HUB_OFFLINE=1.
     """
     op.add_column("provider", sa.Column("tokenizer_name", sa.String(), nullable=True))
     op.add_column("provider", sa.Column("hf_token", sa.String(), nullable=True))
