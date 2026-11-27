@@ -38,6 +38,7 @@ from api.infrastructure.postgres import (
     PostgresUsageRepository,
     PostgresUserRepository,
 )
+from api.infrastructure.redis import RedisCommandDeniedError, RedisProviderConcurrencyLimiter
 from api.use_cases.admin import (
     BootstrapAdminCommand,
     BootstrapAdminUseCase,
@@ -64,6 +65,7 @@ async def lifespan(app: FastAPI):
     configuration = app.state.configuration
 
     global_context.redis_pool = await create_redis_pool(configuration)
+    await check_redis_permissions(global_context.redis_pool)
     global_context.openfga_client = await create_openfga_client(configuration)
     global_context.postgres_engine = create_postgres_engine(configuration)
     global_context.postgres_session_factory = create_postgres_session_factory(engine=global_context.postgres_engine)
@@ -99,6 +101,17 @@ async def create_redis_pool(configuration: Configuration) -> redis.ConnectionPoo
         raise RuntimeError("Redis database is not reachable.")
     await client.aclose()
     return pool
+
+
+async def check_redis_permissions(pool: redis.ConnectionPool) -> None:
+    async with redis.Redis(connection_pool=pool) as client:
+        result = await RedisProviderConcurrencyLimiter(redis_client=client).check_permissions()
+
+    match result:
+        case RedisCommandDeniedError() as error:
+            logger.error("%s. The API starts without enforcing them.", error.message)
+        case None:
+            logger.info("Redis allows every command the provider limits need.")
 
 
 def create_postgres_engine(configuration: Configuration) -> AsyncEngine:

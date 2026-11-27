@@ -5,11 +5,13 @@ from unittest.mock import AsyncMock, create_autospec
 
 import anyio
 import pytest
+import pytest_asyncio
+import redis.asyncio as redis
 from redis.exceptions import RedisError
 
 from api.domain.provider import ProviderLimitsCannotBeEnforced, ProviderReservation, ProviderReservationRefused
 from api.domain.provider.entities import Provider, ProviderLoads, ProviderType
-from api.infrastructure.redis import RedisProviderConcurrencyLimiter
+from api.infrastructure.redis import RedisCommandDeniedError, RedisProviderConcurrencyLimiter
 
 
 def provider(provider_id: int, qos_limit: int | None = None) -> Provider:
@@ -393,3 +395,78 @@ class TestRedisOutage:
         # ASSERT
         logs = [(record.levelno, record.getMessage()) for record in caplog.records]
         assert logs == [(logging.DEBUG, "Failed to release the provider reservation of request request-1.")]
+
+
+@pytest_asyncio.fixture
+async def create_limiter_denied(create_redis_user_url):
+    clients: list[redis.Redis] = []
+
+    async def create_limiter_denied(command: str) -> RedisProviderConcurrencyLimiter:
+        client = redis.Redis.from_url(await create_redis_user_url(denied_command=command))
+        clients.append(client)
+        return RedisProviderConcurrencyLimiter(redis_client=client)
+
+    yield create_limiter_denied
+
+    for client in clients:
+        await client.aclose()
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestRedisPermissions:
+    async def test_check_permissions_should_return_nothing_and_leave_no_reservation_when_every_command_is_allowed(
+        self, provider_concurrency_limiter, redis_client
+    ):
+        # ACT
+        result = await provider_concurrency_limiter.check_permissions()
+
+        # ASSERT
+        assert result is None
+        assert [key async for key in redis_client.scan_iter(match=f"{RedisProviderConcurrencyLimiter.PERMISSION_CHECK_KEY_PREFIX}:*")] == []
+
+    @pytest.mark.parametrize("denied_command", ["time", "zadd", "zcount", "zrem", "zcard", "zremrangebyscore", "evalsha", "script|load"])
+    async def test_check_permissions_should_name_the_command_when_the_redis_user_is_denied_one(self, create_limiter_denied, denied_command):
+        # ARRANGE
+        limiter = await create_limiter_denied(command=denied_command)
+
+        # ACT
+        result = await limiter.check_permissions()
+
+        # ASSERT
+        assert isinstance(result, RedisCommandDeniedError)
+        assert f"'{denied_command}'" in result.reason
+
+    @pytest.mark.parametrize("denied_command", ["time", "evalsha"])
+    async def test_reserve_should_log_an_error_on_every_request_when_the_redis_user_is_denied_a_command(
+        self, create_limiter_denied, caplog, denied_command
+    ):
+        # ARRANGE
+        limiter = await create_limiter_denied(command=denied_command)
+
+        # ACT
+        with caplog.at_level(logging.INFO, logger=RedisProviderConcurrencyLimiter.__module__):
+            results = [await limiter.reserve(request_id=f"request-{index}", provider=provider(1), limit=1) for index in range(2)]
+
+        # ASSERT
+        assert results == [ProviderLimitsCannotBeEnforced(), ProviderLimitsCannotBeEnforced()]
+        assert [record.levelno for record in caplog.records] == [logging.ERROR, logging.ERROR]
+        for record in caplog.records:
+            assert "not allowed to run a command the provider limits need" in record.getMessage()
+            assert f"'{denied_command}'" in record.getMessage()
+
+    @pytest.mark.parametrize("denied_command", ["time", "zcount"])
+    async def test_read_loads_should_report_that_limits_cannot_be_enforced_without_an_outage_when_the_redis_user_is_denied_a_command(
+        self, create_limiter_denied, caplog, denied_command
+    ):
+        # ARRANGE
+        limiter = await create_limiter_denied(command=denied_command)
+
+        # ACT
+        with caplog.at_level(logging.INFO, logger=RedisProviderConcurrencyLimiter.__module__):
+            result = await limiter.read_loads(providers=[provider(1)])
+
+        # ASSERT
+        assert result == ProviderLimitsCannotBeEnforced()
+        assert [record.levelno for record in caplog.records] == [logging.ERROR]
+        assert "not allowed to run a command the provider limits need" in caplog.records[0].getMessage()
+        assert f"'{denied_command}'" in caplog.records[0].getMessage()

@@ -36,6 +36,21 @@ The Redis server must use `maxmemory-policy noeviction`. Evicting a QoS ZSET wou
 maxmemory-policy noeviction
 ```
 
+## Permissions
+
+When the Redis user of the API is restricted by an ACL, it must be allowed to run:
+
+- for the [Quality of Service](/features/usage/load/): `TIME`, `EVALSHA`, `SCRIPT LOAD`, `ZADD`, `ZREM`, `ZCOUNT`, `ZCARD`, `ZREMRANGEBYSCORE`, on the `ogl_qos:*` keys;
+- for the rate limiting: `EVALSHA`, `SCRIPT LOAD` and the read and write commands of its Lua scripts, on the `LIMITS:*` keys.
+
+`EVAL` is not needed. For example:
+
+```conf
+user app_user on >password ~* -@all +@read +@write +@connection +time +evalsha +script|load
+```
+
+At startup, the API runs every command the Quality of Service needs once, and logs an error naming the one Redis denies. It still starts: it serves the requests without enforcing the provider limits, and logs that error again on every request that needs them.
+
 <Aside type="note" title="Standard Redis">
 Standard Redis is enough. The RedisTimeSeries module is not required.
 </Aside>

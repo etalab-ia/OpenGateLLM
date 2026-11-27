@@ -14,6 +14,7 @@ from api.tests.helpers import TEST_AUTH_SECRET_KEY
 from api.tests.integration.postgresfixtures import db_session, shared_test_session, test_postgres_engine  # noqa: F401
 from api.tests.integration.redisfixtures import (  # noqa: F401
     _reset_redis_between_tests,
+    create_redis_user_url,
     redis_client,
     router_rate_limiter,
     test_redis_pool,

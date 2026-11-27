@@ -22,7 +22,7 @@ Each admitted request is an entry in Redis. For the whole forward, the worker re
 
 That count is what a limit is compared to.
 
-If Redis is unreachable, the gateway does not reject the request: it forwards it to a random provider that is not closed, without enforcing the limits and without counting it. Closed providers (`qos_limit = 0`) stay excluded.
+If Redis is unreachable, the gateway does not reject the request: it forwards it to a random provider that is not closed, without enforcing the limits and without counting it. Closed providers (`qos_limit = 0`) stay excluded. The same happens when the Redis user is denied a command the limits need, but since that is a configuration error, which does not go away by itself, the API logs an error at startup and on every request instead of once. See the [Redis permissions](/configuration/dependencies/redis/#permissions).
 
 ## Quality of Service
 
