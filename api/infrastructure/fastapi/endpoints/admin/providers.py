@@ -16,11 +16,13 @@ from api.domain.model.errors import (
 )
 from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
     InvalidProviderTypeError,
     ProviderAlreadyExistsError,
     ProviderInvalidResponseError,
     ProviderNotFoundError,
     ProviderNotReachableError,
+    TokenizerNotLoadableError,
 )
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.user.views import AuthenticatedUserView
@@ -29,6 +31,7 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
+    DefaultTokenizerNotLoadableHTTPException,
     InconsistentModelMaxContextLengthHTTPException,
     InconsistentModelQosLimitHTTPException,
     InconsistentModelVectorSizeHTTPException,
@@ -40,6 +43,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     ProviderNotFoundHTTPException,
     ProviderNotReachableHTTPException,
     RouterNotFoundHTTPException,
+    TokenizerNotLoadableHTTPException,
 )
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.infrastructure.fastapi.schemas.admin.providers import (
@@ -83,6 +87,8 @@ from api.use_cases.admin.providers import (
             ModelNotFoundHTTPException,
             ProviderAlreadyExistsHTTPException,
             RouterNotFoundHTTPException,
+            TokenizerNotLoadableHTTPException,
+            DefaultTokenizerNotLoadableHTTPException,
             NotAdminUserHTTPException,
         ]
     ),
@@ -101,6 +107,8 @@ async def create_provider(
         qos_limit=body.qos_limit,
         timeout=body.timeout,
         model_name=body.model_name,
+        tokenizer_name=body.tokenizer_name,
+        hf_token=body.hf_token,
         model_hosting_zone=body.model_hosting_zone,
         model_total_params=body.model_total_params,
         model_active_params=body.model_active_params,
@@ -137,6 +145,12 @@ async def create_provider(
 
         case RouterNotFoundError(id=router_id):
             raise RouterNotFoundHTTPException(router_id=router_id)
+
+        case TokenizerNotLoadableError(tokenizer_name=tokenizer_name, detail=detail):
+            raise TokenizerNotLoadableHTTPException(tokenizer_name=tokenizer_name, detail=detail)
+
+        case DefaultTokenizerNotLoadableError(model_name=model_name, detail=detail):
+            raise DefaultTokenizerNotLoadableHTTPException(model_name=model_name, detail=detail)
 
 
 @router.delete(

@@ -1,6 +1,7 @@
 from unittest.mock import create_autospec
 
 import pytest
+from tokenizers import Tokenizer
 
 from api.domain.model.errors import (
     InconsistentModelMaxContextLengthError,
@@ -8,13 +9,15 @@ from api.domain.model.errors import (
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
 )
-from api.domain.provider import ProviderRepository
+from api.domain.provider import ProviderRepository, TokenizerRegistry
 from api.domain.provider.entities import HostingZone, ProviderCapabilities, ProviderType
 from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
     InvalidProviderTypeError,
     ProviderAlreadyExistsError,
     ProviderInvalidResponseError,
     ProviderNotReachableError,
+    TokenizerNotLoadableError,
 )
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
@@ -25,26 +28,34 @@ from api.use_cases.services import ProviderCapabilitiesProbe
 
 
 @pytest.fixture
-def router_repository():
+def mock_router_repository():
     return create_autospec(RouterRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def provider_repository():
+def mock_provider_repository():
     return create_autospec(ProviderRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def provider_capabilities_probe():
+def mock_provider_capabilities_probe():
     return create_autospec(ProviderCapabilitiesProbe, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def use_case(router_repository, provider_repository, provider_capabilities_probe):
+def mock_tokenizer_registry():
+    registry = create_autospec(TokenizerRegistry, instance=True, spec_set=True)
+    registry.get.return_value = create_autospec(Tokenizer, instance=True)
+    return registry
+
+
+@pytest.fixture
+def use_case(mock_router_repository, mock_provider_repository, mock_provider_capabilities_probe, mock_tokenizer_registry):
     return CreateProviderUseCase(
-        router_repository=router_repository,
-        provider_repository=provider_repository,
-        provider_capabilities_probe=provider_capabilities_probe,
+        router_repository=mock_router_repository,
+        provider_repository=mock_provider_repository,
+        provider_capabilities_probe=mock_provider_capabilities_probe,
+        tokenizer_registry=mock_tokenizer_registry,
     )
 
 
@@ -114,6 +125,8 @@ def default_command():
         model_total_params=0,
         model_active_params=0,
         qos_limit=7,
+        tokenizer_name=None,
+        hf_token=None,
     )
 
 
@@ -168,6 +181,8 @@ def with_provider_type(command: CreateProviderCommand, provider_type: ProviderTy
         model_total_params=command.model_total_params,
         model_active_params=command.model_active_params,
         qos_limit=command.qos_limit,
+        tokenizer_name=command.tokenizer_name,
+        hf_token=command.hf_token,
     )
 
 
@@ -176,18 +191,18 @@ class TestCreateProviderUseCase:
     async def test_should_create_provider_when_router_has_a_different_provider(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_capabilities_probe,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
         sample_router_with_providers,
         sample_provider,
         default_command,
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_router_with_providers
-        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
-        provider_repository.create_provider.return_value = sample_provider
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router_with_providers
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        mock_provider_repository.create_provider.return_value = sample_provider
 
         # Act
         result = await use_case.execute(default_command)
@@ -195,7 +210,7 @@ class TestCreateProviderUseCase:
         # Assert
         assert isinstance(result, CreateProviderUseCaseSuccess)
         assert result.provider == sample_provider
-        provider_repository.create_provider.assert_called_once_with(
+        mock_provider_repository.create_provider.assert_called_once_with(
             router_id=1,
             user_id=1,
             provider_type=ProviderType.VLLM,
@@ -217,18 +232,18 @@ class TestCreateProviderUseCase:
     async def test_should_create_embedding_provider_when_vector_size_matches(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_capabilities_probe,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
         sample_embedding_router_with_providers,
         sample_provider,
         default_command,
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_embedding_router_with_providers
-        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=768)
-        provider_repository.create_provider.return_value = sample_provider
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_embedding_router_with_providers
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=768)
+        mock_provider_repository.create_provider.return_value = sample_provider
 
         # Act
         result = await use_case.execute(with_provider_type(default_command, ProviderType.TEI))
@@ -236,7 +251,7 @@ class TestCreateProviderUseCase:
         # Assert
         assert isinstance(result, CreateProviderUseCaseSuccess)
         assert result.provider == sample_provider
-        provider_repository.create_provider.assert_called_once_with(
+        mock_provider_repository.create_provider.assert_called_once_with(
             router_id=1,
             user_id=1,
             provider_type=ProviderType.TEI,
@@ -256,11 +271,11 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_router_does_not_exist(
-        self, use_case, router_repository, provider_repository, provider_capabilities_probe, default_command
+        self, use_case, mock_router_repository, mock_provider_repository, mock_provider_capabilities_probe, default_command
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = RouterNotFoundError(id=1)
+        mock_router_repository.lock_and_get_router_by_id.return_value = RouterNotFoundError(id=1)
 
         # Act
         result = await use_case.execute(default_command)
@@ -268,8 +283,8 @@ class TestCreateProviderUseCase:
         # Assert
         assert isinstance(result, RouterNotFoundError)
         assert result.id == 1
-        provider_capabilities_probe.get_capabilities.assert_not_called()
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_capabilities_probe.get_capabilities.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -280,9 +295,9 @@ class TestCreateProviderUseCase:
     async def test_should_create_provider_when_provider_type_is_compatible(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_capabilities_probe,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
         default_command,
         router_type,
         provider_type,
@@ -291,9 +306,9 @@ class TestCreateProviderUseCase:
         capabilities = capabilities_for(router_type)
         provider = ProviderFactory(id=1, router_id=1, user_id=1, type=provider_type, url="https://example.com/", model_name="my-model")
         router = RouterFactory(id=1, name="test-router", type=router_type, providers=[])
-        router_repository.lock_and_get_router_by_id.return_value = router
-        provider_capabilities_probe.get_capabilities.return_value = capabilities
-        provider_repository.create_provider.return_value = provider
+        mock_router_repository.lock_and_get_router_by_id.return_value = router
+        mock_provider_capabilities_probe.get_capabilities.return_value = capabilities
+        mock_provider_repository.create_provider.return_value = provider
         command = with_provider_type(default_command, provider_type)
 
         # Act
@@ -302,7 +317,7 @@ class TestCreateProviderUseCase:
         # Assert
         assert isinstance(result, CreateProviderUseCaseSuccess)
         assert result.provider == provider
-        provider_capabilities_probe.get_capabilities.assert_called_once_with(
+        mock_provider_capabilities_probe.get_capabilities.assert_called_once_with(
             router_type=router_type,
             provider_type=provider_type,
             url="https://example.com/",
@@ -310,7 +325,7 @@ class TestCreateProviderUseCase:
             timeout=30,
             model_name="my-model",
         )
-        provider_repository.create_provider.assert_called_once_with(
+        mock_provider_repository.create_provider.assert_called_once_with(
             router_id=1,
             user_id=1,
             provider_type=provider_type,
@@ -337,15 +352,15 @@ class TestCreateProviderUseCase:
     async def test_should_return_invalid_provider_type_error_when_provider_type_is_not_compatible(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_capabilities_probe,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
         default_command,
         router_type,
         provider_type,
     ):
         # Arrange
-        router_repository.lock_and_get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type)
+        mock_router_repository.lock_and_get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type)
         command = with_provider_type(default_command, provider_type)
 
         # Act
@@ -355,17 +370,17 @@ class TestCreateProviderUseCase:
         assert isinstance(result, InvalidProviderTypeError)
         assert result.provider_type == provider_type.value
         assert result.router_type == router_type.value
-        provider_capabilities_probe.get_capabilities.assert_not_called()
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_capabilities_probe.get_capabilities.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_provider_not_reachable_error_when_gateway_fails(
-        self, use_case, router_repository, provider_repository, provider_capabilities_probe, sample_router, default_command
+        self, use_case, mock_router_repository, mock_provider_repository, mock_provider_capabilities_probe, sample_router, default_command
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_router
-        provider_capabilities_probe.get_capabilities.return_value = ProviderNotReachableError(
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderNotReachableError(
             model_name="my-model", status_code=500, detail="error_detail"
         )
 
@@ -377,16 +392,16 @@ class TestCreateProviderUseCase:
         assert result.model_name == "my-model"
         assert result.status_code == 500
         assert result.detail == "error_detail"
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_model_not_found_error_when_model_is_missing(
-        self, use_case, router_repository, provider_repository, provider_capabilities_probe, sample_router, default_command
+        self, use_case, mock_router_repository, mock_provider_repository, mock_provider_capabilities_probe, sample_router, default_command
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_router
-        provider_capabilities_probe.get_capabilities.return_value = ModelNotFoundError(name="my-model")
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        mock_provider_capabilities_probe.get_capabilities.return_value = ModelNotFoundError(name="my-model")
 
         # Act
         result = await use_case.execute(default_command)
@@ -394,16 +409,16 @@ class TestCreateProviderUseCase:
         # Assert
         assert isinstance(result, ModelNotFoundError)
         assert result.name == "my-model"
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_provider_invalid_response_error_when_provider_returns_no_embedding(
-        self, use_case, router_repository, provider_repository, provider_capabilities_probe, sample_router, default_command
+        self, use_case, mock_router_repository, mock_provider_repository, mock_provider_capabilities_probe, sample_router, default_command
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_router
-        provider_capabilities_probe.get_capabilities.return_value = ProviderInvalidResponseError(
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderInvalidResponseError(
             model_name="my-model", detail="no embedding returned"
         )
 
@@ -414,22 +429,22 @@ class TestCreateProviderUseCase:
         assert isinstance(result, ProviderInvalidResponseError)
         assert result.model_name == "my-model"
         assert result.detail == "no embedding returned"
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_max_context_length_error_when_mismatch(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_capabilities_probe,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
         sample_router_with_providers,
         default_command,
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_router_with_providers
-        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=2048, vector_size=None)
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router_with_providers
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=2048, vector_size=None)
 
         # Act
         result = await use_case.execute(default_command)
@@ -438,22 +453,22 @@ class TestCreateProviderUseCase:
         assert isinstance(result, InconsistentModelMaxContextLengthError)
         assert result.actual_max_context_length == 2048
         assert result.expected_max_context_length == 4096
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_vector_size_error_when_mismatch(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_capabilities_probe,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
         sample_embedding_router_with_providers,
         default_command,
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_embedding_router_with_providers
-        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=384)
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_embedding_router_with_providers
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=384)
 
         # Act
         result = await use_case.execute(with_provider_type(default_command, ProviderType.TEI))
@@ -462,17 +477,19 @@ class TestCreateProviderUseCase:
         assert isinstance(result, InconsistentModelVectorSizeError)
         assert result.actual_vector_size == 384
         assert result.expected_vector_size == 768
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_provider_already_exists_error(
-        self, use_case, router_repository, provider_repository, provider_capabilities_probe, sample_router, default_command
+        self, use_case, mock_router_repository, mock_provider_repository, mock_provider_capabilities_probe, sample_router, default_command
     ):
         # Arrange
 
-        router_repository.lock_and_get_router_by_id.return_value = sample_router
-        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
-        provider_repository.create_provider.return_value = ProviderAlreadyExistsError(model_name="my-model", url="https://example.com/", router_id=1)
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        mock_provider_repository.create_provider.return_value = ProviderAlreadyExistsError(
+            model_name="my-model", url="https://example.com/", router_id=1
+        )
 
         # Act
         result = await use_case.execute(default_command)
@@ -487,19 +504,119 @@ class TestCreateProviderUseCase:
     async def test_should_return_inconsistent_qos_limit_error_when_the_router_has_an_open_provider_without_limit(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_capabilities_probe,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
         default_command,
     ):
         # Arrange
         router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, providers=[ProviderFactory(max_context_length=4096, qos_limit=None)])
-        router_repository.lock_and_get_router_by_id.return_value = router
-        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        mock_router_repository.lock_and_get_router_by_id.return_value = router
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
 
         # Act
         result = await use_case.execute(default_command)
 
         # Assert
         assert result == InconsistentModelQosLimitError(router_id=1, router_name=router.name)
-        provider_repository.create_provider.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_use_the_model_name_as_tokenizer_when_no_tokenizer_name_is_given(
+        self,
+        use_case,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
+        mock_tokenizer_registry,
+        sample_router,
+        sample_provider,
+        default_command,
+    ):
+        # Arrange
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        mock_provider_repository.create_provider.return_value = sample_provider
+        command = CreateProviderCommand(**{**default_command.__dict__, "hf_token": "hf_x"})
+
+        # Act
+        await use_case.execute(command)
+
+        # Assert
+        mock_tokenizer_registry.get.assert_awaited_once_with(tokenizer_name="my-model", hf_token="hf_x")
+        assert mock_provider_repository.create_provider.call_args.kwargs["tokenizer_name"] == "my-model"
+        assert mock_provider_repository.create_provider.call_args.kwargs["hf_token"] == "hf_x"
+
+    @pytest.mark.asyncio
+    async def test_should_use_the_given_tokenizer_when_a_tokenizer_name_is_given(
+        self,
+        use_case,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
+        mock_tokenizer_registry,
+        sample_router,
+        sample_provider,
+        default_command,
+    ):
+        # Arrange
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        mock_provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        mock_provider_repository.create_provider.return_value = sample_provider
+        command = CreateProviderCommand(**{**default_command.__dict__, "tokenizer_name": "org/tok", "hf_token": "hf_x"})
+
+        # Act
+        await use_case.execute(command)
+
+        # Assert
+        mock_tokenizer_registry.get.assert_awaited_once_with(tokenizer_name="org/tok", hf_token="hf_x")
+        assert mock_provider_repository.create_provider.call_args.kwargs["tokenizer_name"] == "org/tok"
+        assert mock_provider_repository.create_provider.call_args.kwargs["hf_token"] == "hf_x"
+
+    @pytest.mark.asyncio
+    async def test_should_return_default_tokenizer_not_loadable_when_the_model_name_is_not_a_loadable_tokenizer(
+        self,
+        use_case,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
+        mock_tokenizer_registry,
+        sample_router,
+        default_command,
+    ):
+        # Arrange
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        mock_tokenizer_registry.get.return_value = TokenizerNotLoadableError(tokenizer_name="my-model", detail="RepositoryNotFoundError")
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert result == DefaultTokenizerNotLoadableError(model_name="my-model", detail="RepositoryNotFoundError")
+        mock_provider_capabilities_probe.get_capabilities.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_return_tokenizer_not_loadable_when_the_given_tokenizer_cannot_be_loaded(
+        self,
+        use_case,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_capabilities_probe,
+        mock_tokenizer_registry,
+        sample_router,
+        default_command,
+    ):
+        # Arrange
+        mock_router_repository.lock_and_get_router_by_id.return_value = sample_router
+        error = TokenizerNotLoadableError(tokenizer_name="org/tok", detail="GatedRepoError")
+        mock_tokenizer_registry.get.return_value = error
+        command = CreateProviderCommand(**{**default_command.__dict__, "tokenizer_name": "org/tok"})
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert result == error
+        mock_provider_capabilities_probe.get_capabilities.assert_not_called()
+        mock_provider_repository.create_provider.assert_not_called()

@@ -22,6 +22,8 @@ class ModelProvider(HiddenInputSchema):
     timeout: Annotated[int, Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 503 error (model is too busy).")]  # fmt: off
     qos_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum concurrent load for this provider. If omitted, admission is unlimited.")]  # fmt: off
     model_name: Annotated[str, Field(description="Model name from the model provider.")]  # fmt: off
+    tokenizer_name: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Hugging Face Hub name of the model tokenizer. Defaults to `model_name`.")]  # fmt: off
+    hf_token: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Hugging Face token of this provider, needed to load the tokenizer of a gated model.", examples=["${HF_TOKEN}"])]  # fmt: off
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off

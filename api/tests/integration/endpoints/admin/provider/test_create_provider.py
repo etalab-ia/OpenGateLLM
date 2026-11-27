@@ -1,18 +1,22 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 import respx
+from tokenizers import Tokenizer
 
-from api.dependencies import create_provider_use_case_factory
+from api.dependencies import _tokenizer_registry, create_provider_use_case_factory
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.provider import TokenizerRegistry
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
     InvalidProviderTypeError,
     ProviderAlreadyExistsError,
     ProviderInvalidResponseError,
     ProviderNotReachableError,
+    TokenizerNotLoadableError,
 )
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
@@ -45,9 +49,12 @@ def _valid_body(router_id: int, **overrides) -> dict:
 @pytest.mark.asyncio(loop_scope="session")
 class TestCreateProvider:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+        mock_tokenizer_registry = create_autospec(TokenizerRegistry, instance=True, spec_set=True)
+        mock_tokenizer_registry.get.return_value = create_autospec(Tokenizer, instance=True)
+        app.dependency_overrides[_tokenizer_registry] = lambda: mock_tokenizer_registry
 
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):
@@ -66,7 +73,7 @@ class TestCreateProvider:
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(router.id),
+            json=_valid_body(router.id, hf_token="hf_x"),
         )
 
         assert response.status_code == 201, response.text
@@ -74,6 +81,8 @@ class TestCreateProvider:
         assert isinstance(response.json()["created"], int)
         assert isinstance(response.json()["updated"], int)
         assert response.json()["qos_limit"] == 6
+        assert response.json()["tokenizer_name"] == DEFAULT_MODEL_ID
+        assert "hf_token" not in response.json()
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
@@ -117,6 +126,16 @@ class TestCreateProvider:
                 InconsistentModelVectorSizeError(expected_vector_size=768, actual_vector_size=384, router_name="my-router"),
                 400,
                 "Inconsistent vector size for my-router. Expected: 768. Actual: 384",
+            ),
+            (
+                TokenizerNotLoadableError(tokenizer_name="org/tok", detail="GatedRepoError"),
+                400,
+                "Tokenizer org/tok cannot be loaded from the Hugging Face Hub (GatedRepoError).",
+            ),
+            (
+                DefaultTokenizerNotLoadableError(model_name="my-model", detail="RepositoryNotFoundError"),
+                400,
+                "No tokenizer_name given and the model name my-model cannot be loaded as a tokenizer from the Hugging Face Hub (RepositoryNotFoundError). Specify a valid tokenizer_name.",
             ),
         ],
     )

@@ -351,6 +351,25 @@ class ProviderInvalidResponseHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=f"Model provider {name} returned an invalid response: {detail}")
 
 
+class TokenizerNotLoadableHTTPException(HTTPException):
+    status_code = 400
+    detail = "Tokenizer {tokenizer_name} cannot be loaded from the Hugging Face Hub ({detail})."
+
+    def __init__(self, tokenizer_name: str, detail: str) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Tokenizer {tokenizer_name} cannot be loaded from the Hugging Face Hub ({detail}).")
+
+
+class DefaultTokenizerNotLoadableHTTPException(HTTPException):
+    status_code = 400
+    detail = "No tokenizer_name given and the model name {model_name} cannot be loaded as a tokenizer from the Hugging Face Hub ({detail}). Specify a valid tokenizer_name."
+
+    def __init__(self, model_name: str, detail: str) -> None:
+        super().__init__(
+            status_code=self.status_code,
+            detail=f"No tokenizer_name given and the model name {model_name} cannot be loaded as a tokenizer from the Hugging Face Hub ({detail}). Specify a valid tokenizer_name.",
+        )
+
+
 # 429
 class RateLimitExceededHTTPException(HTTPException):
     status_code = 429

@@ -677,11 +677,13 @@ def update_router_use_case_factory(
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     provider_capabilities_probe: ProviderCapabilitiesProbe = Depends(_provider_capabilities_probe),
+    tokenizer_registry: TokenizerRegistry = Depends(_tokenizer_registry),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
         provider_capabilities_probe=provider_capabilities_probe,
+        tokenizer_registry=tokenizer_registry,
     )
 
 
