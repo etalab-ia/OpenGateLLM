@@ -31,6 +31,7 @@ class PlatformRelation(StrEnum):
 
     CAN_CREATE_ROLE = "can_create_role"
     CAN_READ_ROLE = "can_read_role"
+    CAN_UPDATE_ROLE = "can_update_role"
     CAN_DELETE_ROLE = "can_delete_role"
 
 
