@@ -1,14 +1,15 @@
 from dataclasses import dataclass
 
-from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
+from api.domain.role import LimitRepository, PermissionRepository, RoleAuthorization, RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role
-from api.domain.role.errors import RoleAdminPermissionChangeError, RoleAlreadyExistsError, RoleNotFoundError
+from api.domain.role.errors import RoleAdminPermissionChangeError, RoleAlreadyExistsError, RoleNotFoundError, UserCannotUpdateRoleError
 
 
 @dataclass
 class UpdateRoleCommand:
     """Full replacement of the role persisted fields: empty lists clear permissions and limits."""
 
+    authenticated_user_id: int
     role_id: int
     name: str
     permissions: list[PermissionType]
@@ -20,16 +21,29 @@ class UpdateRoleUseCaseSuccess:
     role: Role
 
 
-type UpdateRoleUseCaseResult = UpdateRoleUseCaseSuccess | RoleNotFoundError | RoleAlreadyExistsError | RoleAdminPermissionChangeError
+type UpdateRoleUseCaseResult = (
+    UpdateRoleUseCaseSuccess | RoleNotFoundError | RoleAlreadyExistsError | RoleAdminPermissionChangeError | UserCannotUpdateRoleError
+)
 
 
 class UpdateRoleUseCase:
-    def __init__(self, role_repository: RoleRepository, permission_repository: PermissionRepository, limit_repository: LimitRepository):
+    def __init__(
+        self,
+        role_repository: RoleRepository,
+        permission_repository: PermissionRepository,
+        limit_repository: LimitRepository,
+        role_authorization: RoleAuthorization,
+    ):
         self.role_repository = role_repository
         self.permission_repository = permission_repository
         self.limit_repository = limit_repository
+        self.role_authorization = role_authorization
 
     async def execute(self, command: UpdateRoleCommand) -> UpdateRoleUseCaseResult:
+        is_authorized = await self.role_authorization.can_update_role(user_id=command.authenticated_user_id, role_id=command.role_id)
+        if not is_authorized:
+            return UserCannotUpdateRoleError(user_id=command.authenticated_user_id)
+
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
         if isinstance(role, RoleNotFoundError):
             return role
