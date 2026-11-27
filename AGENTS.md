@@ -705,12 +705,12 @@ inconsistency is a bug.
 `False` by default; `only_admin=True` reads `user.is_admin` — the Postgres role, not a relation.
 
 Today **only `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/organizations`, `GET` (list and get-one), `POST`, `PATCH`
-and `DELETE` on `/v1/admin/users`, `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/routers`, and `GET` (list and get-one), `POST` and `DELETE` on `/v1/admin/roles`, ask
+and `DELETE` on `/v1/admin/users`, `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/routers`, and `GET` (list and get-one), `POST`, `PATCH` and `DELETE` on `/v1/admin/roles`, ask
 OpenFGA**. They are the admin routes guarded by a bare
 `AccessController()`. Never put both on one route: two sources of truth for the same decision drift, and `only_admin` short-circuits any
 rule that would let a non-admin through (an organization member reading their own organization, for one).
 
-**What is actually wired.** Seventeen relations the model declares are reached by code:
+**What is actually wired.** Eighteen relations the model declares are reached by code:
 
 | Relation                                  | Written by                                                                                                       | Checked by                                             |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
@@ -727,6 +727,7 @@ rule that would let a non-admin through (an organization member reading their ow
 | `platform:api#can_read_router`            | computed from `admin`, never written                                                                             | `GetRoutersUseCase`, `GetOneRouterUseCase`             |
 | `platform:api#can_create_role`            | computed from `admin`, never written                                                                             | `CreateRoleUseCase`                                    |
 | `platform:api#can_read_role`              | computed from `admin`, never written                                                                             | `GetRolesUseCase`, `GetOneRoleUseCase`                 |
+| `platform:api#can_update_role`            | computed from `admin`, never written                                                                             | `UpdateRoleUseCase`                                    |
 | `platform:api#can_delete_role`            | computed from `admin`, never written                                                                             | `DeleteRoleUseCase`                                    |
 | `organization:<id>#platform@platform:api` | `CreateOrganizationUseCase` on creation, deleted by `DeleteOrganizationUseCase`                                  | — (only via the rule below)                            |
 | `organization:<id>#can_delete`            | computed from `admin from platform`, never written                                                               | `DeleteOrganizationUseCase`                            |
