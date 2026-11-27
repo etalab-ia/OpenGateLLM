@@ -30,6 +30,7 @@ class PlatformRelation(StrEnum):
     CAN_DELETE_ROUTER = "can_delete_router"
 
     CAN_CREATE_ROLE = "can_create_role"
+    CAN_DELETE_ROLE = "can_delete_role"
 
 
 class OrganizationRelation(StrEnum):
