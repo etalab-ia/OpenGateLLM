@@ -1,11 +1,17 @@
 from unittest.mock import create_autospec
 
 import pytest
+from tokenizers import Tokenizer
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelQosLimitError, InconsistentModelVectorSizeError
-from api.domain.provider import ProviderRepository
+from api.domain.provider import ProviderRepository, TokenizerRegistry
 from api.domain.provider.entities import HostingZone, ProviderType
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
+from api.domain.provider.errors import (
+    InvalidProviderTypeError,
+    ProviderAlreadyExistsError,
+    ProviderNotFoundError,
+    TokenizerNotLoadableError,
+)
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
@@ -31,16 +37,24 @@ def provider_repository():
 
 
 @pytest.fixture
-def use_case(router_repository, provider_repository):
+def mock_tokenizer_registry():
+    registry = create_autospec(TokenizerRegistry, instance=True, spec_set=True)
+    registry.get.return_value = create_autospec(Tokenizer, instance=True)
+    return registry
+
+
+@pytest.fixture
+def use_case(router_repository, provider_repository, mock_tokenizer_registry):
     return UpdateProviderUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
+        tokenizer_registry=mock_tokenizer_registry,
     )
 
 
 @pytest.fixture
 def sample_provider():
-    return ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, timeout=30)
+    return ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, timeout=30, tokenizer_name="org/tok", hf_token=None)
 
 
 def full_command(provider, **overrides) -> UpdateProviderCommand:
@@ -53,6 +67,7 @@ def full_command(provider, **overrides) -> UpdateProviderCommand:
         model_total_params=provider.model_total_params,
         model_active_params=provider.model_active_params,
         qos_limit=provider.qos_limit,
+        tokenizer_name=provider.tokenizer_name,
     )
     for field, value in overrides.items():
         setattr(command, field, value)
@@ -64,6 +79,8 @@ def provider_after_command(provider, command: UpdateProviderCommand):
     return (
         provider.with_router_id(command.router_id)
         .with_timeout(command.timeout)
+        .with_tokenizer_name(command.tokenizer_name)
+        .with_hf_token(command.hf_token if command.hf_token is not None else provider.hf_token)
         .with_model_hosting_zone(command.model_hosting_zone)
         .with_model_total_params(command.model_total_params)
         .with_model_active_params(command.model_active_params)
@@ -416,4 +433,68 @@ class TestUpdateProviderUseCase:
 
         # Assert
         assert result == InconsistentModelQosLimitError(router_id=2, router_name=new_router.name)
+        provider_repository.update_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_persist_the_tokenizer_name_when_it_changes(self, use_case, provider_repository, sample_provider):
+        # Arrange
+        command = full_command(sample_provider, tokenizer_name="org/new")
+        provider_repository.get_one_provider.return_value = sample_provider
+        provider_repository.update_provider.return_value = provider_after_command(sample_provider, command)
+
+        # Act
+        await use_case.execute(command=command)
+
+        # Assert
+        persisted = provider_repository.update_provider.call_args.args[0]
+        assert persisted.tokenizer_name == "org/new"
+
+    @pytest.mark.asyncio
+    async def test_should_check_the_tokenizer_with_the_stored_hf_token_when_no_hf_token_is_given(
+        self, use_case, provider_repository, mock_tokenizer_registry, sample_provider
+    ):
+        # Arrange
+        provider = sample_provider.with_hf_token("hf_stored")
+        command = full_command(provider, timeout=60)
+        provider_repository.get_one_provider.return_value = provider
+        provider_repository.update_provider.return_value = provider_after_command(provider, command)
+
+        # Act
+        await use_case.execute(command=command)
+
+        # Assert
+        mock_tokenizer_registry.get.assert_awaited_once_with(tokenizer_name="org/tok", hf_token="hf_stored")
+        persisted = provider_repository.update_provider.call_args.args[0]
+        assert persisted.hf_token == "hf_stored"
+
+    @pytest.mark.asyncio
+    async def test_should_replace_the_hf_token_when_one_is_given(self, use_case, provider_repository, mock_tokenizer_registry, sample_provider):
+        # Arrange
+        provider = sample_provider.with_hf_token("hf_stored")
+        command = full_command(provider, hf_token="hf_new")
+        provider_repository.get_one_provider.return_value = provider
+        provider_repository.update_provider.return_value = provider_after_command(provider, command)
+
+        # Act
+        await use_case.execute(command=command)
+
+        # Assert
+        mock_tokenizer_registry.get.assert_awaited_once_with(tokenizer_name="org/tok", hf_token="hf_new")
+        persisted = provider_repository.update_provider.call_args.args[0]
+        assert persisted.hf_token == "hf_new"
+
+    @pytest.mark.asyncio
+    async def test_should_return_tokenizer_not_loadable_error_when_the_tokenizer_cannot_be_loaded(
+        self, use_case, provider_repository, mock_tokenizer_registry, sample_provider
+    ):
+        # Arrange
+        error = TokenizerNotLoadableError(tokenizer_name="org/new", detail="GatedRepoError")
+        mock_tokenizer_registry.get.return_value = error
+        provider_repository.get_one_provider.return_value = sample_provider
+
+        # Act
+        result = await use_case.execute(command=full_command(sample_provider, tokenizer_name="org/new"))
+
+        # Assert
+        assert result == error
         provider_repository.update_provider.assert_not_called()

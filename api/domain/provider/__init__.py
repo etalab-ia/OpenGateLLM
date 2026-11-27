@@ -13,6 +13,7 @@ from api.domain.provider._providerconcurrencylimiter import (
     ProviderReservationResult,
 )
 from api.domain.provider._providerrepository import ProviderRepository
+from api.domain.provider._tokenizerregistry import TokenizerRegistry
 
 __all__ = [
     "ProviderClient",
@@ -26,4 +27,5 @@ __all__ = [
     "ProviderLimitsCannotBeEnforced",
     "ProviderRepository",
     "ProviderReservation",
+    "TokenizerRegistry",
 ]

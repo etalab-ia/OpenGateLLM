@@ -23,6 +23,7 @@ def provider(provider_id: int, qos_limit: int | None = None) -> Provider:
         url="http://test",
         timeout=30,
         model_name=f"test-model-{provider_id}",
+        tokenizer_name=f"test-model-{provider_id}",
         qos_limit=qos_limit,
         created=datetime.now(tz=UTC),
         updated=datetime.now(tz=UTC),

@@ -8,9 +8,15 @@ from api.domain.model.errors import (
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
 )
-from api.domain.provider import ProviderRepository
+from api.domain.provider import ProviderRepository, TokenizerRegistry
 from api.domain.provider.entities import HostingZone, Provider, ProviderType
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+    TokenizerNotLoadableError,
+)
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNameAlreadyExistsError
@@ -30,6 +36,8 @@ class ProviderToCreate:
     model_hosting_zone: HostingZone
     model_total_params: int
     model_active_params: int
+    tokenizer_name: str | None
+    hf_token: str | None
 
 
 @dataclass
@@ -70,6 +78,8 @@ type BootstrapModelsUseCaseResult = (
     | ProviderNotReachableError
     | ProviderInvalidResponseError
     | RouterNameAlreadyExistsError
+    | DefaultTokenizerNotLoadableError
+    | TokenizerNotLoadableError
 )
 
 
@@ -79,10 +89,12 @@ class BootstrapModelsUseCase:
         router_repository: RouterRepository,
         provider_repository: ProviderRepository,
         provider_capabilities_probe: ProviderCapabilitiesProbe,
+        tokenizer_registry: TokenizerRegistry,
     ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
         self.provider_capabilities_probe = provider_capabilities_probe
+        self.tokenizer_registry = tokenizer_registry
 
     async def execute(self, command: BootstrapModelsCommand) -> BootstrapModelsUseCaseResult:
         routers = await self.router_repository.get_all_routers()
@@ -120,6 +132,15 @@ class BootstrapModelsUseCase:
             )
 
             for provider_to_create in router_to_create.providers:
+                tokenizer_name = provider_to_create.tokenizer_name if provider_to_create.tokenizer_name is not None else provider_to_create.model_name
+                match await self.tokenizer_registry.get(tokenizer_name=tokenizer_name, hf_token=provider_to_create.hf_token):
+                    case TokenizerNotLoadableError(detail=detail) if provider_to_create.tokenizer_name is None:
+                        await self.router_repository.delete_all_routers()
+                        return DefaultTokenizerNotLoadableError(model_name=provider_to_create.model_name, detail=detail)
+                    case TokenizerNotLoadableError() as error:
+                        await self.router_repository.delete_all_routers()
+                        return error
+
                 result = await self.provider_capabilities_probe.get_capabilities(
                     router_type=router.type,
                     provider_type=provider_to_create.type,
@@ -155,6 +176,8 @@ class BootstrapModelsUseCase:
                     timeout=provider_to_create.timeout,
                     qos_limit=provider_to_create.qos_limit,
                     model_name=provider_to_create.model_name,
+                    tokenizer_name=tokenizer_name,
+                    hf_token=provider_to_create.hf_token,
                     model_hosting_zone=provider_to_create.model_hosting_zone,
                     model_total_params=provider_to_create.model_total_params,
                     model_active_params=provider_to_create.model_active_params,

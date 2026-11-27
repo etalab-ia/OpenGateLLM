@@ -45,6 +45,8 @@ class TestGetProvider:
         assert data["vector_size"] == 768
         assert data["created"] == int(provider.created.timestamp())
         assert data["updated"] == int(provider.updated.timestamp())
+        assert "tokenizer_name" in data
+        assert "hf_token" not in data
         assert "key" not in data
         assert "basic_auth" not in data
 

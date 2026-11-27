@@ -36,6 +36,7 @@ class ProviderCapabilitiesProbe:
             key=key,
             timeout=timeout,
             model_name=model_name,
+            tokenizer_name=model_name,
             created=0,
             updated=0,
         )

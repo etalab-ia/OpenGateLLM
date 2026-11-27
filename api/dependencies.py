@@ -16,6 +16,7 @@ from api.domain.provider import (
     ProviderClient,
     ProviderConcurrencyLimiter,
     ProviderRepository,
+    TokenizerRegistry,
 )
 from api.domain.role import LimitRepository, PermissionRepository, RoleAuthorization
 from api.domain.router import RouterAuthorization, RouterRateLimiter
@@ -132,6 +133,10 @@ def _key_encoder(configuration: Configuration = Depends(get_app_configuration)) 
 
 def _model_tokenizer() -> ModelTokenizer:
     return TiktokenModelTokenizer(model=global_context.tokenizer)
+
+
+def _tokenizer_registry() -> TokenizerRegistry:
+    return global_context.tokenizer_registry
 
 
 def _model_environmental_impacts_computer() -> ModelEnvironmentalImpactsComputer:
@@ -672,18 +677,24 @@ def update_router_use_case_factory(
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     provider_capabilities_probe: ProviderCapabilitiesProbe = Depends(_provider_capabilities_probe),
+    tokenizer_registry: TokenizerRegistry = Depends(_tokenizer_registry),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
         provider_capabilities_probe=provider_capabilities_probe,
+        tokenizer_registry=tokenizer_registry,
     )
 
 
-def update_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateProviderUseCase:
+def update_provider_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    tokenizer_registry: TokenizerRegistry = Depends(_tokenizer_registry),
+) -> UpdateProviderUseCase:
     return UpdateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
+        tokenizer_registry=tokenizer_registry,
     )
 
 

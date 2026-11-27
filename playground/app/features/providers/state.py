@@ -62,6 +62,7 @@ class ProvidersState(EntityState):
             timeout=provider["timeout"],
             qos_limit=provider["qos_limit"],
             model_name=provider["model_name"],
+            tokenizer_name=provider["tokenizer_name"],
             model_hosting_zone=provider["model_hosting_zone"],
             model_total_params=provider["model_total_params"],
             model_active_params=provider["model_active_params"],
@@ -256,6 +257,8 @@ class ProvidersState(EntityState):
         payload = {
             "router_id": router_id,
             "model_name": self.entity_to_create.model_name,
+            "tokenizer_name": self.entity_to_create.tokenizer_name or None,
+            "hf_token": self.entity_to_create.hf_token or None,
             "type": self.entity_to_create.type.lower(),
             "url": self.entity_to_create.url if self.entity_to_create.url else None,
             "key": self.entity_to_create.key,
@@ -324,6 +327,8 @@ class ProvidersState(EntityState):
 
         payload = {
             "router_id": self.routers_dict.get(self.entity.router),
+            "tokenizer_name": self.entity.tokenizer_name,
+            "hf_token": self.entity.hf_token or None,
             "timeout": self.entity.timeout,
             "qos_limit": self.entity.qos_limit if self.entity.qos_limit != "" else None,
             "model_hosting_zone": self.entity.model_hosting_zone,

@@ -1,13 +1,15 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, create_autospec
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
+from tokenizers import Tokenizer
 
-from api.dependencies import update_provider_use_case_factory
+from api.dependencies import _tokenizer_registry, update_provider_use_case_factory
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.provider import TokenizerRegistry
 from api.domain.provider.entities import HostingZone
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
+from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError, TokenizerNotLoadableError
 from api.domain.router.errors import RouterNotFoundError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -27,6 +29,7 @@ def _valid_body(**overrides) -> dict:
         "model_total_params": 8,
         "model_active_params": 2,
         "qos_limit": 5,
+        "tokenizer_name": "org/tok",
     }
     body.update(overrides)
     return body
@@ -35,9 +38,12 @@ def _valid_body(**overrides) -> dict:
 @pytest.mark.asyncio(loop_scope="session")
 class TestUpdateProvider:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, app, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
+        mock_tokenizer_registry = create_autospec(TokenizerRegistry, instance=True, spec_set=True)
+        mock_tokenizer_registry.get.return_value = create_autospec(Tokenizer, instance=True)
+        app.dependency_overrides[_tokenizer_registry] = lambda: mock_tokenizer_registry
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)
@@ -47,7 +53,7 @@ class TestUpdateProvider:
         response = await client.patch(
             url=f"{URL}/{provider.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(router_id=router.id),
+            json=_valid_body(router_id=router.id, tokenizer_name="org/new", hf_token="hf_x"),
         )
 
         assert response.status_code == 200, response.text
@@ -60,6 +66,8 @@ class TestUpdateProvider:
         assert data["model_total_params"] == 8
         assert data["model_active_params"] == 2
         assert data["qos_limit"] == 5
+        assert data["tokenizer_name"] == "org/new"
+        assert "hf_token" not in data
 
     async def test_rejects_body_missing_a_required_field(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)
@@ -106,6 +114,11 @@ class TestUpdateProvider:
                 InconsistentModelVectorSizeError(expected_vector_size=768, actual_vector_size=384, router_name="my-router"),
                 400,
                 "Inconsistent vector size for my-router. Expected: 768. Actual: 384",
+            ),
+            (
+                TokenizerNotLoadableError(tokenizer_name="org/tok", detail="RepositoryNotFoundError"),
+                400,
+                "Tokenizer org/tok cannot be loaded from the Hugging Face Hub (RepositoryNotFoundError).",
             ),
         ],
     )

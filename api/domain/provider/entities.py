@@ -103,6 +103,8 @@ class Provider(BaseModel):
     key: Annotated[str | None, Field(default=None, repr=False)]
     timeout: int
     model_name: str
+    tokenizer_name: str
+    hf_token: Annotated[str | None, Field(default=None, repr=False)]
     model_hosting_zone: HostingZone = HostingZone.WOR
     model_total_params: int = 0
     model_active_params: int = 0
@@ -117,6 +119,12 @@ class Provider(BaseModel):
 
     def with_timeout(self, timeout: int) -> "Provider":
         return self.model_copy(update={"timeout": timeout})
+
+    def with_tokenizer_name(self, tokenizer_name: str) -> "Provider":
+        return self.model_copy(update={"tokenizer_name": tokenizer_name})
+
+    def with_hf_token(self, hf_token: str | None) -> "Provider":
+        return self.model_copy(update={"hf_token": hf_token})
 
     def with_model_hosting_zone(self, model_hosting_zone: HostingZone) -> "Provider":
         return self.model_copy(update={"model_hosting_zone": model_hosting_zone})

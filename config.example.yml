@@ -105,3 +105,5 @@ settings:
 #         # model_hosting_zone: FRA
 #         # model_total_params: 8
 #         # model_active_params: 8
+#         # tokenizer_name: "org/tokenizer-repo" # Hugging Face Hub repository, checked at startup (default: model_name). Without access to the Hub, set HF_HUB_OFFLINE=1 and fill the HF_HOME cache.
+#         # hf_token: ${HF_TOKEN}

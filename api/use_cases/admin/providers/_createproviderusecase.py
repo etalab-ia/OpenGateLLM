@@ -6,13 +6,15 @@ from api.domain.model.errors import (
     InconsistentModelVectorSizeError,
     ModelNotFoundError,
 )
-from api.domain.provider import ProviderRepository
+from api.domain.provider import ProviderRepository, TokenizerRegistry
 from api.domain.provider.entities import HostingZone, Provider, ProviderType
 from api.domain.provider.errors import (
+    DefaultTokenizerNotLoadableError,
     InvalidProviderTypeError,
     ProviderAlreadyExistsError,
     ProviderInvalidResponseError,
     ProviderNotReachableError,
+    TokenizerNotLoadableError,
 )
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router
@@ -33,6 +35,8 @@ class CreateProviderCommand:
     model_total_params: int
     model_active_params: int
     qos_limit: int | None = None
+    tokenizer_name: str | None = None
+    hf_token: str | None = None
 
 
 @dataclass
@@ -51,6 +55,8 @@ type CreateProviderUseCaseResult = (
     | InconsistentModelQosLimitError
     | RouterNotFoundError
     | ProviderAlreadyExistsError
+    | TokenizerNotLoadableError
+    | DefaultTokenizerNotLoadableError
 )
 
 
@@ -60,10 +66,12 @@ class CreateProviderUseCase:
         router_repository: RouterRepository,
         provider_repository: ProviderRepository,
         provider_capabilities_probe: ProviderCapabilitiesProbe,
+        tokenizer_registry: TokenizerRegistry,
     ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
         self.provider_capabilities_probe = provider_capabilities_probe
+        self.tokenizer_registry = tokenizer_registry
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
         match await self.router_repository.lock_and_get_router_by_id(router_id=command.router_id):
@@ -74,6 +82,13 @@ class CreateProviderUseCase:
 
         if not router.is_compatible_with_provider_type(command.provider_type):
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)
+
+        tokenizer_name = command.tokenizer_name if command.tokenizer_name is not None else command.model_name
+        match await self.tokenizer_registry.get(tokenizer_name=tokenizer_name, hf_token=command.hf_token):
+            case TokenizerNotLoadableError(detail=detail) if command.tokenizer_name is None:
+                return DefaultTokenizerNotLoadableError(model_name=command.model_name, detail=detail)
+            case TokenizerNotLoadableError() as error:
+                return error
 
         result = await self.provider_capabilities_probe.get_capabilities(
             router_type=router.type,
@@ -106,6 +121,8 @@ class CreateProviderUseCase:
             timeout=command.timeout,
             qos_limit=command.qos_limit,
             model_name=command.model_name,
+            tokenizer_name=tokenizer_name,
+            hf_token=command.hf_token,
             model_hosting_zone=command.model_hosting_zone,
             model_total_params=command.model_total_params,
             model_active_params=command.model_active_params,

@@ -56,3 +56,15 @@ class ProviderAdapterValidationResponseError:
 class UnsupportedProviderEndpointError:
     endpoint: ProviderEndpoint
     provider_type: ProviderType | None = None
+
+
+@dataclass
+class TokenizerNotLoadableError:
+    tokenizer_name: str
+    detail: str
+
+
+@dataclass
+class DefaultTokenizerNotLoadableError:
+    model_name: str
+    detail: str
