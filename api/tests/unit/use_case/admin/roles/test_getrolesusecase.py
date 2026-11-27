@@ -1,40 +1,51 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 import pytest
 
 from api.domain import EntitiesPage, SortField, SortOrder
+from api.domain.role import LimitRepository, PermissionRepository, RoleAuthorization, RoleRepository
 from api.domain.role.entities import LimitType, PermissionType
+from api.domain.role.errors import UserCannotReadRolesError
 from api.tests.unit.use_case.factories import LimitFactory, RoleFactory
 from api.use_cases.admin.roles import GetRolesCommand, GetRolesUseCase, GetRolesUseCaseSuccess
 
 
 @pytest.fixture
-def role_repository():
-    return AsyncMock()
+def mock_role_repository():
+    return create_autospec(RoleRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def permission_repository():
-    return AsyncMock()
+def mock_permission_repository():
+    return create_autospec(PermissionRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def limit_repository():
-    return AsyncMock()
+def mock_limit_repository():
+    return create_autospec(LimitRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def use_case(role_repository, permission_repository, limit_repository):
+def mock_role_authorization():
+    authorization = create_autospec(RoleAuthorization, instance=True, spec_set=True)
+    authorization.can_read_roles.return_value = True
+    return authorization
+
+
+@pytest.fixture
+def use_case(mock_role_repository, mock_permission_repository, mock_limit_repository, mock_role_authorization):
     return GetRolesUseCase(
-        role_repository=role_repository,
-        permission_repository=permission_repository,
-        limit_repository=limit_repository,
+        role_repository=mock_role_repository,
+        permission_repository=mock_permission_repository,
+        limit_repository=mock_limit_repository,
+        role_authorization=mock_role_authorization,
     )
 
 
 @pytest.fixture
 def default_command():
     return GetRolesCommand(
+        authenticated_user_id=1,
         offset=0,
         limit=10,
         sort_by=SortField.ID,
@@ -44,12 +55,26 @@ def default_command():
 
 class TestGetRolesUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_empty_page_without_querying_limits_and_permissions(
-        self, use_case, role_repository, limit_repository, permission_repository, default_command
+    async def test_should_return_an_error_without_reading_anything_when_the_user_is_not_allowed(
+        self, use_case, mock_role_repository, mock_role_authorization, default_command
     ):
         # Arrange
+        mock_role_authorization.can_read_roles.return_value = False
 
-        role_repository.get_roles_page.return_value = EntitiesPage(total=0, data=[])
+        # Act
+        result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert result == UserCannotReadRolesError(user_id=1)
+        mock_role_authorization.can_read_roles.assert_awaited_once_with(user_id=1)
+        mock_role_repository.get_roles_page.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_return_an_empty_page_without_querying_limits_and_permissions_when_there_is_no_role(
+        self, use_case, mock_role_repository, mock_limit_repository, mock_permission_repository, default_command
+    ):
+        # Arrange
+        mock_role_repository.get_roles_page.return_value = EntitiesPage(total=0, data=[])
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -58,12 +83,12 @@ class TestGetRolesUseCase:
         assert isinstance(result, GetRolesUseCaseSuccess)
         assert result.role_page.total == 0
         assert result.role_page.data == []
-        limit_repository.get_limits_by_role_ids.assert_not_called()
-        permission_repository.get_permissions_by_role_ids.assert_not_called()
+        mock_limit_repository.get_limits_by_role_ids.assert_not_awaited()
+        mock_permission_repository.get_permissions_by_role_ids.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_pages_with_roles_permissions_and_limits(
-        self, use_case, role_repository, limit_repository, permission_repository, default_command
+    async def test_should_return_the_page_with_the_roles_permissions_and_limits_when_the_user_is_allowed(
+        self, use_case, mock_role_repository, mock_limit_repository, mock_permission_repository, mock_role_authorization, default_command
     ):
         # Arrange
         role_1 = RoleFactory(id=1, limits=[], permissions=[])
@@ -71,9 +96,9 @@ class TestGetRolesUseCase:
         limits_role_1 = [LimitFactory(router_id=1, type=LimitType.RPM, value=100)]
         permissions_role_2 = [PermissionType.READ_METRIC]
 
-        role_repository.get_roles_page.return_value = EntitiesPage(total=2, data=[role_1, role_2])
-        limit_repository.get_limits_by_role_ids.return_value = {1: limits_role_1}
-        permission_repository.get_permissions_by_role_ids.return_value = {2: permissions_role_2}
+        mock_role_repository.get_roles_page.return_value = EntitiesPage(total=2, data=[role_1, role_2])
+        mock_limit_repository.get_limits_by_role_ids.return_value = {1: limits_role_1}
+        mock_permission_repository.get_permissions_by_role_ids.return_value = {2: permissions_role_2}
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -85,6 +110,7 @@ class TestGetRolesUseCase:
         assert assembled_role_1.permissions == []
         assert assembled_role_2.limits == []
         assert assembled_role_2.permissions == permissions_role_2
-        limit_repository.get_limits_by_role_ids.assert_called_once_with(role_ids=[1, 2])
-        permission_repository.get_permissions_by_role_ids.assert_called_once_with(role_ids=[1, 2])
-        role_repository.get_roles_page.assert_called_once_with(limit=10, offset=0, sort_by=SortField.ID, sort_order=SortOrder.ASC)
+        mock_role_authorization.can_read_roles.assert_awaited_once_with(user_id=1)
+        mock_role_repository.get_roles_page.assert_awaited_once_with(limit=10, offset=0, sort_by=SortField.ID, sort_order=SortOrder.ASC)
+        mock_limit_repository.get_limits_by_role_ids.assert_awaited_once_with(role_ids=[1, 2])
+        mock_permission_repository.get_permissions_by_role_ids.assert_awaited_once_with(role_ids=[1, 2])
