@@ -155,6 +155,8 @@ class BootstrapModelsUseCase:
                     timeout=provider_to_create.timeout,
                     qos_limit=provider_to_create.qos_limit,
                     model_name=provider_to_create.model_name,
+                    tokenizer_name=provider_to_create.model_name,
+                    hf_token=None,
                     model_hosting_zone=provider_to_create.model_hosting_zone,
                     model_total_params=provider_to_create.model_total_params,
                     model_active_params=provider_to_create.model_active_params,

@@ -213,6 +213,8 @@ class Provider(Base):
     timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
     qos_limit: Mapped[int | None]
     model_name: Mapped[str]
+    tokenizer_name: Mapped[str | None]
+    hf_token: Mapped[str | None]
     model_hosting_zone: Mapped[HostingZone | None]
     model_total_params: Mapped[int] = mapped_column(default=0)
     model_active_params: Mapped[int] = mapped_column(default=0)

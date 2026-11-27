@@ -16,6 +16,8 @@ class ProviderRepository(ABC):
         key: str | None,
         timeout: int,
         model_name: str,
+        tokenizer_name: str,
+        hf_token: str | None,
         model_hosting_zone: HostingZone,
         model_total_params: int,
         model_active_params: int,

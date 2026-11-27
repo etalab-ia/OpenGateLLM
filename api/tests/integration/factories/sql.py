@@ -199,6 +199,8 @@ class ProviderSQLFactory(BaseSQLFactory):
     timeout = factory.Faker("random_int", min=1, max=300)
     qos_limit = None
     model_name = factory.Faker("bothify", text="model-##-?????")
+    tokenizer_name = factory.SelfAttribute("model_name")
+    hf_token = None
     model_hosting_zone = factory.Faker("random_element", elements=list(HostingZone))
     model_total_params = factory.Faker("random_int", min=1000000, max=2000000000)
     model_active_params = factory.Faker("random_int", min=1000000, max=1000000000)

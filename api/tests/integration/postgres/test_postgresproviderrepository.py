@@ -24,6 +24,8 @@ def _create_provider_args(user, router, **overrides):
         "timeout": 60,
         "qos_limit": 9,
         "model_name": "my-model",
+        "tokenizer_name": "org/my-tokenizer",
+        "hf_token": "hf_secret",
         "model_hosting_zone": HostingZone.FRA,
         "model_total_params": 1000,
         "model_active_params": 2000,
@@ -60,6 +62,8 @@ class TestCreateProvider:
             timeout=60,
             qos_limit=9,
             model_name="my-model",
+            tokenizer_name="org/my-tokenizer",
+            hf_token="hf_secret",
             model_hosting_zone=HostingZone.FRA,
             model_total_params=1000,
             model_active_params=2000,
@@ -253,11 +257,15 @@ class TestUpdateProvider:
             .with_model_hosting_zone(HostingZone.USA)
             .with_model_total_params(2_000_000)
             .with_model_active_params(1_000_000)
+            .with_tokenizer_name("org/other-tokenizer")
+            .with_hf_token("hf_other")
         )
 
         # Assert
         assert isinstance(result, Provider)
         assert result.router_id == router_2.id
+        assert result.tokenizer_name == "org/other-tokenizer"
+        assert result.hf_token == "hf_other"
         assert result.timeout == 120
         assert result.qos_limit == 8
         assert result.model_hosting_zone == HostingZone.USA
@@ -351,3 +359,17 @@ class TestGetProviderIdsByUserId:
 
         # Assert
         assert sorted(result) == sorted([provider_1.id, provider_2.id])
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestTokenizerNameFallback:
+    async def test_get_one_provider_should_return_the_model_name_as_tokenizer_when_the_tokenizer_name_is_null(self, repository, db_session):
+        # Arrange
+        provider = ProviderSQLFactory(model_name="org/model", tokenizer_name=None)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_one_provider(provider.id)
+
+        # Assert
+        assert result.tokenizer_name == "org/model"

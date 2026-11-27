@@ -93,6 +93,8 @@ class ProviderFactory(factory.Factory):
     timeout = 30
     qos_limit = None
     model_name = factory.Faker("bothify", text="model-????")
+    tokenizer_name = factory.SelfAttribute("model_name")
+    hf_token = None
     model_hosting_zone = HostingZone.WOR
     model_total_params = 0
     model_active_params = 0

@@ -106,6 +106,8 @@ class CreateProviderUseCase:
             timeout=command.timeout,
             qos_limit=command.qos_limit,
             model_name=command.model_name,
+            tokenizer_name=command.model_name,
+            hf_token=None,
             model_hosting_zone=command.model_hosting_zone,
             model_total_params=command.model_total_params,
             model_active_params=command.model_active_params,
