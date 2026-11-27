@@ -1,18 +1,19 @@
 ---
 name: "⚙️ Feature / improvements / chore"
 about: Suggest an idea for this project
-title: "[topic] Actionable issue title (not descriptive)"
+title: "[topic] Describe the change with an action verb"
 labels: ''
 assignees: ''
-
 ---
 
-### Context - why is this issue relevant?
+### Context
 
-### Objective – what is the aim of this issue?
+<!-- Who is affected, what happens today, and why does it matter? -->
 
-### Expected outcomes – what do we expect at the end of this issue (concrete outcomes)?
+### Objective
 
-#### Outcomes
+<!-- What need should this change meet? -->
 
-#### Acceptance criteria
+### Expected outcomes
+
+<!-- Describe observable acceptance criteria: Given [context], when [action], then [outcome]. -->
