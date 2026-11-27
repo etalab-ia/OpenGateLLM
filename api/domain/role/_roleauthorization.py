@@ -7,5 +7,13 @@ class RoleAuthorization(ABC):
         pass
 
     @abstractmethod
+    async def can_read_roles(self, user_id: int) -> bool:
+        pass
+
+    @abstractmethod
+    async def can_read_role(self, user_id: int, role_id: int) -> bool:
+        pass
+
+    @abstractmethod
     async def can_delete_role(self, user_id: int, role_id: int) -> bool:
         pass

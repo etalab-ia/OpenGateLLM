@@ -2,12 +2,14 @@ import asyncio
 from dataclasses import dataclass, replace
 
 from api.domain import SortField, SortOrder
-from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
+from api.domain.role import LimitRepository, PermissionRepository, RoleAuthorization, RoleRepository
 from api.domain.role.entities import RolePage
+from api.domain.role.errors import UserCannotReadRolesError
 
 
 @dataclass
 class GetRolesCommand:
+    authenticated_user_id: int
     offset: int = 0
     limit: int = 10
     sort_by: SortField = SortField.ID
@@ -19,16 +21,27 @@ class GetRolesUseCaseSuccess:
     role_page: RolePage
 
 
-type GetRolesUseCaseResult = GetRolesUseCaseSuccess
+type GetRolesUseCaseResult = GetRolesUseCaseSuccess | UserCannotReadRolesError
 
 
 class GetRolesUseCase:
-    def __init__(self, role_repository: RoleRepository, permission_repository: PermissionRepository, limit_repository: LimitRepository):
+    def __init__(
+        self,
+        role_repository: RoleRepository,
+        permission_repository: PermissionRepository,
+        limit_repository: LimitRepository,
+        role_authorization: RoleAuthorization,
+    ):
         self.role_repository = role_repository
         self.permission_repository = permission_repository
         self.limit_repository = limit_repository
+        self.role_authorization = role_authorization
 
     async def execute(self, command: GetRolesCommand) -> GetRolesUseCaseResult:
+        is_authorized = await self.role_authorization.can_read_roles(user_id=command.authenticated_user_id)
+        if not is_authorized:
+            return UserCannotReadRolesError(user_id=command.authenticated_user_id)
+
         role_page = await self.role_repository.get_roles_page(
             limit=command.limit, offset=command.offset, sort_by=command.sort_by, sort_order=command.sort_order
         )

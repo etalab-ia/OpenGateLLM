@@ -16,6 +16,8 @@ from api.domain.role.errors import (
     RoleNotFoundError,
     UserCannotCreateRoleError,
     UserCannotDeleteRoleError,
+    UserCannotReadRoleError,
+    UserCannotReadRolesError,
 )
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -113,9 +115,9 @@ async def update_role(
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([UnauthorizedActionHTTPException]),
 )
 async def get_roles(
     offset: int = Query(default=0, ge=0, description="Number of roles to skip."),
@@ -123,8 +125,15 @@ async def get_roles(
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_roles_use_case: GetRolesUseCase = Depends(get_roles_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RolesResponse:
-    command = GetRolesCommand(offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
+    command = GetRolesCommand(
+        authenticated_user_id=authenticated_user.id,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
     result = await get_roles_use_case.execute(command)
     match result:
         case GetRolesUseCaseSuccess(role_page=roles_page):
@@ -134,19 +143,22 @@ async def get_roles(
                 limit=limit,
                 data=[RoleResponse.model_validate(role, from_attributes=True) for role in roles_page.data],
             )
+        case UserCannotReadRolesError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException]),
+    responses=get_documentation_responses([RoleNotFoundHTTPException, UnauthorizedActionHTTPException]),
 )
 async def get_role(
     role_id: int = Path(description="The ID of the role to get."),
     get_one_role_use_case: GetOneRoleUseCase = Depends(get_one_role_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
-    command = GetOneRoleCommand(role_id=role_id)
+    command = GetOneRoleCommand(authenticated_user_id=authenticated_user.id, role_id=role_id)
     result = await get_one_role_use_case.execute(command)
 
     match result:
@@ -154,6 +166,8 @@ async def get_role(
             return RoleResponse.model_validate(role, from_attributes=True)
         case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id)
+        case UserCannotReadRoleError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.delete(
