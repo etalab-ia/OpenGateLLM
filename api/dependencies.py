@@ -619,10 +619,11 @@ def get_one_role_use_case_factory(postgres_session: AsyncSession = Depends(get_p
     )
 
 
-def delete_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteRoleUseCase:
-    return DeleteRoleUseCase(
-        role_repository=_role_repository(postgres_session),
-    )
+def delete_role_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    role_authorization: RoleAuthorization = Depends(_get_role_authorization),
+) -> DeleteRoleUseCase:
+    return DeleteRoleUseCase(role_repository=_role_repository(postgres_session), role_authorization=role_authorization)
 
 
 # router use cases

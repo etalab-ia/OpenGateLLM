@@ -15,6 +15,7 @@ from api.domain.role.errors import (
     RoleHasUsersError,
     RoleNotFoundError,
     UserCannotCreateRoleError,
+    UserCannotDeleteRoleError,
 )
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -157,15 +158,16 @@ async def get_role(
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException, RoleHasUsersHTTPException]),
+    responses=get_documentation_responses([RoleNotFoundHTTPException, RoleHasUsersHTTPException, UnauthorizedActionHTTPException]),
 )
 async def delete_role(
     role_id: int = Path(description="The ID of the role to delete."),
     delete_role_use_case: DeleteRoleUseCase = Depends(delete_role_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
-    command = DeleteRoleCommand(role_id=role_id)
+    command = DeleteRoleCommand(authenticated_user_id=authenticated_user.id, role_id=role_id)
     result = await delete_role_use_case.execute(command)
 
     match result:
@@ -175,3 +177,5 @@ async def delete_role(
             raise RoleNotFoundHTTPException(role_id)
         case RoleHasUsersError(id=role_id):
             raise RoleHasUsersHTTPException(role_id=role_id)
+        case UserCannotDeleteRoleError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
