@@ -28,5 +28,15 @@ class UserCannotCreateRoleError:
 
 
 @dataclass
+class UserCannotReadRolesError:
+    user_id: int
+
+
+@dataclass
+class UserCannotReadRoleError:
+    user_id: int
+
+
+@dataclass
 class UserCannotDeleteRoleError:
     user_id: int

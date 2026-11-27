@@ -1,8 +1,13 @@
+from unittest.mock import AsyncMock, create_autospec
+
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
+from api.dependencies import _get_role_authorization, get_roles_use_case_factory
+from api.domain.role import RoleAuthorization
 from api.domain.role.entities import LimitType, PermissionType
+from api.domain.role.errors import UserCannotReadRolesError
 from api.infrastructure.fastapi.routes import EndpointRoute
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -17,7 +22,15 @@ class TestGetRoles:
         self.admin_user = UserSQLFactory(admin_user=True)
         self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
-    async def test_happy_path(self, client: AsyncClient, db_session):
+    @pytest.fixture
+    def mock_role_authorization(self, app):
+        # No OpenFGA server in the tests: the port answers in its place.
+        mock_authorization = create_autospec(RoleAuthorization, instance=True, spec_set=True)
+        mock_authorization.can_read_roles.return_value = True
+        app.dependency_overrides[_get_role_authorization] = lambda: mock_authorization
+        return mock_authorization
+
+    async def test_should_return_the_roles_when_the_user_is_allowed_to_read_them(self, client: AsyncClient, db_session, mock_role_authorization):
         router = RouterSQLFactory()
         role = RoleSQLFactory(name="my-role")
         LimitSQLFactory(role=role, router=router, type=LimitType.TPM, value=100)
@@ -30,6 +43,7 @@ class TestGetRoles:
         )
 
         assert response.status_code == 200, response.text
+        mock_role_authorization.can_read_roles.assert_awaited_once_with(user_id=self.admin_user.id)
         data = response.json()
         assert data["object"] == "list"
         assert isinstance(data["total"], int)
@@ -40,17 +54,28 @@ class TestGetRoles:
         role_names = [r["name"] for r in data["data"]]
         assert "my-role" in role_names
 
-    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
-        regular_user = UserSQLFactory(regular_user=True)
-        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+    @pytest.mark.parametrize(
+        "use_case_result,expected_status,expected_detail",
+        [
+            (
+                UserCannotReadRolesError(user_id=7),
+                403,
+                "User 7 is not allowed to perform this action.",
+            ),
+        ],
+    )
+    async def test_should_map_each_domain_error_to_its_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
+        mock_use_case = AsyncMock()
+        mock_use_case.execute.return_value = use_case_result
+        app.dependency_overrides[get_roles_use_case_factory] = lambda: mock_use_case
 
         response = await client.get(
             url=URL,
-            headers={"Authorization": f"Bearer {key.token}"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
-        assert response.status_code == 403, response.text
-        assert response.json().get("detail") == "User has no admin rights."
+        assert response.status_code == expected_status
+        assert response.json().get("detail") == expected_detail
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
@@ -60,7 +85,7 @@ class TestGetRoles:
             ({"Authorization": f"Bearer {INVALID_API_KEY}"}, 401, "Invalid API key."),
         ],
     )
-    async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
+    async def test_should_reject_the_request_when_the_key_is_missing_or_invalid(self, client: AsyncClient, headers, expected_status, expected_detail):
         response = await client.get(url=URL, headers=headers)
 
         assert response.status_code == expected_status
