@@ -38,5 +38,10 @@ class UserCannotReadRoleError:
 
 
 @dataclass
+class UserCannotUpdateRoleError:
+    user_id: int
+
+
+@dataclass
 class UserCannotDeleteRoleError:
     user_id: int

@@ -18,6 +18,7 @@ from api.domain.role.errors import (
     UserCannotDeleteRoleError,
     UserCannotReadRoleError,
     UserCannotReadRolesError,
+    UserCannotUpdateRoleError,
 )
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -25,7 +26,6 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    NotAdminUserHTTPException,
     RoleAdminPermissionChangeHTTPException,
     RoleAlreadyExistsHTTPException,
     RoleHasUsersHTTPException,
@@ -83,18 +83,20 @@ async def create_role(
 
 @router.patch(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses(
-        [NotAdminUserHTTPException, RoleAdminPermissionChangeHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException]
+        [RoleAdminPermissionChangeHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException, UnauthorizedActionHTTPException]
     ),
 )
 async def update_role(
     role_id: int = Path(description="The ID of the role to update."),
     body: UpdateRoleBody = Body(description="The role update request."),
     update_role_use_case: UpdateRoleUseCase = Depends(update_role_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
     command = UpdateRoleCommand(
+        authenticated_user_id=authenticated_user.id,
         role_id=role_id,
         name=body.name,
         permissions=body.permissions,
@@ -111,6 +113,8 @@ async def update_role(
             raise RoleAlreadyExistsHTTPException(name)
         case RoleAdminPermissionChangeError(id=unchangeable_role_id):
             raise RoleAdminPermissionChangeHTTPException(unchangeable_role_id)
+        case UserCannotUpdateRoleError(user_id=user_id):
+            raise UnauthorizedActionHTTPException(user_id)
 
 
 @router.get(

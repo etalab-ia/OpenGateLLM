@@ -597,11 +597,15 @@ def create_role_use_case_factory(
     )
 
 
-def update_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateRoleUseCase:
+def update_role_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    role_authorization: RoleAuthorization = Depends(_get_role_authorization),
+) -> UpdateRoleUseCase:
     return UpdateRoleUseCase(
         role_repository=_role_repository(postgres_session),
         limit_repository=_limit_repository(postgres_session),
         permission_repository=_permission_repository(postgres_session),
+        role_authorization=role_authorization,
     )
 
 
