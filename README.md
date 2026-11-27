@@ -226,10 +226,10 @@
 | api/infrastructure/postgres/decorators.py                                                                       |       25 |        1 |        6 |        1 |     93.55% |        36 |
 | api/infrastructure/postgres/models.py                                                                           |      119 |        0 |        0 |        0 |    100.00% |           |
 | api/infrastructure/redis/\_keys.py                                                                              |        2 |        0 |        0 |        0 |    100.00% |           |
-| api/infrastructure/redis/\_redisproviderconcurrencylimiter.py                                                   |       85 |        1 |       10 |        0 |     98.95% |       132 |
+| api/infrastructure/redis/\_redisproviderconcurrencylimiter.py                                                   |      118 |        2 |       14 |        1 |     97.73% |   78, 174 |
 | api/infrastructure/redis/\_redisrouterratelimiter.py                                                            |      117 |       15 |       42 |        9 |     84.91% |33-\>exit, 52, 65-\>39, 68, 110-111, 115, 120-\>exit, 127, 137-140, 159, 168-169, 173-176 |
 | api/infrastructure/tiktoken/\_tiktokenmodeltokenizer.py                                                         |       13 |        0 |        2 |        0 |    100.00% |           |
-| api/lifespan.py                                                                                                 |      167 |       80 |       64 |        4 |     46.32% |64-91, 95-101, 105, 109, 143-146, 147-\>exit, 185, 190-191, 225-237, 241-249, 253-275, 279-289 |
+| api/lifespan.py                                                                                                 |      177 |       81 |       68 |        5 |     48.57% |65-93, 97-103, 113-\>exit, 118, 122, 156-159, 160-\>exit, 198, 203-204, 238-250, 254-262, 266-288, 292-302 |
 | api/main.py                                                                                                     |        2 |        2 |        0 |        0 |      0.00% |       1-3 |
 | api/use\_cases/\_providerrequestforwardingusecase.py                                                            |      192 |        2 |       58 |        3 |     98.00% |225-\>231, 279-281, 340-\>exit |
 | api/use\_cases/admin/\_bootstrapadminusecase.py                                                                 |       76 |        0 |       30 |        7 |     93.40% |74-\>82, 79-\>82, 85-\>113, 87-\>113, 92-\>100, 97-\>100, 110-\>113 |
@@ -281,7 +281,7 @@
 | api/use\_cases/reranks/\_creatererankusecase.py                                                                 |        9 |        0 |        2 |        0 |    100.00% |           |
 | api/use\_cases/services/\_providercapabilitiesprobe.py                                                          |       73 |        6 |       30 |        3 |     91.26% |52-53, 65-66, 114-115 |
 | api/use\_cases/usage/\_getusagesusecase.py                                                                      |       17 |        0 |        0 |        0 |    100.00% |           |
-| **TOTAL**                                                                                                       | **8389** |  **611** | **1496** |  **177** | **91.14%** |           |
+| **TOTAL**                                                                                                       | **8432** |  **613** | **1504** |  **179** | **91.14%** |           |
 
 
 ## Setup coverage badge
