@@ -1,9 +1,11 @@
 import asyncio
+from dataclasses import dataclass
 import logging
 from typing import ClassVar
+from uuid import uuid4
 
 from redis.asyncio import Redis as AsyncRedis
-from redis.exceptions import RedisError
+from redis.exceptions import NoPermissionError, RedisError
 
 from api.domain.provider._providerconcurrencylimiter import (
     ProviderConcurrencyLimiter,
@@ -38,8 +40,18 @@ return 1
 """
 
 
+@dataclass
+class RedisCommandDeniedError:
+    reason: str
+
+    @property
+    def message(self) -> str:
+        return f"The Redis user is not allowed to run a command the provider limits need: {self.reason}"
+
+
 class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
     LOAD_KEY_PREFIX = "ogl_qos:load"
+    PERMISSION_CHECK_KEY_PREFIX = f"{LOAD_KEY_PREFIX}:permission-check"
     RESERVATION_TTL_MILLISECONDS = 30_000
     HEARTBEAT_INTERVAL_SECONDS = 10.0
     NO_LIMIT = -1
@@ -52,6 +64,21 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
         self._try_reserve = redis_client.register_script(TRY_RESERVE_SCRIPT)
         self._heartbeats: dict[str, asyncio.Task] = {}
 
+    async def check_permissions(self) -> RedisCommandDeniedError | None:
+        key = f"{self.PERMISSION_CHECK_KEY_PREFIX}:{uuid4().hex}"
+        request_id = "permission-check"
+        try:
+            await self.redis_client.script_load(TRY_RESERVE_SCRIPT)
+            await self._try_reserve(keys=[key], args=[request_id, 1, self.RESERVATION_TTL_MILLISECONDS], client=self.redis_client)
+            await self.redis_client.zcount(key, "-inf", "+inf")
+            await self.redis_client.zrem(key, request_id)
+        except RedisError as error:
+            if self._is_refused_by_acl(error):
+                return RedisCommandDeniedError(reason=str(error))
+            raise
+
+        return None
+
     async def read_loads(self, providers: list[Provider]) -> ProviderLoads | ProviderLimitsCannotBeEnforced:
         try:
             now_ms = self._milliseconds(await self.redis_client.time())
@@ -59,8 +86,8 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
             for provider in providers:
                 pipeline.zcount(self._load_key(provider.id), f"({now_ms}", "+inf")
             loads = await pipeline.execute()
-        except RedisError:
-            self._record_redis_outage()
+        except RedisError as error:
+            self._record_redis_error(error)
             return ProviderLimitsCannotBeEnforced()
 
         self._record_redis_recovery()
@@ -76,8 +103,8 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
                 args=[request_id, self.NO_LIMIT if limit is None else limit, self.RESERVATION_TTL_MILLISECONDS],
                 client=self.redis_client,
             )
-        except RedisError:
-            self._record_redis_outage()
+        except RedisError as error:
+            self._record_redis_error(error)
             return ProviderLimitsCannotBeEnforced()
 
         self._record_redis_recovery()
@@ -98,6 +125,21 @@ class RedisProviderConcurrencyLimiter(ProviderConcurrencyLimiter):
             except RedisError:
                 level = logging.DEBUG if self._redis_is_unreachable else logging.WARNING
                 logger.log(level, "Failed to renew the provider reservation of request %s.", request_id)
+
+    @classmethod
+    def _record_redis_error(cls, error: RedisError) -> None:
+        if cls._is_refused_by_acl(error):
+            cls._record_acl_refusal(error)
+            return
+        cls._record_redis_outage()
+
+    @staticmethod
+    def _is_refused_by_acl(error: RedisError) -> bool:
+        return isinstance(error, NoPermissionError) or str(error).startswith("ACL failure in script")
+
+    @staticmethod
+    def _record_acl_refusal(error: RedisError) -> None:
+        logger.error("%s. They are not enforced.", RedisCommandDeniedError(reason=str(error)).message)
 
     @classmethod
     def _record_redis_outage(cls) -> None:

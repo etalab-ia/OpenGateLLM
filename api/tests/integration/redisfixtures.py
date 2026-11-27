@@ -1,5 +1,7 @@
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 import os
+from urllib.parse import urlsplit, urlunsplit
+from uuid import uuid4
 
 from fastapi import BackgroundTasks
 import pytest
@@ -65,3 +67,22 @@ async def redis_client(test_redis_pool) -> AsyncGenerator[redis.Redis]:
         yield client
     finally:
         await client.aclose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def create_redis_user_url(redis_client) -> AsyncGenerator[Callable[[str], Awaitable[str]]]:
+    created_users: list[str] = []
+
+    async def create_redis_user_url(denied_command: str) -> str:
+        username = f"test-user-{uuid4().hex}"
+        password = uuid4().hex
+        await redis_client.execute_command("ACL", "SETUSER", username, "on", f">{password}", "~*", "&*", "+@all", f"-{denied_command}")
+        created_users.append(username)
+        url = urlsplit(TEST_REDIS_URL)
+        host = url.netloc.rsplit("@", 1)[-1]
+        return urlunsplit(url._replace(netloc=f"{username}:{password}@{host}"))
+
+    yield create_redis_user_url
+
+    for username in created_users:
+        await redis_client.execute_command("ACL", "DELUSER", username)
